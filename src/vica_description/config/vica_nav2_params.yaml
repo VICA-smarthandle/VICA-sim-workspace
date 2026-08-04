@@ -108,19 +108,29 @@ controller_server:
       xy_goal_tolerance: 0.25
       yaw_goal_tolerance: 0.25
     FollowPath:
+      # Velocity and acceleration limits are the physical robot's measured
+      # values (vica_nav2): 0.26 m/s and 0.4 rad/s, with acc_lim 2.0 after 2.5
+      # was found to lurch on start. vx_min is 0 because the planner runs with
+      # allow_reverse_expansion false, so nothing upstream asks for reverse.
+      #
+      # NOTE the real robot runs DWB here, not MPPI. Keeping MPPI in sim is
+      # deliberate -- it considers the footprint over a horizon, which is what
+      # the narrow-corner work needs -- but it means controller behaviour is the
+      # one axis where sim and robot are not the same. Revisit before porting
+      # any controller tuning back.
       plugin: "nav2_mppi_controller::MPPIController"
       time_steps: 56
       model_dt: 0.05
       batch_size: 2000
-      ax_max: 1.0
-      ax_min: -1.0
+      ax_max: 2.0
+      ax_min: -2.0
       az_max: 2.0
       vx_std: 0.2
       vy_std: 0.2
       wz_std: 0.4
-      vx_max: 0.5
-      vx_min: -0.35
-      wz_max: 1.9
+      vx_max: 0.26
+      vx_min: 0.0
+      wz_max: 0.4
       iteration_count: 1
       prune_distance: 1.7
       transform_tolerance: 0.1
@@ -205,23 +215,25 @@ local_costmap:
       rolling_window: true
       width: 6
       height: 6
-      # 2.5 cm rather than 5: at 5 cm a gap either quantises open or shut, which
-      # is exactly the decision that matters in a narrow corridor. 6 m at 2.5 cm
-      # is 240x240 cells, so the cost is negligible.
-      resolution: 0.025
-      # VICA collision envelope in base_footprint coordinates. It includes the
-      # rear mast, chassis, and the outer edges of both drive wheels.
-      footprint: "[[0.32, 0.23], [0.32, -0.23], [-0.52, -0.23], [-0.52, 0.23]]"
-      footprint_padding: 0.01
+      # 5 cm to match the lattice primitive set (5cm_resolution) and the
+      # physical robot's costmap; a finer grid here would not be reflected in
+      # the motion primitives the planner actually has.
+      resolution: 0.05
+      # Matches the physical robot's tuned footprint. The tail narrows to the
+      # mast width instead of staying full-width, which is what lets the robot
+      # into gaps a bounding rectangle refuses.
+      footprint: "[[0.305, 0.2275], [0.305, -0.2275], [-0.305, -0.2275], [-0.595, -0.035], [-0.595, 0.035], [-0.305, 0.2275]]"
+      footprint_padding: 0.05
       plugins: ["voxel_layer", "inflation_layer"]
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
-        # inflation_radius stays at or above the circumscribed radius; dropping
-        # it to 0.30 is what produced the earlier MPPI/costmap errors. The knob
-        # for narrow corridors is the falloff, not the radius: a gentler curve
-        # leaves a traversable cost gradient through gaps instead of a wall.
-        cost_scaling_factor: 2.5
-        inflation_radius: 0.60
+        # Both values come from the physical robot. cost_scaling_factor 2.5 was
+        # tried there and rejected: the falloff was slow enough to leave cost
+        # sitting in the middle of a corridor. inflation_radius does not decide
+        # passability -- the padded footprint does -- it only shapes the decay
+        # outside the lethal band.
+        cost_scaling_factor: 3.5
+        inflation_radius: 0.55
       voxel_layer:
         plugin: "nav2_costmap_2d::VoxelLayer"
         enabled: True
@@ -258,8 +270,8 @@ global_costmap:
       publish_frequency: 1.0
       global_frame: map
       robot_base_frame: base_footprint
-      footprint: "[[0.32, 0.23], [0.32, -0.23], [-0.52, -0.23], [-0.52, 0.23]]"
-      footprint_padding: 0.01
+      footprint: "[[0.305, 0.2275], [0.305, -0.2275], [-0.305, -0.2275], [-0.595, -0.035], [-0.595, 0.035], [-0.305, 0.2275]]"
+      footprint_padding: 0.05
       resolution: 0.05
       track_unknown_space: true
       plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
@@ -286,12 +298,13 @@ global_costmap:
         map_subscribe_transient_local: True
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
-        # inflation_radius stays at or above the circumscribed radius; dropping
-        # it to 0.30 is what produced the earlier MPPI/costmap errors. The knob
-        # for narrow corridors is the falloff, not the radius: a gentler curve
-        # leaves a traversable cost gradient through gaps instead of a wall.
-        cost_scaling_factor: 2.5
-        inflation_radius: 0.60
+        # Both values come from the physical robot. cost_scaling_factor 2.5 was
+        # tried there and rejected: the falloff was slow enough to leave cost
+        # sitting in the middle of a corridor. inflation_radius does not decide
+        # passability -- the padded footprint does -- it only shapes the decay
+        # outside the lethal band.
+        cost_scaling_factor: 3.5
+        inflation_radius: 0.55
       # Updates only: republishing a hospital-sized costmap every second is
       # bandwidth the RViz session does not need.
       always_send_full_costmap: False
@@ -310,42 +323,74 @@ map_saver:
 
 planner_server:
   ros__parameters:
-    expected_planner_frequency: 20.0
+    expected_planner_frequency: 5.0
     planner_plugins: ["GridBased"]
     costmap_update_timeout: 1.0
-    # NavFn plans on a circular-robot assumption. VICA is 0.84 x 0.46 m with a
-    # 0.52 m tail behind the drive axle, so a NavFn path routinely threads gaps
-    # the robot cannot physically take. Smac Hybrid checks the real footprint at
-    # each pose and, with Reeds-Shepp, is free to reverse -- which matters
-    # because the swept radius about the drive axle is 0.712 m, so this robot
-    # cannot turn on the spot in a corridor narrower than ~1.42 m.
+    # Planner choice follows the physical robot (vica_ros2_ws vica_nav2), where
+    # it was settled by measurement rather than preference:
+    #
+    #   NavFn      rejected 2026-07-28. Gradient descent oscillates between
+    #              near-equal cells; only 2.5% of 5018 commands had the next
+    #              1.5 m straight to within 10 deg, on corridors that were
+    #              actually straight.
+    #   Smac 2D    rejected 2026-07-30. Node2D::isNodeValid collision-checks a
+    #              single cell, NodeHybrid checks the padded footprint at a
+    #              pose. The planner called 74.9% of the free area traversable
+    #              while the controller accepted 42.0% -- a 32.9pp gap that
+    #              showed up as 20+ second stalls mid-corridor.
+    #   Hybrid     works, but DUBIN/Reeds-Shepp primitives are arcs: there is
+    #              no turn-in-place motion. At one repeatedly-failing pose the
+    #              padded footprint was legal at yaw 0/45/90/135/180/315 and in
+    #              collision at 225/270 -- reachable by rotating on the spot,
+    #              not by a 0.5 m arc.
+    #   Lattice    current choice. The diff primitive set includes 32 in-place
+    #              rotations out of 112.
+    #
+    # Kept under the same "GridBased" key so swapping is a one-line change and
+    # the behaviour tree does not care.
     GridBased:
-      plugin: "nav2_smac_planner::SmacPlannerHybrid"
-      tolerance: 0.5
+      plugin: "nav2_smac_planner/SmacPlannerLattice"
+      lattice_filepath: "/opt/ros/jazzy/share/nav2_smac_planner/sample_primitives/5cm_resolution/0.5m_turning_radius/diff/output.json"
+      allow_reverse_expansion: false
+      rotation_penalty: 5.0
+      tolerance: 0.2
       allow_unknown: true
-      downsample_costmap: false
       max_iterations: 1000000
-      max_planning_time: 5.0
-      motion_model_for_search: "REEDS_SHEPP"
-      angle_quantization_bins: 72
-      # Roughly the wheelbase; a smaller radius produces arcs the controller
-      # cannot follow, a larger one refuses gaps that are actually passable.
-      minimum_turning_radius: 0.40
-      reverse_penalty: 2.0
-      change_penalty: 0.0
-      non_straight_penalty: 1.2
-      cost_penalty: 2.0
-      retrospective_penalty: 0.015
-      analytic_expansion_ratio: 3.5
-      analytic_expansion_max_length: 3.0
+      max_on_approach_iterations: 1000
+      max_planning_time: 1.0
+      cost_penalty: 4.0
+      cache_obstacle_heuristic: true
       smooth_path: true
       smoother:
         max_iterations: 1000
         w_smooth: 0.3
         w_data: 0.2
         tolerance: 1.0e-10
-        do_refinement: true
-        refinement_num: 2
+
+    # Kept for A/B against Lattice; only the plugin named in planner_plugins is
+    # loaded, so this block is inert. Swap the two keys to switch. Values that
+    # both planners share must stay identical -- the real robot has a contract
+    # test enforcing that, because one variable at a time is the whole point.
+    GridBasedAlt:
+      plugin: "nav2_smac_planner/SmacPlannerHybrid"
+      motion_model_for_search: "DUBIN"
+      minimum_turning_radius: 0.50
+      cost_penalty: 4.0
+      downsample_costmap: false
+      downsampling_factor: 1
+      angle_quantization_bins: 72
+      cache_obstacle_heuristic: true
+      tolerance: 0.2
+      allow_unknown: true
+      max_iterations: 1000000
+      max_on_approach_iterations: 1000
+      max_planning_time: 1.0
+      smooth_path: true
+      smoother:
+        max_iterations: 1000
+        w_smooth: 0.3
+        w_data: 0.2
+        tolerance: 1.0e-10
 
 smoother_server:
   ros__parameters:
@@ -423,10 +468,10 @@ velocity_smoother:
     stamp_smoothed_velocity_with_smoothing_time: False
     scale_velocities: False
     feedback: "OPEN_LOOP"
-    max_velocity: [0.5, 0.0, 2.0]
-    min_velocity: [-0.5, 0.0, -2.0]
-    max_accel: [1.0, 0.0, 2.0]
-    max_decel: [-1.0, 0.0, -2.0]
+    max_velocity: [0.26, 0.0, 0.4]
+    min_velocity: [0.0, 0.0, -0.4]
+    max_accel: [2.0, 0.0, 2.0]
+    max_decel: [-2.0, 0.0, -2.0]
     odom_topic: "odom"
     odom_duration: 0.1
     deadband_velocity: [0.0, 0.0, 0.0]
