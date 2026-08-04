@@ -1,4 +1,4 @@
-image: vica_indoor.pgm
+image: vica_indoor0.pgm
 mode: trinary
 resolution: 0.050
 origin: [-4.973, -3.344, 0]
