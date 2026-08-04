@@ -211,12 +211,8 @@
     </geometry>
     <material name="silver"/>
   </visual>
-  <collision>
-    <origin xyz="-0.185 -0.0 -0.258" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="package://vica_description/meshes/lidar_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-  </collision>
+  <!-- No collision: a lidar has nothing to collide with, and the STL becomes a
+       convex hull on Isaac import that the scan then sees as an obstacle. -->
 </link>
 
 <link name="camera_link">
