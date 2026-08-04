@@ -1,0 +1,535 @@
+"""Rebuild every VICA ROS 2 interface graph in the open Isaac Sim stage.
+
+Run once from Isaac Sim 6.0.1's Script Editor while the Timeline is stopped.
+
+This replaces add_drive_odom_graphs.py, which only covered two of the graphs the
+robot needs. Joint states, the RTX lidar and the camera were authored through
+the UI, so they lived in the USD alone: re-importing the robot or rebuilding the
+stage silently dropped them with no record of what went missing. Every graph the
+ROS side depends on is now created here, so a broken stage recovers by running
+this file again.
+
+Graphs created (all under <ROBOT_PATH>/Graph):
+
+    ROS_Clock              /clock
+    ROS_DifferentialDrive  /cmd_vel  -> wheel velocity targets
+    ROS_Odometry           /odom  and  odom -> base_footprint on /tf
+    ROS_JointStates        /joint_states
+    ROS_Lidar              /scan
+    ROS_Camera             /rgb, /depth, /camera_info
+
+Sensor graphs are skipped with a warning when their prim is absent, so the
+script still succeeds on a stage that carries only the robot body.
+"""
+
+from pxr import Usd, UsdGeom, UsdPhysics
+from usdrt import Sdf
+
+import omni.graph.core as og
+import omni.timeline
+import omni.usd
+
+
+# --------------------------------------------------------------------------
+# Stage layout
+# --------------------------------------------------------------------------
+# The robot path is DERIVED from the articulation root, never hard-coded.
+# Referencing the robot into an environment adds a namespace -- the working
+# stage nests it as /World/vica2/vica1 rather than /World/vica1 -- and a fixed
+# constant is what silently broke the earlier graphs. Everything below keys off
+# whatever prim actually carries ArticulationRootAPI.
+ARTICULATION_SUFFIX = "/Geometry/base_footprint/base_link"
+
+# Graphs are authored at stage level, NOT inside the robot prim. The robot is
+# brought in as a reference + payload (/World/vica2 -> /World/vica2/vica1), and
+# prims composed from a reference cannot be removed by the root layer: deleting
+# one only drops the local opinion while the referenced prim remains, so
+# rebuilding a graph in place fails with "Failed to wrap graph in node".
+#
+# Keeping the graphs outside the reference also means re-importing the robot no
+# longer takes the ROS interface down with it -- which is what happened before.
+GRAPH_PARENT = "/World/VICA_ROS"
+
+# Set an explicit path when the robot subtree holds more than one sensor of the
+# same kind; leave None to search by prim type.
+LIDAR_PRIM_HINT = None
+
+# The RSD455 asset carries four Camera prims -- colour, pseudo-depth and the two
+# stereo eyes -- so colour and depth each need their own render product. Paths
+# are given as suffixes and resolved against the robot root, which keeps them
+# valid however deeply the robot is referenced into an environment.
+CAMERA_COLOR_SUFFIX = (
+    "/Geometry/base_footprint/base_link/camera_link/rsd455/RSD455"
+    "/Camera_OmniVision_OV9782_Color"
+)
+CAMERA_DEPTH_SUFFIX = (
+    "/Geometry/base_footprint/base_link/camera_link/rsd455/RSD455/Camera_Pseudo_Depth"
+)
+
+# --------------------------------------------------------------------------
+# Robot constants -- keep in step with urdf/VICA.xacro
+# --------------------------------------------------------------------------
+LEFT_WHEEL_JOINT = "left_wheel_joint"
+RIGHT_WHEEL_JOINT = "right_wheel_joint"
+
+# Geometry, not the odometry calibration constant. The real robot's
+# encoder_feedback wheel_base_m is 0.37, an effective tread fitted by rotation
+# test; it compensates for tyre scrub that PhysX does not reproduce. Isaac must
+# use the measured centre-to-centre distance instead.
+WHEEL_RADIUS = 0.065
+WHEEL_DISTANCE = 0.364
+
+# --------------------------------------------------------------------------
+# ROS frames and topics
+# --------------------------------------------------------------------------
+ODOM_FRAME = "odom"
+BASE_FRAME = "base_footprint"
+LIDAR_FRAME = "laser_frame"
+CAMERA_FRAME = "camera_optical_frame"
+
+SCAN_TOPIC = "scan"
+CAMERA_RGB_TOPIC = "rgb"
+CAMERA_DEPTH_TOPIC = "depth"
+CAMERA_INFO_TOPIC = "camera_info"
+CAMERA_WIDTH = 640
+CAMERA_HEIGHT = 480
+
+# Set False to build the graphs without writing the stage back to disk. Used by
+# the headless validation harness; leave True for normal Script Editor runs.
+SAVE_STAGE = True
+
+GRAPHS = [
+    "ROS_Clock",
+    "ROS_DifferentialDrive",
+    "ROS_Odometry",
+    "ROS_JointStates",
+    "ROS_Lidar",
+    "ROS_Camera",
+]
+
+
+# --------------------------------------------------------------------------
+# Validation
+# --------------------------------------------------------------------------
+def _require_stopped_timeline():
+    if omni.timeline.get_timeline_interface().is_playing():
+        raise RuntimeError("Stop the Timeline before rebuilding the Action Graphs.")
+
+
+def _find_articulation_root(stage):
+    """Return (articulation_root_path, robot_root_path).
+
+    Matches on the path tail so the robot is found at whatever depth the stage
+    references it in.
+    """
+    roots = [str(p.GetPath()) for p in stage.Traverse() if p.HasAPI(UsdPhysics.ArticulationRootAPI)]
+    vica = [p for p in roots if p.endswith(ARTICULATION_SUFFIX)]
+
+    if len(vica) != 1:
+        raise RuntimeError(
+            f"Expected exactly one prim ending in {ARTICULATION_SUFFIX}, found {len(vica)}. "
+            f"Articulation roots in the stage: {roots}"
+        )
+
+    articulation_root = vica[0]
+    robot_root = articulation_root[: -len(ARTICULATION_SUFFIX)]
+    return articulation_root, robot_root
+
+
+def _require_drive_joints(stage):
+    names = {p.GetName() for p in stage.Traverse() if p.IsA(UsdPhysics.RevoluteJoint)}
+    missing = {LEFT_WHEEL_JOINT, RIGHT_WHEEL_JOINT} - names
+    if missing:
+        raise RuntimeError(f"Missing drive joints: {sorted(missing)}")
+
+
+def _require_ros2_nodes():
+    """Fail early and clearly when the ROS 2 bridge did not register its nodes.
+
+    Isaac loads librmw_implementation.so from isaacsim.ros2.core, which in turn
+    needs the ROS 2 Jazzy libraries on LD_LIBRARY_PATH. Launching Isaac without
+    sourcing the ROS environment leaves every isaacsim.ros2.bridge.* node type
+    unresolved, and og.Controller.edit then builds a graph of empty nodes
+    instead of raising -- the failure only shows up later as silent topics.
+    """
+    import ctypes
+
+    try:
+        ctypes.CDLL("libament_index_cpp.so")
+    except OSError as exc:
+        raise RuntimeError(
+            "ROS 2 libraries are not on the loader path, so isaacsim.ros2.bridge "
+            "cannot register its node types and every graph below would be built "
+            f"from unresolved nodes.\n  ({exc})\n\n"
+            "Close Isaac Sim and relaunch it from a shell that sourced ROS 2:\n"
+            "    source /opt/ros/jazzy/setup.bash\n"
+            "    ~/isaacsim/isaac-sim.sh"
+        ) from None
+
+
+def _require_single_physics_scene(stage):
+    scenes = [str(p.GetPath()) for p in stage.Traverse() if p.IsA(UsdPhysics.Scene)]
+    if len(scenes) != 1:
+        raise RuntimeError(f"Expected exactly one PhysicsScene, found {len(scenes)}: {scenes}")
+
+
+def _find_sensor(stage, robot_root, hint, type_names, label):
+    """Locate a sensor prim under the robot subtree, or return None.
+
+    Restricting the search to the robot keeps environment and viewport cameras
+    out of the way -- the working stage carries eight Camera prims in total.
+    """
+    if hint:
+        prim = stage.GetPrimAtPath(hint)
+        if not prim.IsValid():
+            raise RuntimeError(f"{label} hint path does not exist: {hint}")
+        return hint
+
+    found = [
+        str(p.GetPath())
+        for p in stage.Traverse()
+        if str(p.GetPath()).startswith(f"{robot_root}/") and p.GetTypeName() in type_names
+    ]
+    if not found:
+        print(f"    no {label} prim under {robot_root}")
+        return None
+    if len(found) > 1:
+        raise RuntimeError(
+            f"Found {len(found)} {label} prims under {robot_root}; "
+            f"set the hint constant to one of {found}"
+        )
+    return found[0]
+
+
+def _resolve_suffix(stage, robot_root, suffix, label):
+    """Resolve a robot-relative prim path, or return None with a note."""
+    path = f"{robot_root}{suffix}"
+    if stage.GetPrimAtPath(path).IsValid():
+        return path
+    print(f"    {label} prim not found at {path}")
+    return None
+
+
+def _replace_graph(stage, graph_root, name):
+    """Clear a stage-level graph so og.Controller.edit rebuilds it cleanly."""
+    path = f"{graph_root}/{name}"
+    if stage.GetPrimAtPath(path).IsValid():
+        stage.RemovePrim(path)
+    return path
+
+
+def _deactivate_legacy_graphs(stage, robot_root):
+    """Switch off ROS graphs that live inside the robot reference.
+
+    Those prims cannot be deleted from the root layer, but they can be
+    deactivated, which stops them evaluating. Leaving them running alongside the
+    new stage-level graphs would double-publish every topic.
+    """
+    legacy = [
+        p
+        for p in stage.Traverse()
+        if str(p.GetPath()).startswith(f"{robot_root}/Graph/") and p.GetTypeName() == "OmniGraph"
+    ]
+    for prim in legacy:
+        prim.SetActive(False)
+        print(f"    deactivated legacy graph: {prim.GetPath()}")
+    return [str(p.GetPath()) for p in legacy]
+
+
+# --------------------------------------------------------------------------
+# Graphs
+# --------------------------------------------------------------------------
+def _clock_graph(path):
+    keys = og.Controller.Keys
+    og.Controller.edit(
+        {"graph_path": path, "evaluator_name": "execution"},
+        {
+            keys.CREATE_NODES: [
+                ("OnPlaybackTick", "omni.graph.action.OnPlaybackTick"),
+                ("ReadSimTime", "isaacsim.core.nodes.IsaacReadSimulationTime"),
+                ("PublishClock", "isaacsim.ros2.bridge.ROS2PublishClock"),
+            ],
+            keys.CONNECT: [
+                ("OnPlaybackTick.outputs:tick", "PublishClock.inputs:execIn"),
+                ("ReadSimTime.outputs:simulationTime", "PublishClock.inputs:timeStamp"),
+            ],
+            keys.SET_VALUES: [("PublishClock.inputs:topicName", "clock")],
+        },
+    )
+
+
+def _drive_graph(path, articulation_root):
+    keys = og.Controller.Keys
+    og.Controller.edit(
+        {"graph_path": path, "evaluator_name": "execution"},
+        {
+            keys.CREATE_NODES: [
+                ("OnPlaybackTick", "omni.graph.action.OnPlaybackTick"),
+                ("SubscribeTwist", "isaacsim.ros2.bridge.ROS2SubscribeTwist"),
+                ("BreakLinear", "omni.graph.nodes.BreakVector3"),
+                ("BreakAngular", "omni.graph.nodes.BreakVector3"),
+                ("DiffController", "isaacsim.robot.wheeled_robots.DifferentialController"),
+                ("ArticulationController", "isaacsim.core.nodes.IsaacArticulationController"),
+            ],
+            keys.CONNECT: [
+                ("OnPlaybackTick.outputs:tick", "SubscribeTwist.inputs:execIn"),
+                ("OnPlaybackTick.outputs:tick", "ArticulationController.inputs:execIn"),
+                ("SubscribeTwist.outputs:execOut", "DiffController.inputs:execIn"),
+                ("SubscribeTwist.outputs:linearVelocity", "BreakLinear.inputs:tuple"),
+                ("BreakLinear.outputs:x", "DiffController.inputs:linearVelocity"),
+                ("SubscribeTwist.outputs:angularVelocity", "BreakAngular.inputs:tuple"),
+                ("BreakAngular.outputs:z", "DiffController.inputs:angularVelocity"),
+                (
+                    "DiffController.outputs:velocityCommand",
+                    "ArticulationController.inputs:velocityCommand",
+                ),
+            ],
+            keys.SET_VALUES: [
+                ("SubscribeTwist.inputs:topicName", "cmd_vel"),
+                ("DiffController.inputs:wheelRadius", WHEEL_RADIUS),
+                ("DiffController.inputs:wheelDistance", WHEEL_DISTANCE),
+                # Never leave jointNames empty: an empty list means *every* joint,
+                # so this node would stamp zero velocity onto the casters too.
+                (
+                    "ArticulationController.inputs:jointNames",
+                    [LEFT_WHEEL_JOINT, RIGHT_WHEEL_JOINT],
+                ),
+                ("ArticulationController.inputs:targetPrim", [Sdf.Path(articulation_root)]),
+            ],
+        },
+    )
+
+
+def _odometry_graph(path, articulation_root):
+    keys = og.Controller.Keys
+    og.Controller.edit(
+        {"graph_path": path, "evaluator_name": "execution"},
+        {
+            keys.CREATE_NODES: [
+                ("OnPlaybackTick", "omni.graph.action.OnPlaybackTick"),
+                ("ReadSimTime", "isaacsim.core.nodes.IsaacReadSimulationTime"),
+                ("ComputeOdometry", "isaacsim.core.nodes.IsaacComputeOdometry"),
+                ("PublishOdometry", "isaacsim.ros2.bridge.ROS2PublishOdometry"),
+                ("PublishOdomTf", "isaacsim.ros2.bridge.ROS2PublishRawTransformTree"),
+            ],
+            keys.CONNECT: [
+                ("OnPlaybackTick.outputs:tick", "ComputeOdometry.inputs:execIn"),
+                ("OnPlaybackTick.outputs:tick", "PublishOdometry.inputs:execIn"),
+                ("OnPlaybackTick.outputs:tick", "PublishOdomTf.inputs:execIn"),
+                ("ReadSimTime.outputs:simulationTime", "PublishOdometry.inputs:timeStamp"),
+                ("ReadSimTime.outputs:simulationTime", "PublishOdomTf.inputs:timeStamp"),
+                ("ComputeOdometry.outputs:position", "PublishOdometry.inputs:position"),
+                ("ComputeOdometry.outputs:orientation", "PublishOdometry.inputs:orientation"),
+                ("ComputeOdometry.outputs:linearVelocity", "PublishOdometry.inputs:linearVelocity"),
+                ("ComputeOdometry.outputs:angularVelocity", "PublishOdometry.inputs:angularVelocity"),
+                ("ComputeOdometry.outputs:position", "PublishOdomTf.inputs:translation"),
+                ("ComputeOdometry.outputs:orientation", "PublishOdomTf.inputs:rotation"),
+            ],
+            keys.SET_VALUES: [
+                ("ComputeOdometry.inputs:chassisPrim", [Sdf.Path(articulation_root)]),
+                ("PublishOdometry.inputs:topicName", "odom"),
+                ("PublishOdometry.inputs:odomFrameId", ODOM_FRAME),
+                ("PublishOdometry.inputs:chassisFrameId", BASE_FRAME),
+                ("PublishOdomTf.inputs:topicName", "tf"),
+                ("PublishOdomTf.inputs:parentFrameId", ODOM_FRAME),
+                ("PublishOdomTf.inputs:childFrameId", BASE_FRAME),
+            ],
+        },
+    )
+
+
+def _joint_state_graph(path, articulation_root):
+    """Publish /joint_states through IsaacReadJointState.
+
+    ROS2PublishJointState still accepts a targetPrim, but its own documentation
+    marks the connected inputs as the preferred path: "Joint names from Isaac
+    Read Joint State (connect instead of targetPrim for preferred path)". The
+    targetPrim branch is what raises the deprecation warning in the console, and
+    it spins up a second tensor simulation view to do the same work.
+    """
+    keys = og.Controller.Keys
+    og.Controller.edit(
+        {"graph_path": path, "evaluator_name": "execution"},
+        {
+            keys.CREATE_NODES: [
+                ("OnPlaybackTick", "omni.graph.action.OnPlaybackTick"),
+                ("ReadSimTime", "isaacsim.core.nodes.IsaacReadSimulationTime"),
+                ("ReadJointState", "isaacsim.sensors.physics.IsaacReadJointState"),
+                ("PublishJointState", "isaacsim.ros2.bridge.ROS2PublishJointState"),
+            ],
+            keys.CONNECT: [
+                ("OnPlaybackTick.outputs:tick", "ReadJointState.inputs:execIn"),
+                ("ReadJointState.outputs:execOut", "PublishJointState.inputs:execIn"),
+                ("ReadSimTime.outputs:simulationTime", "PublishJointState.inputs:timeStamp"),
+                ("ReadJointState.outputs:jointNames", "PublishJointState.inputs:jointNames"),
+                ("ReadJointState.outputs:jointPositions", "PublishJointState.inputs:jointPositions"),
+                ("ReadJointState.outputs:jointVelocities", "PublishJointState.inputs:jointVelocities"),
+                ("ReadJointState.outputs:jointEfforts", "PublishJointState.inputs:jointEfforts"),
+                ("ReadJointState.outputs:jointDofTypes", "PublishJointState.inputs:jointDofTypes"),
+                ("ReadJointState.outputs:sensorTime", "PublishJointState.inputs:sensorTime"),
+                (
+                    "ReadJointState.outputs:stageMetersPerUnit",
+                    "PublishJointState.inputs:stageMetersPerUnit",
+                ),
+            ],
+            keys.SET_VALUES: [
+                ("ReadJointState.inputs:prim", [Sdf.Path(articulation_root)]),
+                ("PublishJointState.inputs:topicName", "joint_states"),
+            ],
+        },
+    )
+
+
+def _lidar_graph(path, lidar_prim):
+    """RTX lidar -> /scan.
+
+    fullScan is deliberately left alone: the node documentation states "RTX
+    Lidar now always produces full scans via accumulateOutputs; this setting is
+    ignored", and writing it is what emits the deprecation warning.
+    """
+    keys = og.Controller.Keys
+    og.Controller.edit(
+        {"graph_path": path, "evaluator_name": "execution"},
+        {
+            keys.CREATE_NODES: [
+                ("OnPlaybackTick", "omni.graph.action.OnPlaybackTick"),
+                ("RenderProduct", "isaacsim.core.nodes.IsaacCreateRenderProduct"),
+                ("LidarHelper", "isaacsim.ros2.bridge.ROS2RtxLidarHelper"),
+            ],
+            keys.CONNECT: [
+                ("OnPlaybackTick.outputs:tick", "RenderProduct.inputs:execIn"),
+                ("RenderProduct.outputs:execOut", "LidarHelper.inputs:execIn"),
+                ("RenderProduct.outputs:renderProductPath", "LidarHelper.inputs:renderProductPath"),
+            ],
+            keys.SET_VALUES: [
+                ("RenderProduct.inputs:cameraPrim", [Sdf.Path(lidar_prim)]),
+                ("LidarHelper.inputs:type", "laser_scan"),
+                ("LidarHelper.inputs:topicName", SCAN_TOPIC),
+                ("LidarHelper.inputs:frameId", LIDAR_FRAME),
+            ],
+        },
+    )
+
+
+def _camera_graph(path, color_prim, depth_prim):
+    """Colour and depth each get their own render product.
+
+    The RSD455 models them as separate Camera prims, so a single shared render
+    product would publish the colour sensor twice rather than colour + depth.
+    """
+    keys = og.Controller.Keys
+    og.Controller.edit(
+        {"graph_path": path, "evaluator_name": "execution"},
+        {
+            keys.CREATE_NODES: [
+                ("OnPlaybackTick", "omni.graph.action.OnPlaybackTick"),
+                ("ColorRp", "isaacsim.core.nodes.IsaacCreateRenderProduct"),
+                ("DepthRp", "isaacsim.core.nodes.IsaacCreateRenderProduct"),
+                ("PublishRgb", "isaacsim.ros2.bridge.ROS2CameraHelper"),
+                ("PublishInfo", "isaacsim.ros2.bridge.ROS2CameraInfoHelper"),
+                ("PublishDepth", "isaacsim.ros2.bridge.ROS2CameraHelper"),
+            ],
+            keys.CONNECT: [
+                ("OnPlaybackTick.outputs:tick", "ColorRp.inputs:execIn"),
+                ("OnPlaybackTick.outputs:tick", "DepthRp.inputs:execIn"),
+                ("ColorRp.outputs:execOut", "PublishRgb.inputs:execIn"),
+                ("ColorRp.outputs:execOut", "PublishInfo.inputs:execIn"),
+                ("DepthRp.outputs:execOut", "PublishDepth.inputs:execIn"),
+                ("ColorRp.outputs:renderProductPath", "PublishRgb.inputs:renderProductPath"),
+                ("ColorRp.outputs:renderProductPath", "PublishInfo.inputs:renderProductPath"),
+                ("DepthRp.outputs:renderProductPath", "PublishDepth.inputs:renderProductPath"),
+            ],
+            keys.SET_VALUES: [
+                ("ColorRp.inputs:cameraPrim", [Sdf.Path(color_prim)]),
+                ("ColorRp.inputs:width", CAMERA_WIDTH),
+                ("ColorRp.inputs:height", CAMERA_HEIGHT),
+                ("DepthRp.inputs:cameraPrim", [Sdf.Path(depth_prim)]),
+                ("DepthRp.inputs:width", CAMERA_WIDTH),
+                ("DepthRp.inputs:height", CAMERA_HEIGHT),
+                ("PublishRgb.inputs:type", "rgb"),
+                ("PublishRgb.inputs:topicName", CAMERA_RGB_TOPIC),
+                # Match the URDF frame so tf and the image headers agree. Do not
+                # use camera_color_optical_frame: on the real robot the RealSense
+                # driver owns that name and the two publishers would collide.
+                ("PublishRgb.inputs:frameId", CAMERA_FRAME),
+                ("PublishInfo.inputs:topicName", CAMERA_INFO_TOPIC),
+                ("PublishInfo.inputs:frameId", CAMERA_FRAME),
+                ("PublishDepth.inputs:type", "depth"),
+                ("PublishDepth.inputs:topicName", CAMERA_DEPTH_TOPIC),
+                ("PublishDepth.inputs:frameId", CAMERA_FRAME),
+            ],
+        },
+    )
+
+
+# --------------------------------------------------------------------------
+# Entry point
+# --------------------------------------------------------------------------
+def main():
+    _require_stopped_timeline()
+
+    stage = omni.usd.get_context().get_stage()
+    if stage is None:
+        raise RuntimeError("No USD stage is open.")
+
+    articulation_root, robot_root = _find_articulation_root(stage)
+    graph_root = GRAPH_PARENT
+    _require_drive_joints(stage)
+    _require_single_physics_scene(stage)
+    _require_ros2_nodes()
+
+    lidar_prim = _find_sensor(stage, robot_root, LIDAR_PRIM_HINT, {"OmniLidar"}, "lidar")
+    color_prim = _resolve_suffix(stage, robot_root, CAMERA_COLOR_SUFFIX, "camera colour")
+    depth_prim = _resolve_suffix(stage, robot_root, CAMERA_DEPTH_SUFFIX, "camera depth")
+
+    legacy = _deactivate_legacy_graphs(stage, robot_root)
+
+    for name in GRAPHS:
+        _replace_graph(stage, graph_root, name)
+
+    built, skipped = [], []
+
+    _clock_graph(f"{graph_root}/ROS_Clock")
+    built.append("ROS_Clock")
+
+    _drive_graph(f"{graph_root}/ROS_DifferentialDrive", articulation_root)
+    built.append("ROS_DifferentialDrive")
+
+    _odometry_graph(f"{graph_root}/ROS_Odometry", articulation_root)
+    built.append("ROS_Odometry")
+
+    _joint_state_graph(f"{graph_root}/ROS_JointStates", articulation_root)
+    built.append("ROS_JointStates")
+
+    if lidar_prim:
+        _lidar_graph(f"{graph_root}/ROS_Lidar", lidar_prim)
+        built.append("ROS_Lidar")
+    else:
+        skipped.append("ROS_Lidar (no OmniLidar prim under the robot)")
+
+    if color_prim and depth_prim:
+        _camera_graph(f"{graph_root}/ROS_Camera", color_prim, depth_prim)
+        built.append("ROS_Camera")
+    else:
+        skipped.append("ROS_Camera (RSD455 colour/depth prims not found)")
+
+    if SAVE_STAGE:
+        stage.GetRootLayer().Save()
+    else:
+        print("SAVE_STAGE is False -- graphs built in memory, stage not written.")
+
+    print(f"articulation root : {articulation_root}")
+    print(f"lidar prim        : {lidar_prim or '-'}")
+    print(f"camera colour     : {color_prim or '-'}")
+    print(f"camera depth      : {depth_prim or '-'}")
+    print(f"wheel distance    : {WHEEL_DISTANCE} m   radius {WHEEL_RADIUS} m")
+    print(f"graph root        : {graph_root}")
+    print("built             : " + ", ".join(built))
+    for s in skipped:
+        print(f"SKIPPED           : {s}")
+    if legacy:
+        print(f"deactivated       : {len(legacy)} legacy graph(s) inside the robot reference")
+    print("Stage saved. Press Play, then check /clock /cmd_vel /odom /joint_states /scan /tf.")
+
+
+main()
