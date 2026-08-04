@@ -4,22 +4,36 @@
 <!-- Keep includes relative so this file expands before the package is installed. -->
 <xacro:include filename="materials.xacro" />
 
-<!-- Geometry exported from CAD is expressed in metres through a 0.001 mesh scale. -->
-<xacro:property name="body_center_z" value="0.0675" />
+<!-- Geometry exported from CAD is expressed in metres through a 0.001 mesh scale.
+     Coordinates below match vica_ros2_ws@dev (commit 621e181), which is the
+     canonical source: tape-measured on the robot and cross-checked against the
+     STL bounding boxes. Keep them as expressions, not constants; every bug
+     found in this model came from a hand-copied number drifting out of step. -->
+<xacro:property name="body_center_z" value="0.041" />
 <xacro:property name="base_link_height" value="0.19" />
 <!-- Simplified chassis collisions derived from the lower body and mast bounds. -->
 <xacro:property name="chassis_body_size" value="0.61 0.28 0.401" />
-<xacro:property name="chassis_body_origin" value="0 0 0.032" />
+<xacro:property name="chassis_body_origin" value="0 0 0.0585" />
 <xacro:property name="chassis_mast_size" value="0.24 0.04 0.414" />
-<xacro:property name="chassis_mast_origin" value="-0.385 0 0.4395" />
+<xacro:property name="chassis_mast_origin" value="-0.385 0 0.466" />
 
 <!-- Sensor origins are relative to base_link. -->
 <xacro:property name="laser_x" value="0.185" />
 <xacro:property name="laser_y" value="0.0" />
-<xacro:property name="laser_z" value="0.19" />
+<xacro:property name="laser_z" value="0.192" />
 <xacro:property name="camera_x" value="0.28683" />
 <xacro:property name="camera_y" value="0.0" />
-<xacro:property name="camera_z" value="0.13" />
+<xacro:property name="camera_z" value="0.130" />
+
+<!-- Wheel placement. wheel_separation is the measured centre-to-centre distance.
+     It is NOT the odometry constant. The real robot's encoder_feedback uses
+     wheel_base_m = 0.37, an effective tread fitted by rotation test that absorbs
+     tyre scrub. The two are different quantities and must not be unified. -->
+<xacro:property name="wheel_separation" value="0.364" />
+<xacro:property name="wheel_y" value="${wheel_separation / 2}" />
+<xacro:property name="caster_steer_y" value="0.0845" />
+<xacro:property name="caster_y" value="0.0795" />
+<xacro:property name="caster_wheel_dy" value="${round(caster_y - caster_steer_y, 6)}" />
 
 <!-- Conservative import defaults; tune these against the physical platform. -->
 <xacro:property name="wheel_effort" value="100.0" />
@@ -31,6 +45,11 @@
 <!-- Primitive caster-wheel collisions derived from the STL bounds. -->
 <xacro:property name="caster_wheel_radius" value="0.0375" />
 <xacro:property name="caster_wheel_width" value="0.04" />
+<!-- CAD places the caster 4.5 mm clear of the ground, so a collider at the true
+     radius leaves PhysX resting the robot on its drive wheels and pitching it
+     ~0.635 deg back, tilting the lidar plane with it. Oversizing the collider by
+     that gap stands the robot level; the 4.5 mm stands in for tyre compression. -->
+<xacro:property name="caster_collision_radius" value="0.042" />
 
 <link name="base_footprint"/>
 
@@ -42,7 +61,7 @@
 
 <link name="base_link">
   <inertial>
-    <origin xyz="0.004031215194176557 3.002726997808124e-17 0.00856562657816282" rpy="0 0 0"/>
+    <origin xyz="0.004031215194176557 3.002726997808124e-17 0.03506562657816282" rpy="0 0 0"/>
     <mass value="90.84709962539795"/>
     <inertia ixx="2.402108" iyy="3.622523" izz="4.166828" ixy="0.0" iyz="-0.0" ixz="0.343284"/>
   </inertial>
@@ -75,7 +94,7 @@
     <inertia ixx="0.000634" iyy="0.001025" izz="0.000634" ixy="0.0" iyz="-0.0" ixz="0.0"/>
   </inertial>
   <visual>
-    <origin xyz="-0.154 -0.1465 0.084" rpy="0 0 0"/>
+    <origin xyz="-0.154 ${-wheel_y} 0.084" rpy="0 0 0"/>
     <geometry>
       <mesh filename="package://vica_description/meshes/left_wheel_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
@@ -83,7 +102,7 @@
   </visual>
   <collision>
     <!-- URDF cylinders are Z-aligned; rotate onto this wheel's Y axis. -->
-    <origin xyz="0 0.0349 0" rpy="${pi / 2} 0 0"/>
+    <origin xyz="0 0 0" rpy="${pi / 2} 0 0"/>
     <geometry>
       <cylinder radius="${drive_wheel_radius}" length="${drive_wheel_width}"/>
     </geometry>
@@ -97,7 +116,7 @@
     <inertia ixx="0.000634" iyy="0.001025" izz="0.000634" ixy="0.0" iyz="0.0" ixz="-0.0"/>
   </inertial>
   <visual>
-    <origin xyz="-0.154 0.1465 0.084" rpy="0 0 0"/>
+    <origin xyz="-0.154 ${wheel_y} 0.084" rpy="0 0 0"/>
     <geometry>
       <mesh filename="package://vica_description/meshes/right_wheel_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
@@ -105,7 +124,7 @@
   </visual>
   <collision>
     <!-- URDF cylinders are Z-aligned; rotate onto this wheel's Y axis. -->
-    <origin xyz="0 -0.0339 0" rpy="${pi / 2} 0 0"/>
+    <origin xyz="0 0 0" rpy="${pi / 2} 0 0"/>
     <geometry>
       <cylinder radius="${drive_wheel_radius}" length="${drive_wheel_width}"/>
     </geometry>
@@ -119,7 +138,7 @@
     <inertia ixx="4.7e-05" iyy="7.8e-05" izz="4.7e-05" ixy="-0.0" iyz="0.0" ixz="0.0"/>
   </inertial>
   <visual>
-    <origin xyz="0.252 -0.0695 0.107" rpy="0 0 0"/>
+    <origin xyz="0.252 ${-caster_y} 0.107" rpy="0 0 0"/>
     <geometry>
       <mesh filename="package://vica_description/meshes/front_left_caster_wheel_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
@@ -127,9 +146,9 @@
   </visual>
   <collision>
     <!-- URDF cylinders are Z-aligned; rotate onto this wheel's Y axis. -->
-    <origin xyz="0 0.01 0" rpy="${pi / 2} 0 0"/>
+    <origin xyz="0 0 0" rpy="${pi / 2} 0 0"/>
     <geometry>
-      <cylinder radius="${caster_wheel_radius}" length="${caster_wheel_width}"/>
+      <cylinder radius="${caster_collision_radius}" length="${caster_wheel_width}"/>
     </geometry>
   </collision>
 </link>
@@ -141,7 +160,7 @@
     <inertia ixx="4.7e-05" iyy="7.8e-05" izz="4.7e-05" ixy="-0.0" iyz="0.0" ixz="-0.0"/>
   </inertial>
   <visual>
-    <origin xyz="0.252 0.0695 0.107" rpy="0 0 0"/>
+    <origin xyz="0.252 ${caster_y} 0.107" rpy="0 0 0"/>
     <geometry>
       <mesh filename="package://vica_description/meshes/front_right_caster_wheel_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
@@ -149,9 +168,9 @@
   </visual>
   <collision>
     <!-- URDF cylinders are Z-aligned; rotate onto this wheel's Y axis. -->
-    <origin xyz="0 -0.01 0" rpy="${pi / 2} 0 0"/>
+    <origin xyz="0 0 0" rpy="${pi / 2} 0 0"/>
     <geometry>
-      <cylinder radius="${caster_wheel_radius}" length="${caster_wheel_width}"/>
+      <cylinder radius="${caster_collision_radius}" length="${caster_wheel_width}"/>
     </geometry>
   </collision>
 </link>
@@ -163,16 +182,17 @@
     <inertia ixx="0.000637" iyy="0.000626" izz="0.000908" ixy="4e-05" iyz="8.5e-05" ixz="-8.2e-05"/>
   </inertial>
   <visual>
-    <origin xyz="0.222 0.0845 0.0415" rpy="0 0 0"/>
+    <origin xyz="0.222 ${caster_steer_y} 0.0415" rpy="0 0 0"/>
     <geometry>
       <mesh filename="package://vica_description/meshes/front_right_caster_steer_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
-    <origin xyz="0.222 0.0845 0.0415" rpy="0 0 0"/>
+    <!-- CAD bounding box of the steer bracket; the STL became a convex hull on import. -->
+    <origin xyz="0 0 0.003" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="package://vica_description/meshes/front_right_caster_steer_1.stl" scale="0.001 0.001 0.001"/>
+      <box size="0.08 0.08 0.0755"/>
     </geometry>
   </collision>
 </link>
@@ -184,16 +204,17 @@
     <inertia ixx="0.000637" iyy="0.000626" izz="0.000908" ixy="-4e-05" iyz="-8.5e-05" ixz="-8.2e-05"/>
   </inertial>
   <visual>
-    <origin xyz="0.222 -0.0845 0.0415" rpy="0 0 0"/>
+    <origin xyz="0.222 ${-caster_steer_y} 0.0415" rpy="0 0 0"/>
     <geometry>
       <mesh filename="package://vica_description/meshes/front_left_caster_steer_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
-    <origin xyz="0.222 -0.0845 0.0415" rpy="0 0 0"/>
+    <!-- CAD bounding box of the steer bracket; the STL became a convex hull on import. -->
+    <origin xyz="0 0 0.003" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="package://vica_description/meshes/front_left_caster_steer_1.stl" scale="0.001 0.001 0.001"/>
+      <box size="0.08 0.08 0.0755"/>
     </geometry>
   </collision>
 </link>
@@ -205,7 +226,7 @@
     <inertia ixx="5.9e-05" iyy="5.9e-05" izz="0.000105" ixy="0.0" iyz="-0.0" ixz="-0.0"/>
   </inertial>
   <visual>
-    <origin xyz="-0.185 -0.0 -0.258" rpy="0 0 0"/>
+    <origin xyz="-0.185 -0.0 ${-(laser_z + body_center_z)}" rpy="0 0 0"/>
     <geometry>
       <mesh filename="package://vica_description/meshes/lidar_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
@@ -229,7 +250,7 @@
 <link name="camera_optical_frame"/>
 
 <joint name="left_wheel_joint" type="continuous">
-  <origin xyz="0.154 0.1465 -0.125" rpy="0 0 0"/>
+  <origin xyz="0.154 ${wheel_y} -0.125" rpy="0 0 0"/>
   <parent link="base_link"/>
   <child link="left_wheel_1"/>
   <axis xyz="0.0 1.0 0.0"/>
@@ -238,7 +259,7 @@
 </joint>
 
 <joint name="right_wheel_joint" type="continuous">
-  <origin xyz="0.154 -0.1465 -0.125" rpy="0 0 0"/>
+  <origin xyz="0.154 ${-wheel_y} -0.125" rpy="0 0 0"/>
   <parent link="base_link"/>
   <child link="right_wheel_1"/>
   <axis xyz="0.0 1.0 0.0"/>
@@ -247,28 +268,28 @@
 </joint>
 
 <joint name="front_left_caster_wheel_joint" type="continuous">
-  <origin xyz="-0.03 -0.015 -0.0655" rpy="0 0 0"/>
+  <origin xyz="-0.03 ${caster_wheel_dy} -0.0655" rpy="0 0 0"/>
   <parent link="front_left_caster_steer_1"/>
   <child link="front_left_caster_wheel_1"/>
   <axis xyz="0.0 -1.0 0.0"/>
 </joint>
 
 <joint name="front_right_caster_wheel_joint" type="continuous">
-  <origin xyz="-0.03 0.015 -0.0655" rpy="0 0 0"/>
+  <origin xyz="-0.03 ${-caster_wheel_dy} -0.0655" rpy="0 0 0"/>
   <parent link="front_right_caster_steer_1"/>
   <child link="front_right_caster_wheel_1"/>
   <axis xyz="0.0 -1.0 0.0"/>
 </joint>
 
 <joint name="front_right_caster_steer_joint" type="continuous">
-  <origin xyz="-0.222 -0.0845 -0.087" rpy="0 0 0"/>
+  <origin xyz="-0.222 ${-caster_steer_y} -0.0825" rpy="0 0 0"/>
   <parent link="base_link"/>
   <child link="front_right_caster_steer_1"/>
   <axis xyz="0.0 0.0 -1.0"/>
 </joint>
 
 <joint name="front_left_caster_steer_joint" type="continuous">
-  <origin xyz="-0.222 0.0845 -0.087" rpy="0 0 0"/>
+  <origin xyz="-0.222 ${caster_steer_y} -0.0825" rpy="0 0 0"/>
   <parent link="base_link"/>
   <child link="front_left_caster_steer_1"/>
   <axis xyz="0.0 0.0 -1.0"/>
