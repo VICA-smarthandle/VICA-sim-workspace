@@ -175,6 +175,22 @@ CAMERA_COLOR_HEIGHT = 400
 CAMERA_DEPTH_WIDTH = 848
 CAMERA_DEPTH_HEIGHT = 480
 
+# The point cloud renders far smaller than the depth image, on the same camera.
+#
+# A costmap does not need 407 040 points at 30 Hz. Feeding it that starved the
+# controller: the loop asked for 20 Hz and got a median of 2.9, erratic between
+# 1.3 and 30, and "Failed to make progress" followed. Turning the source off
+# restored 20 Hz exactly, so the cloud was the cost, not the footprint checking
+# it was first blamed on.
+#
+# 212x120 keeps the 848x480 aspect, so the field of view is identical and only
+# the sampling density drops -- a sixteenth of the points. At 0.05 m costmap
+# cells, 25 440 points still put several samples in every cell the camera can
+# see. Resolution and field of view are separate, which is the same distinction
+# that fixed the camera optics.
+CAMERA_DEPTH_PCL_WIDTH = 212
+CAMERA_DEPTH_PCL_HEIGHT = 120
+
 # Set False to build the graphs without writing the stage back to disk. Used by
 # the headless validation harness; leave True for normal Script Editor runs.
 SAVE_STAGE = True
@@ -541,6 +557,7 @@ def _camera_graph(path, color_prim, depth_prim):
                 ("PublishColorInfo", "isaacsim.ros2.bridge.ROS2CameraInfoHelper"),
                 ("PublishDepth", "isaacsim.ros2.bridge.ROS2CameraHelper"),
                 ("PublishDepthInfo", "isaacsim.ros2.bridge.ROS2CameraInfoHelper"),
+                ("DepthPclRp", "isaacsim.core.nodes.IsaacCreateRenderProduct"),
                 ("PublishDepthPcl", "isaacsim.ros2.bridge.ROS2CameraHelper"),
             ],
             keys.CONNECT: [
@@ -550,12 +567,13 @@ def _camera_graph(path, color_prim, depth_prim):
                 ("ColorRp.outputs:execOut", "PublishColorInfo.inputs:execIn"),
                 ("DepthRp.outputs:execOut", "PublishDepth.inputs:execIn"),
                 ("DepthRp.outputs:execOut", "PublishDepthInfo.inputs:execIn"),
-                ("DepthRp.outputs:execOut", "PublishDepthPcl.inputs:execIn"),
+                ("OnPlaybackTick.outputs:tick", "DepthPclRp.inputs:execIn"),
+                ("DepthPclRp.outputs:execOut", "PublishDepthPcl.inputs:execIn"),
                 ("ColorRp.outputs:renderProductPath", "PublishRgb.inputs:renderProductPath"),
                 ("ColorRp.outputs:renderProductPath", "PublishColorInfo.inputs:renderProductPath"),
                 ("DepthRp.outputs:renderProductPath", "PublishDepth.inputs:renderProductPath"),
                 ("DepthRp.outputs:renderProductPath", "PublishDepthInfo.inputs:renderProductPath"),
-                ("DepthRp.outputs:renderProductPath", "PublishDepthPcl.inputs:renderProductPath"),
+                ("DepthPclRp.outputs:renderProductPath", "PublishDepthPcl.inputs:renderProductPath"),
             ],
             keys.SET_VALUES: [
                 ("ColorRp.inputs:cameraPrim", [Sdf.Path(color_prim)]),
@@ -564,6 +582,9 @@ def _camera_graph(path, color_prim, depth_prim):
                 ("DepthRp.inputs:cameraPrim", [Sdf.Path(depth_prim)]),
                 ("DepthRp.inputs:width", CAMERA_DEPTH_WIDTH),
                 ("DepthRp.inputs:height", CAMERA_DEPTH_HEIGHT),
+                ("DepthPclRp.inputs:cameraPrim", [Sdf.Path(depth_prim)]),
+                ("DepthPclRp.inputs:width", CAMERA_DEPTH_PCL_WIDTH),
+                ("DepthPclRp.inputs:height", CAMERA_DEPTH_PCL_HEIGHT),
                 ("PublishRgb.inputs:type", "rgb"),
                 ("PublishRgb.inputs:topicName", CAMERA_RGB_TOPIC),
                 ("PublishRgb.inputs:frameId", CAMERA_COLOR_FRAME),
