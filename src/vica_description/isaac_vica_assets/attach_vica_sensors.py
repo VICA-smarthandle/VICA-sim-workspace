@@ -62,17 +62,24 @@ RSD455_URL = (
 # creating a lidar with a custom config name fails with
 # "Config 'X' not found for OmniLidar".
 #
-# What that leaves is a simulated sensor that ranges to 30 m against hardware
-# that ranges to 12 m. It is handled downstream rather than at the source --
-# cartographer's max_range and amcl's laser_max_range are both 12.0, so returns
-# past that are discarded before they reach a map or a pose. The residue is
-# that /scan advertises range_max 30.0, so anything reading that field rather
-# than filtering by it will believe the wrong sensor.
+# The asset is an S2E, but its range is not baked in: the OmniLidar prim
+# carries omni:sensor:Core:nearRangeM and farRangeM as ordinary USD attributes,
+# so they can be overridden to the A2's limits. The asset stays an S2E in every
+# other respect -- 32 kHz firing rate, 10 Hz spin -- which is close enough to
+# the A2's 8 kHz that the distinction does not survive a 0.05 m costmap.
+#
+# Ranges are what actually matter downstream: they set /scan's range_min and
+# range_max, which is what cartographer and amcl clip against.
 LIDAR_URL = (
     "https://omniverse-content-production.s3-us-west-2.amazonaws.com"
     "/Assets/Isaac/6.0/Isaac/Sensors/Slamtec/RPLIDAR_S2E/Slamtec_RPLIDAR_S2E.usd"
 )
 LIDAR_PRIM_NAME = "RPLIDAR_S2E"
+
+# RPLIDAR A2, matching config/vica_2d.lua and the amcl block. The asset ships
+# 0.05 / 30.0. min 0.2 covers both A2 variants (A2M8 0.15 m, A2M12 0.2 m).
+LIDAR_NEAR_RANGE_M = 0.2
+LIDAR_FAR_RANGE_M = 12.0
 
 # Read back out of the previous stage rather than assumed.
 CAMERA_OFFSET = Gf.Vec3d(0.02, 0.0, 0.0)
@@ -150,6 +157,10 @@ def _attach_lidar(stage, base_link):
     path = f"{parent}/{LIDAR_PRIM_NAME}"
     if stage.GetPrimAtPath(path):
         print(f"    lidar already present at {path}")
+        # Still reapply the range. It is a setting, not part of creating the
+        # prim, and skipping it on a re-run is how a stage ends up with the
+        # sensor in place and the shipped 30 m range nobody notices.
+        _set_lidar_range(stage, path)
         return path
 
     # Referenced, not created through IsaacSensorCreateRtxLidar: the command
@@ -159,7 +170,36 @@ def _attach_lidar(stage, base_link):
     xform = UsdGeom.Xform.Define(stage, path)
     xform.GetPrim().GetReferences().AddReference(LIDAR_URL)
     print(f"    lidar   -> {path}  (RPLIDAR S2E asset)")
+    _set_lidar_range(stage, path)
     return path
+
+
+def _set_lidar_range(stage, lidar_root):
+    """Override the sensor's range to the A2's, in place on the OmniLidar prim.
+
+    The referenced asset has to be composed before this can find the prim, so it
+    runs after AddReference rather than alongside it. Returns quietly if the
+    reference has not resolved -- both sensor assets are fetched over the
+    network, and an offline run has nothing to override.
+    """
+    for prim in stage.Traverse():
+        if prim.GetTypeName() != "OmniLidar":
+            continue
+        if not str(prim.GetPath()).startswith(lidar_root):
+            continue
+        for attr_name, value in (
+            ("omni:sensor:Core:nearRangeM", LIDAR_NEAR_RANGE_M),
+            ("omni:sensor:Core:farRangeM", LIDAR_FAR_RANGE_M),
+        ):
+            attr = prim.GetAttribute(attr_name)
+            if not attr:
+                print(f"    WARNING: {attr_name} absent, range left as shipped")
+                continue
+            before = attr.Get()
+            attr.Set(value)
+            print(f"    range   -> {attr_name.split(':')[-1]}: {before} -> {value}")
+        return
+    print("    WARNING: no OmniLidar under the reference, range left as shipped")
 
 
 def main():
