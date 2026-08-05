@@ -36,17 +36,15 @@ import omni.usd
 # --------------------------------------------------------------------------
 DRIVE_JOINTS = ["left_wheel_joint", "right_wheel_joint"]
 
-# Passive. The caster rename (front_* -> rear_*) is expected to happen at the
-# same re-import, so both spellings are accepted and whichever exists is used.
+# Passive. Named front_* in the URDF even though both casters sit behind the
+# drive axle at x = -0.222; the names match the physical robot's package and are
+# left alone for that reason. If they ever change, the error path below prints
+# every revolute joint in the stage.
 CASTER_JOINTS = [
     "front_left_caster_steer_joint",
     "front_right_caster_steer_joint",
     "front_left_caster_wheel_joint",
     "front_right_caster_wheel_joint",
-    "rear_left_caster_steer_joint",
-    "rear_right_caster_steer_joint",
-    "rear_left_caster_wheel_joint",
-    "rear_right_caster_wheel_joint",
 ]
 
 # --------------------------------------------------------------------------
