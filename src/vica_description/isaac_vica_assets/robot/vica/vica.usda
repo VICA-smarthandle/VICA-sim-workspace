@@ -97,6 +97,12 @@ def Xform "VICA" (
                         )
                         {
                             bool physics:rigidBodyEnabled = 0
+
+                            over "Camera_Pseudo_Depth"
+                            {
+                                float horizontalAperture = 3.780018
+                                float verticalAperture = 2.139633
+                            }
                         }
                     }
                 }

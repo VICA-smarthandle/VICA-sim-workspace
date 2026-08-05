@@ -105,6 +105,39 @@ LIDAR_FIRING_RATE_HZ = 8000
 # Read back out of the previous stage rather than assumed.
 CAMERA_OFFSET = Gf.Vec3d(0.02, 0.0, 0.0)
 
+# --------------------------------------------------------------------------
+# Camera optics
+# --------------------------------------------------------------------------
+# The RSD455 asset gives all four of its cameras the colour module's lens --
+# focalLength 1.93, apertures 3.896 x 2.453, so 90.5 x 64.9 degrees. That is
+# right for the D455's colour stream and wrong for its depth stream, which is
+# 87 x 58 through a different imager. Camera_Pseudo_Depth inherits it anyway.
+#
+# It matters because the depth camera is what sees below the lidar plane. The
+# robot's own nvblox notes reason from "보는 범위 = 카메라 수직 FOV 58°", and a
+# simulated camera seeing 64.9 -- or 74.3 after the square-pixel forcing below
+# -- keeps obstacles in view through turns that would lose them on the robot.
+# The 2026-07-28 collision there was exactly an obstacle leaving view mid-turn.
+#
+# Isaac derives camera_info as
+#
+#     fx = focalLength * width / horizontalAperture
+#     fy = focalLength * height / verticalAperture
+#
+# then forces fy to fx because the renderer assumes square pixels. So the
+# aperture ratio has to equal the render resolution ratio or the vertical field
+# of view silently becomes whatever the horizontal one implies. At 640x480
+# against the asset's 1.588 aperture ratio, 64.9 became 74.3.
+#
+# Depth: hold vertical at 58 and let the aperture ratio follow 848x480, the
+# D455's native depth resolution. Horizontal lands at 88.8, inside the +/-3 the
+# datasheet allows, and nothing is forced.
+DEPTH_VERTICAL_FOV_DEG = 58.0
+DEPTH_RESOLUTION = (848, 480)
+# Colour: the asset's optics are already right; only the resolution ratio was
+# wrong. 640x400 is the OV9782's 1.6 aspect, so 90.5 x 64.9 survives.
+COLOR_RESOLUTION = (640, 400)
+
 ARTICULATION_SUFFIX = "/Geometry/base_footprint/base_link"
 
 SAVE_STAGE = True
@@ -189,6 +222,44 @@ def _make_authorable(stage, path):
     return prim
 
 
+def _set_depth_optics(stage, camera_root):
+    """Give the depth camera the depth module's field of view.
+
+    Only the depth camera is touched. The colour camera already carries the
+    right lens for what it is.
+    """
+    import math
+
+    w, h = DEPTH_RESOLUTION
+    for prim in stage.Traverse():
+        path = str(prim.GetPath())
+        if not path.startswith(camera_root) or not prim.IsA(UsdGeom.Camera):
+            continue
+        if "Pseudo_Depth" not in prim.GetName():
+            continue
+        cam = UsdGeom.Camera(prim)
+        focal = cam.GetFocalLengthAttr().Get()
+        v_ap = 2.0 * focal * math.tan(math.radians(DEPTH_VERTICAL_FOV_DEG / 2.0))
+        # Aperture ratio equal to the resolution ratio, so fy comes out equal
+        # to fx and the square-pixel forcing has nothing to change.
+        h_ap = v_ap * w / h
+        before_v = cam.GetVerticalApertureAttr().Get()
+        before_h = cam.GetHorizontalApertureAttr().Get()
+        cam.CreateVerticalApertureAttr().Set(v_ap)
+        cam.CreateHorizontalApertureAttr().Set(h_ap)
+        fx = focal * w / h_ap
+        fy = focal * h / v_ap
+        print(f"    optics  -> {prim.GetName()}")
+        print(f"        aperture h {before_h:.4f} -> {h_ap:.4f}   "
+              f"v {before_v:.4f} -> {v_ap:.4f}")
+        print(f"        at {w}x{h}: fx {fx:.1f} fy {fy:.1f}   "
+              f"H {2 * math.degrees(math.atan(w / 2 / fx)):.1f} deg  "
+              f"V {2 * math.degrees(math.atan(h / 2 / fy)):.1f} deg")
+        return True
+    print("    WARNING: no Pseudo_Depth camera found, optics left as shipped")
+    return False
+
+
 def _attach_camera(stage, base_link):
     """Reference the D455 under camera_link.
 
@@ -202,6 +273,7 @@ def _attach_camera(stage, base_link):
     if prim and prim.IsValid():
         print(f"    camera already present at {path}")
         _strip_physics(stage, path)
+        _set_depth_optics(stage, path)
         return path
 
     xform = UsdGeom.Xform.Define(stage, path)
@@ -209,6 +281,7 @@ def _attach_camera(stage, base_link):
     xform.AddTranslateOp().Set(CAMERA_OFFSET)
     print(f"    camera  -> {path}  offset {tuple(CAMERA_OFFSET)}")
     _strip_physics(stage, path)
+    _set_depth_optics(stage, path)
     return path
 
 

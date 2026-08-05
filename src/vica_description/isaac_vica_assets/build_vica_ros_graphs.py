@@ -158,8 +158,22 @@ CAMERA_DEPTH_INFO_TOPIC = "/camera/camera/depth/camera_info"
 # first -- the camera contributing obstacles at all, so the robot stops being
 # blind to anything the lidar plane at 0.382 m passes over.
 CAMERA_DEPTH_PCL_TOPIC = "/camera/camera/depth/color/points"
-CAMERA_WIDTH = 640
-CAMERA_HEIGHT = 480
+# Each camera renders at its own sensor's aspect ratio, not a shared one.
+#
+# Isaac computes fx from width and horizontalAperture, fy from height and
+# verticalAperture, then forces fy to fx for square pixels. Render at a ratio
+# the apertures do not share and the vertical field of view is silently
+# replaced by whatever the horizontal one implies -- at 640x480 the depth
+# camera's 64.9 degrees became 74.3.
+#
+# Depth is 848x480, the D455's native depth resolution, matching the apertures
+# attach_vica_sensors.py sets for 58 degrees vertical.
+# Colour is 640x400, the OV9782's 1.6 aspect, which the asset's own optics
+# already suit.
+CAMERA_COLOR_WIDTH = 640
+CAMERA_COLOR_HEIGHT = 400
+CAMERA_DEPTH_WIDTH = 848
+CAMERA_DEPTH_HEIGHT = 480
 
 # Set False to build the graphs without writing the stage back to disk. Used by
 # the headless validation harness; leave True for normal Script Editor runs.
@@ -545,11 +559,11 @@ def _camera_graph(path, color_prim, depth_prim):
             ],
             keys.SET_VALUES: [
                 ("ColorRp.inputs:cameraPrim", [Sdf.Path(color_prim)]),
-                ("ColorRp.inputs:width", CAMERA_WIDTH),
-                ("ColorRp.inputs:height", CAMERA_HEIGHT),
+                ("ColorRp.inputs:width", CAMERA_COLOR_WIDTH),
+                ("ColorRp.inputs:height", CAMERA_COLOR_HEIGHT),
                 ("DepthRp.inputs:cameraPrim", [Sdf.Path(depth_prim)]),
-                ("DepthRp.inputs:width", CAMERA_WIDTH),
-                ("DepthRp.inputs:height", CAMERA_HEIGHT),
+                ("DepthRp.inputs:width", CAMERA_DEPTH_WIDTH),
+                ("DepthRp.inputs:height", CAMERA_DEPTH_HEIGHT),
                 ("PublishRgb.inputs:type", "rgb"),
                 ("PublishRgb.inputs:topicName", CAMERA_RGB_TOPIC),
                 ("PublishRgb.inputs:frameId", CAMERA_COLOR_FRAME),
