@@ -38,7 +38,7 @@ import omni.kit.commands
 import omni.timeline
 import omni.usd
 
-from pxr import Gf, Sdf, Usd, UsdGeom
+from pxr import Gf, Sdf, Usd, UsdGeom, UsdPhysics
 
 
 # --------------------------------------------------------------------------
@@ -107,6 +107,48 @@ def _find_base_link(stage):
     return str(matches[0].GetPath())
 
 
+def _strip_physics(stage, root):
+    """Remove rigid-body and collision schemas from an attached sensor asset.
+
+    NVIDIA ships these sensors as standalone props, so rsd455.usd applies
+    RigidBodyAPI to its own root. Referenced under camera_link it becomes a
+    dynamic body that no joint holds: press Play and the camera drops away from
+    the robot and keeps going. It looks like the mount is broken.
+
+    Worse than the falling is where it falls from. A loose rigid body nested
+    inside a link of an articulation is not something PhysX handles gracefully,
+    and the articulation misbehaves around it -- a robot that drives forwards
+    and backwards but will not turn is the shape that took here.
+
+    A sensor should be neither. It rides on the link it is mounted to and
+    reports what it sees; it has no business having mass or a collider.
+    """
+    removed = []
+    for prim in stage.Traverse():
+        if not str(prim.GetPath()).startswith(root):
+            continue
+        for api, name in (
+            (UsdPhysics.RigidBodyAPI, "RigidBodyAPI"),
+            (UsdPhysics.CollisionAPI, "CollisionAPI"),
+            (UsdPhysics.ArticulationRootAPI, "ArticulationRootAPI"),
+        ):
+            if prim.HasAPI(api):
+                prim.RemoveAPI(api)
+                # RemoveAPI does not compose through a reference, so disable it
+                # by attribute as well.
+                for attr_name in (
+                    "physics:rigidBodyEnabled",
+                    "physics:collisionEnabled",
+                ):
+                    attr = prim.GetAttribute(attr_name)
+                    if attr:
+                        attr.Set(False)
+                removed.append(f"{prim.GetName()}:{name}")
+    if removed:
+        print(f"    physics stripped from sensor: {', '.join(removed)}")
+    return removed
+
+
 def _make_authorable(stage, path):
     """Clear the instanceable flag so a child can be added under *path*.
 
@@ -138,12 +180,14 @@ def _attach_camera(stage, base_link):
     prim = stage.GetPrimAtPath(path)
     if prim and prim.IsValid():
         print(f"    camera already present at {path}")
+        _strip_physics(stage, path)
         return path
 
     xform = UsdGeom.Xform.Define(stage, path)
     xform.GetPrim().GetReferences().AddReference(RSD455_URL)
     xform.AddTranslateOp().Set(CAMERA_OFFSET)
     print(f"    camera  -> {path}  offset {tuple(CAMERA_OFFSET)}")
+    _strip_physics(stage, path)
     return path
 
 
@@ -161,6 +205,7 @@ def _attach_lidar(stage, base_link):
         # prim, and skipping it on a re-run is how a stage ends up with the
         # sensor in place and the shipped 30 m range nobody notices.
         _set_lidar_range(stage, path)
+        _strip_physics(stage, path)
         return path
 
     # Referenced, not created through IsaacSensorCreateRtxLidar: the command
@@ -171,6 +216,7 @@ def _attach_lidar(stage, base_link):
     xform.GetPrim().GetReferences().AddReference(LIDAR_URL)
     print(f"    lidar   -> {path}  (RPLIDAR S2E asset)")
     _set_lidar_range(stage, path)
+    _strip_physics(stage, path)
     return path
 
 

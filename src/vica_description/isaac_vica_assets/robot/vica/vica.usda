@@ -91,6 +91,13 @@ def Xform "VICA" (
                     {
                         double3 xformOp:translate = (0.02, 0, 0)
                         uniform token[] xformOpOrder = ["xformOp:translate"]
+
+                        over "RSD455" (
+                            delete apiSchemas = ["PhysicsRigidBodyAPI"]
+                        )
+                        {
+                            bool physics:rigidBodyEnabled = 0
+                        }
                     }
                 }
 
