@@ -25,7 +25,7 @@ What it does:
 Run build_vica_ros_graphs.py after this one.
 """
 
-from pxr import Usd, UsdPhysics
+from pxr import Sdf, Usd, UsdPhysics, UsdShade
 
 import omni.timeline
 import omni.usd
@@ -55,6 +55,26 @@ CASTER_JOINTS = [
 WHEEL_STIFFNESS = 0.0
 WHEEL_DAMPING = 1.0e4
 WHEEL_MAX_FORCE = 1.0e5
+
+# --------------------------------------------------------------------------
+# Tyre friction
+# --------------------------------------------------------------------------
+# The importer binds no physics material at all, so every wheel runs on PhysX's
+# default. That is enough to creep forwards -- rolling asks little of the
+# contact -- and not enough to turn: rotating in place needs the drive wheels
+# to push sideways against the ground hard enough to drag two casters around an
+# arc, and without grip they simply spin. Commanded 0.5 rad/s produced 0.08
+# degrees of yaw in ten seconds while both wheels turned in opposite
+# directions, which is what no traction looks like from the outside.
+#
+# Rubber on a hard indoor floor. Restitution 0 because a bouncing wheel is not
+# a thing this robot does.
+WHEEL_STATIC_FRICTION = 0.9
+WHEEL_DYNAMIC_FRICTION = 0.8
+WHEEL_RESTITUTION = 0.0
+# Placed under the stage's default prim so it lands inside the robot asset
+# and travels with it into any stage that references the robot.
+FRICTION_MATERIAL_NAME = "PhysicsMaterials/VicaTyre"
 
 SAVE_STAGE = True
 
@@ -117,6 +137,40 @@ def _configure_velocity_drive(prim):
     drive.CreateTargetVelocityAttr().Set(0.0)
 
 
+def _bind_wheel_friction(stage):
+    """Give every wheel collider a tyre material.
+
+    Bound on the robot asset rather than the stage so it travels with the
+    robot: a material authored in one composed stage is one more thing to
+    remember when building the next.
+    """
+    default_prim = stage.GetDefaultPrim()
+    root = default_prim.GetPath() if default_prim else Sdf.Path("/")
+    path = root.AppendPath(FRICTION_MATERIAL_NAME)
+    material = UsdShade.Material.Define(stage, path)
+    physics_material = UsdPhysics.MaterialAPI.Apply(material.GetPrim())
+    physics_material.CreateStaticFrictionAttr().Set(WHEEL_STATIC_FRICTION)
+    physics_material.CreateDynamicFrictionAttr().Set(WHEEL_DYNAMIC_FRICTION)
+    physics_material.CreateRestitutionAttr().Set(WHEEL_RESTITUTION)
+
+    bound = []
+    for prim in stage.Traverse():
+        if not prim.HasAPI(UsdPhysics.CollisionAPI):
+            continue
+        # The collider is a child shape of the link, so the link name is the
+        # parent's: .../left_wheel_1/cylinder.
+        owner = prim.GetParent().GetName()
+        if "wheel" not in owner:
+            continue
+        UsdShade.MaterialBindingAPI.Apply(prim).Bind(
+            material,
+            bindingStrength=UsdShade.Tokens.weakerThanDescendants,
+            materialPurpose="physics",
+        )
+        bound.append(owner)
+    return bound, str(path)
+
+
 def main():
     _require_stopped_timeline()
 
@@ -155,6 +209,15 @@ def main():
             f"    {name:34s} velocity drive  stiffness={WHEEL_STIFFNESS} "
             f"damping={WHEEL_DAMPING} maxForce={WHEEL_MAX_FORCE}"
         )
+
+    print("\n=== tyre friction")
+    bound, material_path = _bind_wheel_friction(stage)
+    if bound:
+        print(f"    {material_path}  "
+              f"static={WHEEL_STATIC_FRICTION} dynamic={WHEEL_DYNAMIC_FRICTION}")
+        print(f"    bound to {len(bound)} wheel colliders: {', '.join(sorted(set(bound)))}")
+    else:
+        print("    WARNING no wheel colliders found to bind")
 
     if SAVE_STAGE:
         stage.GetRootLayer().Save()

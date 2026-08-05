@@ -138,20 +138,32 @@ def main():
     scene.CreateGravityDirectionAttr().Set(Gf.Vec3f(0.0, 0.0, -1.0))
     scene.CreateGravityMagnitudeAttr().Set(9.81)
 
-    # Only light the scene if the environment does not. hospital.usd carries a
-    # DomeLight of its own, and adding a second one on top of it just doubles
-    # the exposure -- worth avoiding while chasing a viewport that flashes white.
-    has_light = any(
-        p.IsA(UsdLux.DomeLight) or p.IsA(UsdLux.DistantLight)
-        for p in stage.Traverse()
-        if p.IsActive()
-    )
-    if has_light:
-        print("environment light   : present, none added")
+    # hospital.usd's DomeLight points at a sky texture by a relative path that
+    # does not resolve from here:
+    #
+    #   Failed to upload DomeLight texture
+    #   ../../../NVIDIA/Assets/Skies/Cloudy/abandoned_parking_4k.hdr
+    #
+    # A dome light whose texture fails to upload is what makes the viewport
+    # flash white, so those are switched off and replaced with a light that
+    # needs no asset. Overrides again -- hospital.usd is not written to.
+    domes = [p for p in stage.Traverse() if p.IsA(UsdLux.DomeLight)]
+    for dome in domes:
+        stage.OverridePrim(dome.GetPath()).SetActive(False)
+    if domes:
+        print(f"dome lights         : {len(domes)} deactivated (unresolvable sky texture)")
+
+    remaining = [
+        p for p in stage.Traverse()
+        if p.IsActive() and (p.IsA(UsdLux.DistantLight) or p.IsA(UsdLux.DomeLight))
+    ]
+    if remaining:
+        print(f"environment light   : {len(remaining)} already present, none added")
     else:
         light = UsdLux.DistantLight.Define(stage, "/World/Environment/defaultLight")
-        light.CreateIntensityAttr(1000.0)
-        print("environment light   : none found, DistantLight added")
+        light.CreateIntensityAttr(3000.0)
+        light.CreateAngleAttr(1.0)
+        print("environment light   : DistantLight added")
 
     stage.GetRootLayer().Save()
 

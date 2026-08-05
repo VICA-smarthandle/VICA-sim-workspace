@@ -116,7 +116,73 @@ def Xform "VICA" (
                         }
                     }
                 }
+
+                over "left_wheel_1"
+                {
+                    over "cylinder" (
+                        prepend apiSchemas = ["MaterialBindingAPI"]
+                    )
+                    {
+                        rel material:binding:physics = </VICA/PhysicsMaterials/VicaTyre> (
+                            bindMaterialAs = "weakerThanDescendants"
+                        )
+                    }
+                }
+
+                over "right_wheel_1"
+                {
+                    over "cylinder" (
+                        prepend apiSchemas = ["MaterialBindingAPI"]
+                    )
+                    {
+                        rel material:binding:physics = </VICA/PhysicsMaterials/VicaTyre> (
+                            bindMaterialAs = "weakerThanDescendants"
+                        )
+                    }
+                }
+
+                over "front_right_caster_steer_1"
+                {
+                    over "front_right_caster_wheel_1"
+                    {
+                        over "cylinder" (
+                            prepend apiSchemas = ["MaterialBindingAPI"]
+                        )
+                        {
+                            rel material:binding:physics = </VICA/PhysicsMaterials/VicaTyre> (
+                                bindMaterialAs = "weakerThanDescendants"
+                            )
+                        }
+                    }
+                }
+
+                over "front_left_caster_steer_1"
+                {
+                    over "front_left_caster_wheel_1"
+                    {
+                        over "cylinder" (
+                            prepend apiSchemas = ["MaterialBindingAPI"]
+                        )
+                        {
+                            rel material:binding:physics = </VICA/PhysicsMaterials/VicaTyre> (
+                                bindMaterialAs = "weakerThanDescendants"
+                            )
+                        }
+                    }
+                }
             }
+        }
+    }
+
+    def "PhysicsMaterials"
+    {
+        def Material "VicaTyre" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.8
+            float physics:restitution = 0
+            float physics:staticFriction = 0.9
         }
     }
     variantSet "Physics" = {
