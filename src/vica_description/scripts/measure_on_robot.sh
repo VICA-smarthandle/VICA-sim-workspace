@@ -107,6 +107,74 @@ echo "          '{angular: {z: 0.4}}'"
 echo "  Stop when /odom reports one full turn, then measure the real heading"
 echo "  against the mark."
 echo
+echo
+echo "=============================================================="
+echo " 4. How much of a commanded rotation does the robot deliver?"
+echo "=============================================================="
+echo
+echo "Why: simulation reaches about 61 % of what it is told -- 17.4 deg/s"
+echo "     against a commanded 28.6. Whether that is a simulation defect or"
+echo "     the robot behaving the same way decides what to do about it, and"
+echo "     the two answers point in opposite directions:"
+echo
+echo "       the robot also delivers ~61 %  -> simulation is faithful. Leave"
+echo "                                         the physics alone and plan"
+echo "                                         around the real turn rate."
+echo "       the robot delivers ~100 %      -> simulation has a defect in"
+echo "                                         friction or the joint drives."
+echo "                                         Fix it there. Do NOT compensate"
+echo "                                         in MPPI -- parameters tuned to"
+echo "                                         hide it would overshoot on the"
+echo "                                         real robot, which is the exact"
+echo "                                         failure sim-to-real is meant to"
+echo "                                         prevent."
+echo
+echo "  Open floor, robot free to spin. Commands 0.4 rad/s (22.9 deg/s), the"
+echo "  configured wz_max, and reports what odometry actually achieved:"
+echo
+timeout 30 python3 - <<'PY' 2>/dev/null || echo "  probe failed -- is /odom publishing?"
+import math
+import time
+
+import rclpy
+from geometry_msgs.msg import Twist
+from nav_msgs.msg import Odometry
+from rclpy.node import Node
+
+TARGET = 0.4  # rad/s, matches wz_max in both workspaces
+
+rclpy.init()
+node = Node("yaw_rate_probe")
+pub = node.create_publisher(Twist, "/cmd_vel", 10)
+seen = []
+node.create_subscription(Odometry, "/odom", lambda m: seen.append(m), 10)
+
+cmd = Twist()
+cmd.angular.z = TARGET
+t0 = time.time()
+while rclpy.ok() and time.time() - t0 < 6.0:
+    pub.publish(cmd)
+    rclpy.spin_once(node, timeout_sec=0.05)
+pub.publish(Twist())
+for _ in range(10):
+    rclpy.spin_once(node, timeout_sec=0.05)
+
+# Skip the first second: the smoother is still ramping up.
+spun = [m for m in seen if m.header.stamp.sec or m.header.stamp.nanosec]
+steady = spun[len(spun) // 4:] if len(spun) > 8 else spun
+if steady:
+    rates = [m.twist.twist.angular.z for m in steady]
+    got = sum(rates) / len(rates)
+    print(f"  commanded {TARGET:.3f} rad/s  ({math.degrees(TARGET):.1f} deg/s)")
+    print(f"  achieved  {got:.3f} rad/s  ({math.degrees(got):.1f} deg/s)"
+          f"   = {100 * got / TARGET:.0f} %")
+    print(f"  samples {len(steady)}")
+else:
+    print("  no odometry received")
+rclpy.shutdown()
+PY
+
+echo
 echo "=============================================================="
 echo " Paste all of the above back. Item 3 needs the physical reading too."
 echo "=============================================================="
