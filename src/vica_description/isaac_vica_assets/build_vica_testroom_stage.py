@@ -63,6 +63,21 @@ BLOCK_Y_MIN, BLOCK_Y_MAX = -3.4, 3.0
 # Doorway in the block's right wall, as a span in y.
 DOOR_Y_MIN, DOOR_Y_MAX = -0.6, 0.6
 
+# Test obstacles, placed to separate what each sensor contributes.
+#
+# The lidar sweeps one plane at 0.382 m. Anything below it is invisible to the
+# scan and has to come from the depth camera at 0.320 m, which is the whole
+# reason the camera feeds the costmap at all. A box of each kind, ahead of and
+# behind the robot along the corridor, makes the difference readable straight
+# off the costmap: LOW should appear only when the depth source is enabled,
+# TALL should appear either way.
+#
+#   (x, y, side, height, name)
+OBSTACLES = [
+    (0.0,  2.0, 0.40, 0.25, "LowBox"),   # under the scan plane: camera only
+    (0.0, -2.0, 0.40, 1.00, "TallBox"),  # through it: both sensors
+]
+
 WALL_THICKNESS = 0.1
 # Tall enough that the lidar at 0.382 m sees wall rather than sky, and that
 # nothing can be driven under.
@@ -138,6 +153,15 @@ def main():
     for name, corners in walls.items():
         _wall(stage, f"/World/Walls/{name}", *corners)
 
+    # ---- test obstacles ---------------------------------------------------
+    for x, y, side, height, name in OBSTACLES:
+        box = UsdGeom.Cube.Define(stage, f"/World/Obstacles/{name}")
+        box.CreateSizeAttr(1.0)
+        bx = UsdGeom.Xformable(box.GetPrim())
+        bx.AddTranslateOp().Set(Gf.Vec3d(x, y, height / 2.0))
+        bx.AddScaleOp().Set(Gf.Vec3f(side, side, height))
+        UsdPhysics.CollisionAPI.Apply(box.GetPrim())
+
     # ---- robot ------------------------------------------------------------
     robot = UsdGeom.Xform.Define(stage, "/World/VICA")
     robot.GetPrim().GetReferences().AddReference(
@@ -180,6 +204,11 @@ def main():
     print(f"    bottom {BLOCK_Y_MIN - Y_MIN:.1f} m   at the 1.60 m limit")
     print(f"    left   {BLOCK_X_MIN - X_MIN:.1f} m   too narrow to turn on the spot")
     print(f"doorway            : {DOOR_Y_MAX - DOOR_Y_MIN:.1f} m  (robot is 0.455 m wide)")
+    print("test obstacles     :")
+    for x, y, side, height, name in OBSTACLES:
+        seen = "camera only" if height < 0.382 else "scan and camera"
+        print(f"    {name:8s} ({x:+.1f}, {y:+.1f})  {side:.2f} m square, "
+              f"{height:.2f} m tall  -> {seen}")
     print(f"physics variant    : {vset.GetVariantSelection() if vset.IsValid() else 'MISSING'}")
     print(f"articulation roots : {arts}")
     if len(arts) != 1:
