@@ -34,4 +34,10 @@ install(
   RENAME nav2_startup_gate
 )
 
+install(
+  PROGRAMS scripts/compare_nav2_with_robot.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME compare_nav2_with_robot
+)
+
 ament_package()
