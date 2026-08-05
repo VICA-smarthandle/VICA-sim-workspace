@@ -123,7 +123,7 @@ def Xform "VICA" (
                         prepend apiSchemas = ["MaterialBindingAPI"]
                     )
                     {
-                        rel material:binding:physics = </VICA/PhysicsMaterials/VicaTyre> (
+                        rel material:binding:physics = </VICA/PhysicsMaterials/VicaDriveTyre> (
                             bindMaterialAs = "weakerThanDescendants"
                         )
                     }
@@ -135,7 +135,7 @@ def Xform "VICA" (
                         prepend apiSchemas = ["MaterialBindingAPI"]
                     )
                     {
-                        rel material:binding:physics = </VICA/PhysicsMaterials/VicaTyre> (
+                        rel material:binding:physics = </VICA/PhysicsMaterials/VicaDriveTyre> (
                             bindMaterialAs = "weakerThanDescendants"
                         )
                     }
@@ -149,7 +149,7 @@ def Xform "VICA" (
                             prepend apiSchemas = ["MaterialBindingAPI"]
                         )
                         {
-                            rel material:binding:physics = </VICA/PhysicsMaterials/VicaTyre> (
+                            rel material:binding:physics = </VICA/PhysicsMaterials/VicaCaster> (
                                 bindMaterialAs = "weakerThanDescendants"
                             )
                         }
@@ -164,7 +164,7 @@ def Xform "VICA" (
                             prepend apiSchemas = ["MaterialBindingAPI"]
                         )
                         {
-                            rel material:binding:physics = </VICA/PhysicsMaterials/VicaTyre> (
+                            rel material:binding:physics = </VICA/PhysicsMaterials/VicaCaster> (
                                 bindMaterialAs = "weakerThanDescendants"
                             )
                         }
@@ -183,6 +183,24 @@ def Xform "VICA" (
             float physics:dynamicFriction = 0.8
             float physics:restitution = 0
             float physics:staticFriction = 0.9
+        }
+
+        def Material "VicaDriveTyre" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.8
+            float physics:restitution = 0
+            float physics:staticFriction = 0.9
+        }
+
+        def Material "VicaCaster" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.05
+            float physics:restitution = 0
+            float physics:staticFriction = 0.1
         }
     }
     variantSet "Physics" = {

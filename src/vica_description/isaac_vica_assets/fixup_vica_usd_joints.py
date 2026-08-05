@@ -72,9 +72,23 @@ WHEEL_MAX_FORCE = 1.0e5
 WHEEL_STATIC_FRICTION = 0.9
 WHEEL_DYNAMIC_FRICTION = 0.8
 WHEEL_RESTITUTION = 0.0
+
+# Casters get their own, much slipperier material.
+#
+# Binding the tyre material to all four wheels made the robot turn, but it took
+# more than ten seconds to get going: 0.17 deg, then 0.8, then 2.2, then 5.
+# A caster only turns because the ground drags its contact patch around behind
+# the swivel axis, and grippy casters fight that -- the same friction that gives
+# the drive wheels traction gives the casters resistance. Real ones are small
+# hard wheels that scrub easily, which is the point of a caster.
+#
+# So: grip on the drive wheels, slip on the casters.
+CASTER_STATIC_FRICTION = 0.1
+CASTER_DYNAMIC_FRICTION = 0.05
 # Placed under the stage's default prim so it lands inside the robot asset
 # and travels with it into any stage that references the robot.
-FRICTION_MATERIAL_NAME = "PhysicsMaterials/VicaTyre"
+DRIVE_MATERIAL_NAME = "PhysicsMaterials/VicaDriveTyre"
+CASTER_MATERIAL_NAME = "PhysicsMaterials/VicaCaster"
 
 SAVE_STAGE = True
 
@@ -137,23 +151,34 @@ def _configure_velocity_drive(prim):
     drive.CreateTargetVelocityAttr().Set(0.0)
 
 
-def _bind_wheel_friction(stage):
-    """Give every wheel collider a tyre material.
+def _define_material(stage, root, name, static, dynamic):
+    path = root.AppendPath(name)
+    material = UsdShade.Material.Define(stage, path)
+    api = UsdPhysics.MaterialAPI.Apply(material.GetPrim())
+    api.CreateStaticFrictionAttr().Set(static)
+    api.CreateDynamicFrictionAttr().Set(dynamic)
+    api.CreateRestitutionAttr().Set(WHEEL_RESTITUTION)
+    return material, str(path)
 
-    Bound on the robot asset rather than the stage so it travels with the
-    robot: a material authored in one composed stage is one more thing to
-    remember when building the next.
+
+def _bind_wheel_friction(stage):
+    """Grip on the drive wheels, slip on the casters.
+
+    Bound on the robot asset rather than a stage so it travels with the robot:
+    a material authored in one composed stage is one more thing to remember
+    when building the next.
     """
     default_prim = stage.GetDefaultPrim()
     root = default_prim.GetPath() if default_prim else Sdf.Path("/")
-    path = root.AppendPath(FRICTION_MATERIAL_NAME)
-    material = UsdShade.Material.Define(stage, path)
-    physics_material = UsdPhysics.MaterialAPI.Apply(material.GetPrim())
-    physics_material.CreateStaticFrictionAttr().Set(WHEEL_STATIC_FRICTION)
-    physics_material.CreateDynamicFrictionAttr().Set(WHEEL_DYNAMIC_FRICTION)
-    physics_material.CreateRestitutionAttr().Set(WHEEL_RESTITUTION)
 
-    bound = []
+    drive_mat, drive_path = _define_material(
+        stage, root, DRIVE_MATERIAL_NAME,
+        WHEEL_STATIC_FRICTION, WHEEL_DYNAMIC_FRICTION)
+    caster_mat, caster_path = _define_material(
+        stage, root, CASTER_MATERIAL_NAME,
+        CASTER_STATIC_FRICTION, CASTER_DYNAMIC_FRICTION)
+
+    bound = {"drive": [], "caster": []}
     for prim in stage.Traverse():
         if not prim.HasAPI(UsdPhysics.CollisionAPI):
             continue
@@ -162,13 +187,14 @@ def _bind_wheel_friction(stage):
         owner = prim.GetParent().GetName()
         if "wheel" not in owner:
             continue
+        is_caster = "caster" in owner
         UsdShade.MaterialBindingAPI.Apply(prim).Bind(
-            material,
+            caster_mat if is_caster else drive_mat,
             bindingStrength=UsdShade.Tokens.weakerThanDescendants,
             materialPurpose="physics",
         )
-        bound.append(owner)
-    return bound, str(path)
+        bound["caster" if is_caster else "drive"].append(owner)
+    return bound, drive_path, caster_path
 
 
 def main():
@@ -210,14 +236,14 @@ def main():
             f"damping={WHEEL_DAMPING} maxForce={WHEEL_MAX_FORCE}"
         )
 
-    print("\n=== tyre friction")
-    bound, material_path = _bind_wheel_friction(stage)
-    if bound:
-        print(f"    {material_path}  "
-              f"static={WHEEL_STATIC_FRICTION} dynamic={WHEEL_DYNAMIC_FRICTION}")
-        print(f"    bound to {len(bound)} wheel colliders: {', '.join(sorted(set(bound)))}")
-    else:
-        print("    WARNING no wheel colliders found to bind")
+    print("\n=== wheel friction")
+    bound, drive_path, caster_path = _bind_wheel_friction(stage)
+    print(f"    drive  {drive_path}  "
+          f"static={WHEEL_STATIC_FRICTION} dynamic={WHEEL_DYNAMIC_FRICTION}")
+    print(f"           {', '.join(sorted(set(bound['drive']))) or 'NONE FOUND'}")
+    print(f"    caster {caster_path}  "
+          f"static={CASTER_STATIC_FRICTION} dynamic={CASTER_DYNAMIC_FRICTION}")
+    print(f"           {', '.join(sorted(set(bound['caster']))) or 'NONE FOUND'}")
 
     if SAVE_STAGE:
         stage.GetRootLayer().Save()
