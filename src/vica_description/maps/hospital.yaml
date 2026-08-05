@@ -1,0 +1,18 @@
+# Hospital environment, for Downloads/Environments/Hospital/hospital.usd.
+#
+# Not a VICA map. This is NVIDIA's Carter sample map, copied verbatim from
+# IsaacSim-ros_workspaces/jazzy_ws/src/navigation/carter_navigation/maps/ --
+# the image keeps its original name so that stays visible. It was built from
+# the same stage, so the geometry lines up, but it was swept by a different
+# robot with a different lidar at a different height. Replace it once
+# vica_cartographer.launch.py has produced one of our own.
+#
+# VICA spawns at the world origin in that stage (base_footprint exactly at
+# 0,0,0), and (0,0) falls in free space here, so amcl's set_initial_pose of
+# (0,0,0) is right for this pair. Verified, not assumed.
+image: carter_hospital_navigation.png
+resolution: 0.05
+origin: [-49.625, -4.675, 0.0000]
+negate: 0
+occupied_thresh: 0.65
+free_thresh: 0.196
