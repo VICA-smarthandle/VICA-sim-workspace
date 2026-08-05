@@ -64,6 +64,28 @@ def main():
         print("        can hold the robot up and adding one will not help.")
         print("        Check the Physics variant below.")
 
+    # ---- rigid bodies no joint holds --------------------------------------
+    # Invisible in the outliner and behind a whole class of "physics is broken"
+    # symptoms. The D455 arrived this way: NVIDIA ships its sensors as
+    # standalone props, so the asset carries RigidBodyAPI, and referencing it
+    # under camera_link produced a dynamic body nothing was attached to. It
+    # fell away from the robot, and being loose inside an articulation it also
+    # took the robot's ability to turn with it.
+    jointed = set()
+    for p in stage.Traverse():
+        if p.IsA(UsdPhysics.Joint):
+            j = UsdPhysics.Joint(p)
+            for t in list(j.GetBody0Rel().GetTargets()) + list(j.GetBody1Rel().GetTargets()):
+                jointed.add(str(t))
+    free = [p for p in rigid if str(p.GetPath()) not in jointed]
+    print(f"\nrigid bodies with no joint: {len(free)}")
+    for f in free:
+        print(f"    {f.GetPath()}")
+    if free:
+        print("    >>> each of these falls on Play. Inside a robot that is")
+        print("        almost always a bug: a sensor or prop asset brought its")
+        print("        own RigidBodyAPI along with its geometry.")
+
     # ---- the variant that decides whether physics exists ------------------
     robot = None
     for p in stage.Traverse():
