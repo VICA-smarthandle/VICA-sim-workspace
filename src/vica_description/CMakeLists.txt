@@ -40,4 +40,10 @@ install(
   RENAME compare_nav2_with_robot
 )
 
+install(
+  PROGRAMS scripts/measure_on_robot.sh
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME measure_on_robot
+)
+
 ament_package()
