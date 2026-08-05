@@ -61,6 +61,11 @@ STALE_ROBOT_PRIM = "vica2"
 # check that (0,0) is free space there.
 ROBOT_TRANSLATE = Gf.Vec3d(0.0, 0.0, 0.0)
 
+# The variant that carries the robot's rigid bodies and joints. See the note
+# where it is applied.
+PHYSICS_VARIANT_SET = "Physics"
+PHYSICS_VARIANT = "physx"
+
 
 def _relative(target, start_dir):
     """Asset paths relative to the stage, so the tree can be moved as a unit."""
@@ -96,6 +101,25 @@ def main():
     robot = UsdGeom.Xform.Define(stage, "/World/VICA")
     robot.GetPrim().GetReferences().AddReference(_relative(ROBOT, HERE))
     robot.AddTranslateOp().Set(ROBOT_TRANSLATE)
+
+    # Pin the Physics variant here rather than inheriting it from the reference.
+    #
+    # The importer puts every rigid body and joint behind a variant set with
+    # four options, one of which is "none". Selecting "none" -- or failing to
+    # select anything -- leaves the robot with colliders and no rigid bodies at
+    # all, so it is not a physics object and drops through the floor. The
+    # selection is a dropdown in the GUI's property panel, one click from
+    # silently disabling physics, and the failure looks like a broken ground
+    # plane rather than a changed variant.
+    #
+    # "physx" is the right one: physx.usda sublayers physics.usda, so it is the
+    # generic physics plus the PhysX-specific settings.
+    vset = robot.GetPrim().GetVariantSets().GetVariantSet(PHYSICS_VARIANT_SET)
+    if vset.IsValid():
+        vset.SetVariantSelection(PHYSICS_VARIANT)
+        print(f"physics variant     : {PHYSICS_VARIANT_SET} = {vset.GetVariantSelection()}")
+    else:
+        print(f"physics variant     : WARNING no '{PHYSICS_VARIANT_SET}' variant set on the robot")
 
     # ---- physics and light ------------------------------------------------
     UsdPhysics.Scene.Define(stage, "/World/PhysicsScene")
