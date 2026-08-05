@@ -106,6 +106,7 @@ def Xform "VICA" (
                 )
                 {
                     def Xform "RPLIDAR_S2E" (
+                        active = false
                         prepend references = @https://omniverse-content-production.s3-us-west-2.amazonaws.com/Assets/Isaac/6.0/Isaac/Sensors/Slamtec/RPLIDAR_S2E/Slamtec_RPLIDAR_S2E.usd@
                     )
                     {
@@ -167,6 +168,23 @@ def Xform "VICA" (
                             rel material:binding:physics = </VICA/PhysicsMaterials/VicaCaster> (
                                 bindMaterialAs = "weakerThanDescendants"
                             )
+                        }
+                    }
+                }
+
+                def Xform "lidar_mount"
+                {
+                    double3 xformOp:translate = (0.1850000023841858, 0, 0.19200000166893005)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+
+                    def Xform "RPLIDAR_S2E" (
+                        prepend references = @https://omniverse-content-production.s3-us-west-2.amazonaws.com/Assets/Isaac/6.0/Isaac/Sensors/Slamtec/RPLIDAR_S2E/Slamtec_RPLIDAR_S2E.usd@
+                    )
+                    {
+                        over "RPLidar_S2E"
+                        {
+                            float omni:sensor:Core:farRangeM = 12
+                            float omni:sensor:Core:nearRangeM = 0.2
                         }
                     }
                 }

@@ -17,9 +17,11 @@ freshly imported robot says it plainly:
     SKIPPED: ROS_Lidar (no OmniLidar prim under the robot)
     SKIPPED: ROS_Camera (RSD455 colour/depth prims not found)
 
-Placement matches what the previous stage had, read back out of it rather than
-guessed: the lidar sits on laser_frame with no offset, and the camera 20 mm
-forward of camera_link, which is the D455 asset's own mounting offset.
+Placement is read out of the stage rather than guessed: the camera sits 20 mm
+forward of camera_link, which is the D455 asset's own mounting offset, and the
+lidar sits at laser_frame's offset -- but hung off base_link rather than off
+laser_frame itself, for a reason that took a long time to find and is written
+up above _attach_lidar.
 
 The lidar is an S2E, as it was before, and the robot's is an A2. That gap
 cannot be closed here; see the note above LIDAR_URL for why, and for where it
@@ -75,6 +77,9 @@ LIDAR_URL = (
     "/Assets/Isaac/6.0/Isaac/Sensors/Slamtec/RPLIDAR_S2E/Slamtec_RPLIDAR_S2E.usd"
 )
 LIDAR_PRIM_NAME = "RPLIDAR_S2E"
+# The lidar hangs off base_link under this Xform rather than off laser_frame.
+# See _attach_lidar for why.
+LIDAR_MOUNT_NAME = "lidar_mount"
 
 # RPLIDAR A2, matching config/vica_2d.lua and the amcl block. The asset ships
 # 0.05 / 30.0. min 0.2 covers both A2 variants (A2M8 0.15 m, A2M12 0.2 m).
@@ -192,11 +197,70 @@ def _attach_camera(stage, base_link):
 
 
 def _attach_lidar(stage, base_link):
-    parent = f"{base_link}/laser_frame"
-    if not stage.GetPrimAtPath(parent):
-        raise RuntimeError(f"No laser_frame at {parent}")
+    """Mount the lidar on base_link, at laser_frame's offset.
 
-    _make_authorable(stage, parent)
+    Not under laser_frame, which is the obvious place and does not work. The
+    importer marks link prims carrying a mesh as instanceable, and laser_frame
+    carries the lidar's visual. Clearing that flag is enough for USD to let a
+    child be authored -- the prim then reports instanceable False, IsInstance
+    False, IsInstanceProxy False -- but not enough for the RTX sensor pipeline,
+    which produces no scan at all from a lidar parented there. The topic is
+    advertised, the graph runs, and nothing is ever published.
+
+    Nothing in a static comparison shows this. The lidar prim's attributes,
+    applied schemas and flags all match a lidar that works, and the same graph
+    publishes when pointed at one. It took running the same graph against three
+    lidars -- one on a working robot, one on nothing at all, one here -- to
+    place the fault on the parent rather than the sensor.
+
+    Mounting on base_link instead costs nothing: laser_frame is fixed to
+    base_link, so a copy of its transform puts the sensor in the same place,
+    and /scan still carries frame_id laser_frame, which TF resolves from the
+    URDF as before.
+    """
+    laser_frame = f"{base_link}/laser_frame"
+    frame_prim = stage.GetPrimAtPath(laser_frame)
+    if not frame_prim:
+        raise RuntimeError(f"No laser_frame at {laser_frame}")
+
+    # An earlier run of this script put a lidar under laser_frame. Leaving it
+    # there is worse than the original bug: two OmniLidar prims in one stage and
+    # neither publishes, so the fix below would look like it had not worked.
+    stale = stage.GetPrimAtPath(f"{laser_frame}/{LIDAR_PRIM_NAME}")
+    if stale and stale.IsActive():
+        stale.SetActive(False)
+        print(f"    stale   -> {laser_frame}/{LIDAR_PRIM_NAME} deactivated")
+
+    # From laser_joint, not from laser_frame's transform.
+    #
+    # A URDF import leaves link prims carrying their visual mesh offset -- for
+    # laser_frame that is (0, 0, -0.041) -- while the joints carry the
+    # kinematics, and PhysX places the links from those at Play. Reading the
+    # prim gives the mesh offset and puts the lidar inside the chassis.
+    offset = None
+    for prim in stage.Traverse():
+        if not prim.IsA(UsdPhysics.Joint):
+            continue
+        joint = UsdPhysics.Joint(prim)
+        targets = [t.name for t in joint.GetBody1Rel().GetTargets()]
+        if "laser_frame" in targets:
+            offset = joint.GetLocalPos0Attr().Get()
+            print(f"    offset  <- {prim.GetName()}.localPos0 = "
+                  f"{tuple(round(v, 4) for v in offset)}")
+            break
+    if offset is None:
+        raise RuntimeError(
+            "No joint found with laser_frame as body1; cannot place the lidar."
+        )
+
+    parent = f"{base_link}/{LIDAR_MOUNT_NAME}"
+    xf = UsdGeom.Xform.Define(stage, parent)
+    # Rewrite rather than create-if-missing: a re-run has to be able to correct
+    # a mount placed by an earlier version of this script.
+    xf.ClearXformOpOrder()
+    xf.AddTranslateOp().Set(Gf.Vec3d(*offset))
+    print(f"    mount   -> {parent}  at laser_frame's offset "
+          f"{tuple(round(v, 4) for v in offset)}")
 
     path = f"{parent}/{LIDAR_PRIM_NAME}"
     if stage.GetPrimAtPath(path):
@@ -205,7 +269,6 @@ def _attach_lidar(stage, base_link):
         # prim, and skipping it on a re-run is how a stage ends up with the
         # sensor in place and the shipped 30 m range nobody notices.
         _set_lidar_range(stage, path)
-        _strip_physics(stage, path)
         return path
 
     # Referenced, not created through IsaacSensorCreateRtxLidar: the command
@@ -216,7 +279,6 @@ def _attach_lidar(stage, base_link):
     xform.GetPrim().GetReferences().AddReference(LIDAR_URL)
     print(f"    lidar   -> {path}  (RPLIDAR S2E asset)")
     _set_lidar_range(stage, path)
-    _strip_physics(stage, path)
     return path
 
 
