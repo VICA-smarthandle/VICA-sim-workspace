@@ -185,6 +185,7 @@ def Xform "VICA" (
                         {
                             float omni:sensor:Core:farRangeM = 12
                             float omni:sensor:Core:nearRangeM = 0.2
+                            uint omni:sensor:Core:patternFiringRateHz = 8000
                         }
                     }
                 }

@@ -86,6 +86,22 @@ LIDAR_MOUNT_NAME = "lidar_mount"
 LIDAR_NEAR_RANGE_M = 0.2
 LIDAR_FAR_RANGE_M = 12.0
 
+# And the A2's firing rate, for the same reason.
+#
+# The S2E fires at 32 kHz. Spinning at 10 Hz that is 3200 points per
+# revolution, an angular resolution of 0.11 deg; the A2 fires at 8 kHz for 800
+# points and 0.45 deg. Left alone, the simulated scan is four times denser than
+# the robot's, and at 5 m the beams land 1 cm apart here against 4 cm there.
+#
+# That gap points the wrong way for what this simulator is for. Chair legs,
+# poles and door frames read reliably in simulation and get missed between
+# beams on the robot, so a narrow gap that navigates cleanly here says nothing
+# about the same gap in a corridor. Better to simulate the sensor that exists.
+#
+# It also fixes the size of /scan's ranges array, which is what anything doing
+# arithmetic on beam indices depends on.
+LIDAR_FIRING_RATE_HZ = 8000
+
 # Read back out of the previous stage rather than assumed.
 CAMERA_OFFSET = Gf.Vec3d(0.02, 0.0, 0.0)
 
@@ -283,7 +299,9 @@ def _attach_lidar(stage, base_link):
 
 
 def _set_lidar_range(stage, lidar_root):
-    """Override the sensor's range to the A2's, in place on the OmniLidar prim.
+    """Override the sensor's range and firing rate to the A2's.
+
+    Applied in place on the OmniLidar prim.
 
     The referenced asset has to be composed before this can find the prim, so it
     runs after AddReference rather than alongside it. Returns quietly if the
@@ -298,16 +316,17 @@ def _set_lidar_range(stage, lidar_root):
         for attr_name, value in (
             ("omni:sensor:Core:nearRangeM", LIDAR_NEAR_RANGE_M),
             ("omni:sensor:Core:farRangeM", LIDAR_FAR_RANGE_M),
+            ("omni:sensor:Core:patternFiringRateHz", LIDAR_FIRING_RATE_HZ),
         ):
             attr = prim.GetAttribute(attr_name)
             if not attr:
-                print(f"    WARNING: {attr_name} absent, range left as shipped")
+                print(f"    WARNING: {attr_name} absent, left as shipped")
                 continue
             before = attr.Get()
             attr.Set(value)
-            print(f"    range   -> {attr_name.split(':')[-1]}: {before} -> {value}")
+            print(f"    sensor  -> {attr_name.split(':')[-1]}: {before} -> {value}")
         return
-    print("    WARNING: no OmniLidar under the reference, range left as shipped")
+    print("    WARNING: no OmniLidar under the reference, left as shipped")
 
 
 def main():
