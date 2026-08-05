@@ -84,8 +84,6 @@ MUST_MATCH = {
         "how long a mark survives without being seen again",
     ("local_costmap.local_costmap", "voxel_layer.scan.expected_update_rate"):
         "how long a silent sensor is tolerated before the layer complains",
-    ("local_costmap.local_costmap", "voxel_layer.mark_threshold"):
-        "voxel column hits needed to mark the cell",
     ("global_costmap.global_costmap", "obstacle_layer.scan.obstacle_min_range"):
         "as the local costmap",
     ("global_costmap.global_costmap", "obstacle_layer.scan.raytrace_min_range"):
@@ -120,6 +118,11 @@ MUST_DIFFER = {
         "as GridBased; kept inert for A/B",
     ("planner_server", "GridBased.lattice_filepath"):
         "primitives ship with the distribution, so the path follows it",
+    ("local_costmap.local_costmap", "voxel_layer.mark_threshold"):
+        "the test is strictly-greater-than, and a 2D laser marks one voxel per "
+        "column, so 1 means a scan-only voxel layer marks nothing at all. The "
+        "robot can afford it because its nvblox_layer carries the obstacles; "
+        "here it emptied the costmap. Revisit when depth is the primary source",
     ("local_costmap.local_costmap", "plugins"):
         "the robot runs an nvblox_layer between voxel and inflation, feeding "
         "D455 depth into the costmap so it sees what a lidar plane at 0.382 m "

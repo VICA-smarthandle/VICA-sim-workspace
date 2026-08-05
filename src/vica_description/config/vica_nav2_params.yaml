@@ -247,10 +247,53 @@ local_costmap:
         z_resolution: 0.05
         z_voxels: 40
         max_obstacle_height: 2.0
-        # 1, as the robot. 0 marks a cell on a single voxel hit anywhere in the
-        # column, which turns one stray return into an obstacle.
-        mark_threshold: 1
-        observation_sources: scan
+        # 0 here, against the robot's 1, and the difference is not a drift.
+        #
+        # mark_threshold is the number of marked voxels a column needs before
+        # the 2D cell goes lethal, and the test is strictly greater than. A 2D
+        # laser marks exactly one voxel per column, so at 1 a scan-only voxel
+        # layer can never mark anything: copying the robot's value emptied this
+        # costmap completely -- 14400 cells, every one free, walls 2 m away
+        # invisible.
+        #
+        # It costs the robot nothing because its costmap does not depend on
+        # this layer for obstacles; an nvblox_layer sits beside it doing that
+        # work. Take the value across without the layer that makes it safe and
+        # the robot stops seeing.
+        #
+        # Raise it only once the depth cloud is the primary source, since dense
+        # points do fill a column and would then benefit from the filtering.
+        mark_threshold: 0
+        # Two sources, which is the point of a VoxelLayer. Fed only the 2D scan
+        # it returns the same answer as an ObstacleLayer for more work, and the
+        # robot stays blind to anything the lidar plane at 0.382 m passes over:
+        # a box on the floor, a chair seat, a foot.
+        #
+        # The robot solves this with an nvblox_layer -- Isaac ROS, Humble only,
+        # no Jazzy build -- fusing depth into a TSDF and slicing a costmap out
+        # of it. That handles a moving obstacle's history better than marking
+        # raw points does, so this is the same intent by a simpler route, not
+        # the same mechanism. Worth remembering when a dynamic-obstacle result
+        # here is read as saying something about the robot.
+        observation_sources: scan depth
+        depth:
+          topic: /camera/camera/depth/color/points
+          data_type: "PointCloud2"
+          clearing: True
+          marking: True
+          # The D455 sits at 0.320 m and looks level, so it sees the floor a
+          # short way ahead. min_obstacle_height keeps the floor itself from
+          # marking; max matches the layer's ceiling.
+          min_obstacle_height: 0.05
+          max_obstacle_height: 2.0
+          # Depth is dense and short-ranged next to a lidar. 3.0 m is where the
+          # D455's stereo error starts to matter more than the reading does.
+          obstacle_max_range: 3.0
+          obstacle_min_range: 0.3
+          raytrace_max_range: 3.5
+          raytrace_min_range: 0.3
+          observation_persistence: 0.5
+          expected_update_rate: 0.5
         scan:
           topic: /scan
           max_obstacle_height: 2.0

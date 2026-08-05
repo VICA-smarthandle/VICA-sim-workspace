@@ -146,6 +146,18 @@ CAMERA_RGB_TOPIC = "/camera/camera/color/image_raw"
 CAMERA_DEPTH_TOPIC = "/camera/camera/depth/image_rect_raw"
 CAMERA_COLOR_INFO_TOPIC = "/camera/camera/color/camera_info"
 CAMERA_DEPTH_INFO_TOPIC = "/camera/camera/depth/camera_info"
+# The name realsense2_camera gives its organised cloud when pointcloud output is
+# enabled. Nav2's VoxelLayer takes this as a second observation source, which is
+# what makes a VoxelLayer worth having: fed only a 2D LaserScan it produces the
+# same answer as an ObstacleLayer for more work.
+#
+# This is not nvblox. The robot runs nvblox_ros, an Isaac ROS package with no
+# Jazzy build, inside a Humble container; it fuses depth into a TSDF and slices
+# a costmap out of it, which handles a moving obstacle's history far better than
+# marking raw points does. What this shares with it is the part that matters
+# first -- the camera contributing obstacles at all, so the robot stops being
+# blind to anything the lidar plane at 0.382 m passes over.
+CAMERA_DEPTH_PCL_TOPIC = "/camera/camera/depth/color/points"
 CAMERA_WIDTH = 640
 CAMERA_HEIGHT = 480
 
@@ -515,6 +527,7 @@ def _camera_graph(path, color_prim, depth_prim):
                 ("PublishColorInfo", "isaacsim.ros2.bridge.ROS2CameraInfoHelper"),
                 ("PublishDepth", "isaacsim.ros2.bridge.ROS2CameraHelper"),
                 ("PublishDepthInfo", "isaacsim.ros2.bridge.ROS2CameraInfoHelper"),
+                ("PublishDepthPcl", "isaacsim.ros2.bridge.ROS2CameraHelper"),
             ],
             keys.CONNECT: [
                 ("OnPlaybackTick.outputs:tick", "ColorRp.inputs:execIn"),
@@ -523,10 +536,12 @@ def _camera_graph(path, color_prim, depth_prim):
                 ("ColorRp.outputs:execOut", "PublishColorInfo.inputs:execIn"),
                 ("DepthRp.outputs:execOut", "PublishDepth.inputs:execIn"),
                 ("DepthRp.outputs:execOut", "PublishDepthInfo.inputs:execIn"),
+                ("DepthRp.outputs:execOut", "PublishDepthPcl.inputs:execIn"),
                 ("ColorRp.outputs:renderProductPath", "PublishRgb.inputs:renderProductPath"),
                 ("ColorRp.outputs:renderProductPath", "PublishColorInfo.inputs:renderProductPath"),
                 ("DepthRp.outputs:renderProductPath", "PublishDepth.inputs:renderProductPath"),
                 ("DepthRp.outputs:renderProductPath", "PublishDepthInfo.inputs:renderProductPath"),
+                ("DepthRp.outputs:renderProductPath", "PublishDepthPcl.inputs:renderProductPath"),
             ],
             keys.SET_VALUES: [
                 ("ColorRp.inputs:cameraPrim", [Sdf.Path(color_prim)]),
@@ -545,6 +560,11 @@ def _camera_graph(path, color_prim, depth_prim):
                 ("PublishDepth.inputs:frameId", CAMERA_DEPTH_FRAME),
                 ("PublishDepthInfo.inputs:topicName", CAMERA_DEPTH_INFO_TOPIC),
                 ("PublishDepthInfo.inputs:frameId", CAMERA_DEPTH_FRAME),
+                # Same render product as the depth image; one more publisher on
+                # it rather than a third render product.
+                ("PublishDepthPcl.inputs:type", "depth_pcl"),
+                ("PublishDepthPcl.inputs:topicName", CAMERA_DEPTH_PCL_TOPIC),
+                ("PublishDepthPcl.inputs:frameId", CAMERA_DEPTH_FRAME),
             ],
         },
     )
