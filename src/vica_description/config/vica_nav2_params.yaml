@@ -238,7 +238,22 @@ local_costmap:
         # passability -- the padded footprint does -- it only shapes the decay
         # outside the lethal band.
         cost_scaling_factor: 3.5
-        inflation_radius: 0.55
+        # 0.55 is the physical robot's value and is too small here. Nav2 puts
+        # this footprint's circumscribed radius at 0.6506 once the 0.05 padding
+        # is added, and an inflation radius below that costs the Smac planner
+        # and MPPI's CostCritic their fast path -- they fall back to checking
+        # the full footprint everywhere:
+        #
+        #   The inflation radius (0.550000) is smaller than the circumscribed
+        #   radius (0.650577) ... This may significantly slow down planning
+        #
+        # It did. Planning got slow enough that the lifecycle bond timed out
+        # mid-goal, nodes were deactivated underneath the running action, and
+        # the goal came back ABORTED with no error code to explain it.
+        #
+        # 0.70 clears 0.6506 with margin. cost_scaling_factor is what decides
+        # how sharply cost falls off, and stays at the robot's 3.5.
+        inflation_radius: 0.70
       voxel_layer:
         plugin: "nav2_costmap_2d::VoxelLayer"
         enabled: True
@@ -309,7 +324,22 @@ global_costmap:
         # passability -- the padded footprint does -- it only shapes the decay
         # outside the lethal band.
         cost_scaling_factor: 3.5
-        inflation_radius: 0.55
+        # 0.55 is the physical robot's value and is too small here. Nav2 puts
+        # this footprint's circumscribed radius at 0.6506 once the 0.05 padding
+        # is added, and an inflation radius below that costs the Smac planner
+        # and MPPI's CostCritic their fast path -- they fall back to checking
+        # the full footprint everywhere:
+        #
+        #   The inflation radius (0.550000) is smaller than the circumscribed
+        #   radius (0.650577) ... This may significantly slow down planning
+        #
+        # It did. Planning got slow enough that the lifecycle bond timed out
+        # mid-goal, nodes were deactivated underneath the running action, and
+        # the goal came back ABORTED with no error code to explain it.
+        #
+        # 0.70 clears 0.6506 with margin. cost_scaling_factor is what decides
+        # how sharply cost falls off, and stays at the robot's 3.5.
+        inflation_radius: 0.70
       # Updates only: republishing a hospital-sized costmap every second is
       # bandwidth the RViz session does not need.
       always_send_full_costmap: False
