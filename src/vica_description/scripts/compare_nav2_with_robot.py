@@ -49,7 +49,37 @@ import yaml
 DEFAULT_ROBOT = (
     "/home/sim/VICA-smarthandle/vica_ros2_ws/src/vica_nav2/config/nav2_params.yaml"
 )
-DEFAULT_SIM = "config/vica_nav2_params.yaml"
+def _default_sim():
+    """Find the simulator's params whether or not the caller is in the source tree.
+
+    "ros2 run" starts in whatever directory the shell happens to be in, so a
+    relative path only worked when run from src/vica_description. The installed
+    copy is the one ros2 run should read; the source copy is the fallback for
+    running this straight out of the repository before a build.
+    """
+    from pathlib import Path
+
+    candidates = []
+    try:
+        from ament_index_python.packages import get_package_share_directory
+
+        candidates.append(
+            Path(get_package_share_directory("vica_description"))
+            / "config" / "vica_nav2_params.yaml"
+        )
+    except Exception:
+        pass
+    here = Path(__file__).resolve().parent
+    candidates.append(here.parent / "config" / "vica_nav2_params.yaml")
+    candidates.append(Path("config/vica_nav2_params.yaml"))
+
+    for c in candidates:
+        if c.is_file():
+            return str(c)
+    return str(candidates[-1])
+
+
+DEFAULT_SIM = _default_sim()
 
 
 # (node, parameter path under ros__parameters) -> why it matters
@@ -67,6 +97,19 @@ MUST_MATCH = {
         "2.5 measured as decaying too slowly",
     ("global_costmap.global_costmap", "inflation_layer.cost_scaling_factor"):
         "2.5 measured as decaying too slowly",
+    # When the controller gives up, and when it declares arrival. Both decided
+    # on the robot on 2026-07-31 and both about false positives, not patience.
+    ("controller_server", "progress_checker.required_movement_radius"):
+        "the threshold below which normal slow driving reads as stuck",
+    ("controller_server", "progress_checker.movement_time_allowance"):
+        "10.0 scored a tight turn as a failure in both workspaces",
+    ("controller_server", "general_goal_checker.plugin"):
+        "StoppedGoalChecker also requires the robot to have slowed, so it "
+        "cannot coast through the tolerance and be called arrived",
+    ("controller_server", "general_goal_checker.stateful"):
+        "False re-checks the pose every cycle instead of latching arrival",
+    ("controller_server", "general_goal_checker.xy_goal_tolerance"): "arrival",
+    ("controller_server", "general_goal_checker.yaw_goal_tolerance"): "arrival",
     ("local_costmap.local_costmap", "resolution"): "matches the lattice primitives",
     ("local_costmap.local_costmap", "width"): "sized to the controller horizon",
     ("local_costmap.local_costmap", "height"): "sized to the controller horizon",

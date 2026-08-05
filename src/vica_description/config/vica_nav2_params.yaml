@@ -100,7 +100,20 @@ controller_server:
     progress_checker:
       plugin: "nav2_controller::SimpleProgressChecker"
       required_movement_radius: 0.1
-      movement_time_allowance: 10.0
+      # 20.0, adopted from the robot, which moved off 10.0 on 2026-07-31.
+      #
+      # The check is only "did it move required_movement_radius within
+      # movement_time_allowance". At 0.10/10.0 that demands a sustained
+      # 0.01 m/s, and a robot easing through a tight turn is slower than that
+      # for stretches -- so normal driving is scored as failure. The robot's
+      # note calls this removing a false positive rather than adding patience,
+      # and points out that with recovery behaviours disabled a false positive
+      # ends the run outright instead of costing one Spin.
+      #
+      # It shows up here the same way. Goal (1.5, 1.2) with a 90 degree
+      # heading change aborted six times on "Failed to make progress" while
+      # the straight goal to (3.0, 0.0) succeeded untouched.
+      movement_time_allowance: 20.0
     # Goal checker parameters
     #precise_goal_checker:
     #  plugin: "nav2_controller::SimpleGoalChecker"
@@ -108,10 +121,22 @@ controller_server:
     #  yaw_goal_tolerance: 0.25
     #  stateful: True
     general_goal_checker:
-      stateful: True
-      plugin: "nav2_controller::SimpleGoalChecker"
+      # StoppedGoalChecker and stateful: False, both from the robot.
+      #
+      # SimpleGoalChecker declares arrival on pose alone, so a robot still
+      # carrying speed through the tolerance counts as arrived and coasts past.
+      # StoppedGoalChecker also requires it to have slowed down. stateful:
+      # False re-checks position every cycle instead of latching, so drifting
+      # back out of tolerance while decelerating cannot be scored as success.
+      #
+      # This makes arrival take longer here, which is part of why the robot
+      # needed movement_time_allowance above raised at the same time.
+      stateful: False
+      plugin: "nav2_controller::StoppedGoalChecker"
       xy_goal_tolerance: 0.25
       yaw_goal_tolerance: 0.25
+      trans_stopped_velocity: 0.03
+      rot_stopped_velocity: 0.05
     FollowPath:
       # Velocity and acceleration limits are the physical robot's measured
       # values (vica_nav2): 0.26 m/s and 0.4 rad/s, with acc_lim 2.0 after 2.5
