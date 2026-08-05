@@ -80,6 +80,44 @@ WHEEL_RADIUS = 0.065
 WHEEL_DISTANCE = 0.364
 
 # --------------------------------------------------------------------------
+# Publish gating
+# --------------------------------------------------------------------------
+# Graphs that stamp a message with simulation time publish through an
+# IsaacSimulationGate rather than straight off the tick.
+#
+# OnPlaybackTick fires per rendered frame; simulation time only advances on a
+# physics step. Frames outrun physics -- measured 84 Hz of frames against 60 Hz
+# of physics -- so the extra frames publish again carrying a timestamp already
+# used. On /odom that came to 86 of 299 gaps being exactly zero. It is not an
+# artefact of how this was measured; it reproduces under plain timeline
+# playback, which is what the GUI does.
+#
+# One repeat is enough to kill cartographer outright:
+#
+#     map_by_time.h:43  Check failed: data.time > prev
+#
+# and the NaN reported next to it is the pose extrapolator dividing by the
+# zero-length interval between two poses.
+#
+# The gate lets one tick through every GATE_STEP. At 84 frames against 60
+# physics steps, every second frame leaves at least one step behind it, so the
+# timestamp always moves. Two things would break that and both are worth
+# knowing: a frame rate more than twice the physics rate, and a physics rate
+# changed without revisiting this number.
+#
+# OnPhysicsStep would be the direct answer and does not work here -- a graph
+# built on it publishes nothing at all, under this harness or under timeline
+# playback. The gate is the fallback that does work.
+#
+# The subscriber graph is left ungated: /cmd_vel arriving twice applies the
+# same velocity twice, which costs nothing and reacts sooner. The sensor graphs
+# are left alone too, being driven by render products; /scan measures a clean
+# 10.0 Hz with no repeats.
+GATE_NODE = "PublishGate"
+GATE_TYPE = "isaacsim.core.nodes.IsaacSimulationGate"
+GATE_STEP = 2
+
+# --------------------------------------------------------------------------
 # ROS frames and topics
 # --------------------------------------------------------------------------
 ODOM_FRAME = "odom"
@@ -263,11 +301,13 @@ def _clock_graph(path):
         {
             keys.CREATE_NODES: [
                 ("OnPlaybackTick", "omni.graph.action.OnPlaybackTick"),
+                (GATE_NODE, GATE_TYPE),
                 ("ReadSimTime", "isaacsim.core.nodes.IsaacReadSimulationTime"),
                 ("PublishClock", "isaacsim.ros2.bridge.ROS2PublishClock"),
             ],
             keys.CONNECT: [
-                ("OnPlaybackTick.outputs:tick", "PublishClock.inputs:execIn"),
+                ("OnPlaybackTick.outputs:tick", f"{GATE_NODE}.inputs:execIn"),
+                (f"{GATE_NODE}.outputs:execOut", "PublishClock.inputs:execIn"),
                 ("ReadSimTime.outputs:simulationTime", "PublishClock.inputs:timeStamp"),
             ],
             keys.SET_VALUES: [("PublishClock.inputs:topicName", "clock")],
@@ -324,15 +364,17 @@ def _odometry_graph(path, articulation_root):
         {
             keys.CREATE_NODES: [
                 ("OnPlaybackTick", "omni.graph.action.OnPlaybackTick"),
+                (GATE_NODE, GATE_TYPE),
                 ("ReadSimTime", "isaacsim.core.nodes.IsaacReadSimulationTime"),
                 ("ComputeOdometry", "isaacsim.core.nodes.IsaacComputeOdometry"),
                 ("PublishOdometry", "isaacsim.ros2.bridge.ROS2PublishOdometry"),
                 ("PublishOdomTf", "isaacsim.ros2.bridge.ROS2PublishRawTransformTree"),
             ],
             keys.CONNECT: [
-                ("OnPlaybackTick.outputs:tick", "ComputeOdometry.inputs:execIn"),
-                ("OnPlaybackTick.outputs:tick", "PublishOdometry.inputs:execIn"),
-                ("OnPlaybackTick.outputs:tick", "PublishOdomTf.inputs:execIn"),
+                ("OnPlaybackTick.outputs:tick", f"{GATE_NODE}.inputs:execIn"),
+                (f"{GATE_NODE}.outputs:execOut", "ComputeOdometry.inputs:execIn"),
+                (f"{GATE_NODE}.outputs:execOut", "PublishOdometry.inputs:execIn"),
+                (f"{GATE_NODE}.outputs:execOut", "PublishOdomTf.inputs:execIn"),
                 ("ReadSimTime.outputs:simulationTime", "PublishOdometry.inputs:timeStamp"),
                 ("ReadSimTime.outputs:simulationTime", "PublishOdomTf.inputs:timeStamp"),
                 ("ComputeOdometry.outputs:position", "PublishOdometry.inputs:position"),
@@ -343,6 +385,7 @@ def _odometry_graph(path, articulation_root):
                 ("ComputeOdometry.outputs:orientation", "PublishOdomTf.inputs:rotation"),
             ],
             keys.SET_VALUES: [
+                (f"{GATE_NODE}.inputs:step", GATE_STEP),
                 ("ComputeOdometry.inputs:chassisPrim", [Sdf.Path(articulation_root)]),
                 ("PublishOdometry.inputs:topicName", "odom"),
                 ("PublishOdometry.inputs:odomFrameId", ODOM_FRAME),
@@ -370,12 +413,14 @@ def _joint_state_graph(path, articulation_root):
         {
             keys.CREATE_NODES: [
                 ("OnPlaybackTick", "omni.graph.action.OnPlaybackTick"),
+                (GATE_NODE, GATE_TYPE),
                 ("ReadSimTime", "isaacsim.core.nodes.IsaacReadSimulationTime"),
                 ("ReadJointState", "isaacsim.sensors.physics.IsaacReadJointState"),
                 ("PublishJointState", "isaacsim.ros2.bridge.ROS2PublishJointState"),
             ],
             keys.CONNECT: [
-                ("OnPlaybackTick.outputs:tick", "ReadJointState.inputs:execIn"),
+                ("OnPlaybackTick.outputs:tick", f"{GATE_NODE}.inputs:execIn"),
+                (f"{GATE_NODE}.outputs:execOut", "ReadJointState.inputs:execIn"),
                 ("ReadJointState.outputs:execOut", "PublishJointState.inputs:execIn"),
                 ("ReadSimTime.outputs:simulationTime", "PublishJointState.inputs:timeStamp"),
                 ("ReadJointState.outputs:jointNames", "PublishJointState.inputs:jointNames"),
@@ -390,6 +435,7 @@ def _joint_state_graph(path, articulation_root):
                 ),
             ],
             keys.SET_VALUES: [
+                (f"{GATE_NODE}.inputs:step", GATE_STEP),
                 ("ReadJointState.inputs:prim", [Sdf.Path(articulation_root)]),
                 ("PublishJointState.inputs:topicName", "joint_states"),
             ],
