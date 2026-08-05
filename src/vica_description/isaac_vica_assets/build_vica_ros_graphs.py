@@ -85,12 +85,29 @@ WHEEL_DISTANCE = 0.364
 ODOM_FRAME = "odom"
 BASE_FRAME = "base_footprint"
 LIDAR_FRAME = "laser_frame"
-CAMERA_FRAME = "camera_optical_frame"
+
+# Camera topics and frames imitate realsense2_camera on the physical robot
+# rather than being named for what they are. Anything that consumes the camera
+# -- vica_nvblox_bringup remaps all four of these by name -- then runs against
+# the simulator unmodified, which is the only way the sim result means anything
+# about the robot.
+#
+#     ros2 topic list  (robot)          this file
+#     /camera/camera/color/image_raw    CAMERA_RGB_TOPIC
+#     /camera/camera/color/camera_info  CAMERA_COLOR_INFO_TOPIC
+#     /camera/camera/depth/image_rect_raw
+#     /camera/camera/depth/camera_info  CAMERA_DEPTH_INFO_TOPIC
+#
+# The driver supplies the two optical frames at runtime; in simulation
+# VICA.xacro declares them instead.
+CAMERA_COLOR_FRAME = "camera_color_optical_frame"
+CAMERA_DEPTH_FRAME = "camera_depth_optical_frame"
 
 SCAN_TOPIC = "scan"
-CAMERA_RGB_TOPIC = "rgb"
-CAMERA_DEPTH_TOPIC = "depth"
-CAMERA_INFO_TOPIC = "camera_info"
+CAMERA_RGB_TOPIC = "/camera/camera/color/image_raw"
+CAMERA_DEPTH_TOPIC = "/camera/camera/depth/image_rect_raw"
+CAMERA_COLOR_INFO_TOPIC = "/camera/camera/color/camera_info"
+CAMERA_DEPTH_INFO_TOPIC = "/camera/camera/depth/camera_info"
 CAMERA_WIDTH = 640
 CAMERA_HEIGHT = 480
 
@@ -412,10 +429,16 @@ def _lidar_graph(path, lidar_prim):
 
 
 def _camera_graph(path, color_prim, depth_prim):
-    """Colour and depth each get their own render product.
+    """Colour and depth each get their own render product and camera_info.
 
     The RSD455 models them as separate Camera prims, so a single shared render
     product would publish the colour sensor twice rather than colour + depth.
+
+    Two camera_info publishers rather than one, because that is what the
+    RealSense driver does: colour and depth are different imagers with
+    different intrinsics, and a consumer that rectifies depth against the
+    colour intrinsics gets a subtly wrong point cloud. nvblox subscribes to
+    both separately.
     """
     keys = og.Controller.Keys
     og.Controller.edit(
@@ -426,18 +449,21 @@ def _camera_graph(path, color_prim, depth_prim):
                 ("ColorRp", "isaacsim.core.nodes.IsaacCreateRenderProduct"),
                 ("DepthRp", "isaacsim.core.nodes.IsaacCreateRenderProduct"),
                 ("PublishRgb", "isaacsim.ros2.bridge.ROS2CameraHelper"),
-                ("PublishInfo", "isaacsim.ros2.bridge.ROS2CameraInfoHelper"),
+                ("PublishColorInfo", "isaacsim.ros2.bridge.ROS2CameraInfoHelper"),
                 ("PublishDepth", "isaacsim.ros2.bridge.ROS2CameraHelper"),
+                ("PublishDepthInfo", "isaacsim.ros2.bridge.ROS2CameraInfoHelper"),
             ],
             keys.CONNECT: [
                 ("OnPlaybackTick.outputs:tick", "ColorRp.inputs:execIn"),
                 ("OnPlaybackTick.outputs:tick", "DepthRp.inputs:execIn"),
                 ("ColorRp.outputs:execOut", "PublishRgb.inputs:execIn"),
-                ("ColorRp.outputs:execOut", "PublishInfo.inputs:execIn"),
+                ("ColorRp.outputs:execOut", "PublishColorInfo.inputs:execIn"),
                 ("DepthRp.outputs:execOut", "PublishDepth.inputs:execIn"),
+                ("DepthRp.outputs:execOut", "PublishDepthInfo.inputs:execIn"),
                 ("ColorRp.outputs:renderProductPath", "PublishRgb.inputs:renderProductPath"),
-                ("ColorRp.outputs:renderProductPath", "PublishInfo.inputs:renderProductPath"),
+                ("ColorRp.outputs:renderProductPath", "PublishColorInfo.inputs:renderProductPath"),
                 ("DepthRp.outputs:renderProductPath", "PublishDepth.inputs:renderProductPath"),
+                ("DepthRp.outputs:renderProductPath", "PublishDepthInfo.inputs:renderProductPath"),
             ],
             keys.SET_VALUES: [
                 ("ColorRp.inputs:cameraPrim", [Sdf.Path(color_prim)]),
@@ -448,15 +474,14 @@ def _camera_graph(path, color_prim, depth_prim):
                 ("DepthRp.inputs:height", CAMERA_HEIGHT),
                 ("PublishRgb.inputs:type", "rgb"),
                 ("PublishRgb.inputs:topicName", CAMERA_RGB_TOPIC),
-                # Match the URDF frame so tf and the image headers agree. Do not
-                # use camera_color_optical_frame: on the real robot the RealSense
-                # driver owns that name and the two publishers would collide.
-                ("PublishRgb.inputs:frameId", CAMERA_FRAME),
-                ("PublishInfo.inputs:topicName", CAMERA_INFO_TOPIC),
-                ("PublishInfo.inputs:frameId", CAMERA_FRAME),
+                ("PublishRgb.inputs:frameId", CAMERA_COLOR_FRAME),
+                ("PublishColorInfo.inputs:topicName", CAMERA_COLOR_INFO_TOPIC),
+                ("PublishColorInfo.inputs:frameId", CAMERA_COLOR_FRAME),
                 ("PublishDepth.inputs:type", "depth"),
                 ("PublishDepth.inputs:topicName", CAMERA_DEPTH_TOPIC),
-                ("PublishDepth.inputs:frameId", CAMERA_FRAME),
+                ("PublishDepth.inputs:frameId", CAMERA_DEPTH_FRAME),
+                ("PublishDepthInfo.inputs:topicName", CAMERA_DEPTH_INFO_TOPIC),
+                ("PublishDepthInfo.inputs:frameId", CAMERA_DEPTH_FRAME),
             ],
         },
     )
@@ -515,8 +540,6 @@ def main():
 
     if SAVE_STAGE:
         stage.GetRootLayer().Save()
-    else:
-        print("SAVE_STAGE is False -- graphs built in memory, stage not written.")
 
     print(f"articulation root : {articulation_root}")
     print(f"lidar prim        : {lidar_prim or '-'}")
@@ -529,7 +552,10 @@ def main():
         print(f"SKIPPED           : {s}")
     if legacy:
         print(f"deactivated       : {len(legacy)} legacy graph(s) inside the robot reference")
-    print("Stage saved. Press Play, then check /clock /cmd_vel /odom /joint_states /scan /tf.")
+    if SAVE_STAGE:
+        print("Stage saved. Press Play, then check /clock /cmd_vel /odom /joint_states /scan /tf.")
+    else:
+        print("SAVE_STAGE is False -- graphs built in memory, stage NOT written.")
 
 
 main()
