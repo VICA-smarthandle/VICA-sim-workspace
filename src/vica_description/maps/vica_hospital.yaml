@@ -1,0 +1,26 @@
+# Hospital, mapped by VICA itself.
+#
+# Built with cartographer against vica_hospital.usd, replacing the borrowed
+# carter_hospital_navigation map for anything that cares how the walls were
+# seen. That one came from NVIDIA's Carter sample -- same environment, but a
+# different robot with a different lidar at a different height.
+#
+# This one was swept by VICA's own scan: 0.2 - 12.0 m, 0.45 deg, 0.382 m above
+# the floor. Which matters, because the point of measuring anything here is to
+# say something about the robot.
+#
+# Coverage is partial. A reactive explorer drove for ~320 s, so the central
+# area is mapped and the wings are not: 39.6 % free, 1.8 % occupied, 58.5 %
+# still unknown. Enough to navigate the mapped part; extend it by driving
+# further before saving.
+#
+# VICA spawns at the world origin in that stage, and (0,0) is free here with a
+# metre clear in every direction, so amcl's set_initial_pose of (0,0,0) holds
+# for this pair as it does for the Carter map.
+image: vica_hospital.pgm
+mode: trinary
+resolution: 0.050
+origin: [-12.050, -3.383, 0]
+negate: 0
+occupied_thresh: 0.65
+free_thresh: 0.196
