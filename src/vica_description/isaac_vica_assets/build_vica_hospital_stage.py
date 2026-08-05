@@ -122,7 +122,21 @@ def main():
         print(f"physics variant     : WARNING no '{PHYSICS_VARIANT_SET}' variant set on the robot")
 
     # ---- physics and light ------------------------------------------------
-    UsdPhysics.Scene.Define(stage, "/World/PhysicsScene")
+    # Gravity is authored, not left to the defaults.
+    #
+    # UsdPhysics.Scene.Define alone leaves gravityDirection (0,0,0) and
+    # gravityMagnitude -inf. Those read as "use the stage default" only to code
+    # that resolves them -- isaacsim.core's SimulationContext does, which is why
+    # a headless run drops and lands correctly. Press Play in the GUI and the
+    # authored values are taken at face value: direction (0,0,0) scaled by -inf
+    # is not a fallback, it is NaN, and a body under NaN gravity leaves the
+    # floor behind on the first step no matter what colliders are underneath it.
+    #
+    # That is the difference between a stage that behaves headless and falls
+    # through the world in the GUI while every prim in it inspects as correct.
+    scene = UsdPhysics.Scene.Define(stage, "/World/PhysicsScene")
+    scene.CreateGravityDirectionAttr().Set(Gf.Vec3f(0.0, 0.0, -1.0))
+    scene.CreateGravityMagnitudeAttr().Set(9.81)
 
     # Only light the scene if the environment does not. hospital.usd carries a
     # DomeLight of its own, and adding a second one on top of it just doubles
