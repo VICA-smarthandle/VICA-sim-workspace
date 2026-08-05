@@ -141,6 +141,28 @@ LIDAR_FRAME = "laser_frame"
 CAMERA_COLOR_FRAME = "camera_color_optical_frame"
 CAMERA_DEPTH_FRAME = "camera_depth_optical_frame"
 
+# The velocity the robot actually executes: the collision monitor's output.
+#
+# Not cmd_vel_smoothed, which is the monitor's input. Subscribing there would
+# work -- measured, 0.12 m to 1.05 m on a direct publish -- and it is what the
+# physical robot effectively does, since its nav2_map_test.launch.py remaps
+# cmd_vel_smoothed to /cmd_vel_req for its safety supervisor. But it would also
+# route around the monitor, so a monitor turned back on later would be
+# configured, running, and never tested. Its polygons are disabled in
+# vica_nav2_params.yaml instead, which leaves it in the path and transparent.
+#
+# Staying on cmd_vel also keeps the recovery behaviours connected. Jazzy's
+# navigation_launch.py gives the behaviour server the same cmd_vel remap as
+# controller_server -- measured, /cmd_vel_nav has six publishers, one of them
+# behavior_server -- so Spin, BackUp and DriveOnHeading travel the same path
+# through the smoother and the monitor and reach the robot.
+#
+# The physical robot's Humble launch does not, which is why its /cmd_vel
+# measured five publishers and zero subscribers on 2026-07-29: recovery
+# behaviours had never once moved it. That is a difference in the two nav2
+# versions' launch files, not something to reproduce here.
+CMD_VEL_TOPIC = "cmd_vel"
+
 SCAN_TOPIC = "scan"
 CAMERA_RGB_TOPIC = "/camera/camera/color/image_raw"
 CAMERA_DEPTH_TOPIC = "/camera/camera/depth/image_rect_raw"
@@ -384,7 +406,7 @@ def _drive_graph(path, articulation_root):
                 ),
             ],
             keys.SET_VALUES: [
-                ("SubscribeTwist.inputs:topicName", "cmd_vel"),
+                ("SubscribeTwist.inputs:topicName", CMD_VEL_TOPIC),
                 ("DiffController.inputs:wheelRadius", WHEEL_RADIUS),
                 ("DiffController.inputs:wheelDistance", WHEEL_DISTANCE),
                 # Never leave jointNames empty: an empty list means *every* joint,

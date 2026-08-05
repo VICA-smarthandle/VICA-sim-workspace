@@ -569,6 +569,58 @@ collision_monitor:
     # Graded response: slow down when something enters the outer box, then let
     # the footprint check govern the last metre. A single approach polygon has
     # to choose between braking early everywhere and braking late in corners.
+    # Disabled by "enabled: False" on both polygons below, not by removing them.
+    #
+    # Two shorter-looking routes both take the whole navigation stack down with
+    # them, and neither says so in a way anyone would connect to a motionless
+    # robot:
+    #
+    #   polygons: []      an empty YAML list has no type, rclcpp cannot infer
+    #                     one, and the node aborts before it ever configures --
+    #                     "parameter_value_from failed for parameter 'polygons':
+    #                     No parameter value set"
+    #   no polygons key   Jazzy declares the parameter without a default, so
+    #                     configure fails on "parameter 'polygons' is not
+    #                     initialized"
+    #
+    # The collision monitor sits in the navigation lifecycle group, so either
+    # failure makes lifecycle_manager give up on the entire group: "Failed to
+    # bring up all requested nodes. Aborting bringup." controller_server,
+    # planner_server and bt_navigator all stay unconfigured, goals are never
+    # accepted, and the visible symptom is a robot that does not move. The
+    # cause scrolls past forty seconds before the first goal is sent.
+    #
+    # Keeping the polygons and disabling them leaves the node configured and
+    # transparent: process() skips every disabled polygon, so cmd_vel_smoothed
+    # reaches cmd_vel unchanged. Re-enabling is two booleans, and the simulator
+    # subscribes to cmd_vel -- the monitor's output -- so a monitor turned back
+    # on is actually exercised here rather than bypassed.
+    #
+    # With the two polygons below active, the monitor took every command and
+    # published nothing at all. Measured during a goal:
+    #
+    #     /cmd_vel_nav        488 msgs, 487 non-zero, max |v| 0.096
+    #     /cmd_vel_smoothed   492 msgs, 489 non-zero, max |v| 0.096
+    #     /cmd_vel            no messages
+    #
+    # The robot never received a command and the controller reported "Failed to
+    # make progress". Relaying cmd_vel_smoothed to cmd_vel by hand, changing
+    # nothing else, moved it 5 m with zero progress failures -- the first
+    # successful autonomous run here.
+    #
+    # The likely cause is the robot seeing itself. /scan returns 0.447 m astern,
+    # off its own rear panel, matching base_link.stl to 3 mm. FootprintApproach
+    # asks how long until the footprint reaches an obstacle at the current
+    # velocity, and an obstacle permanently 0.447 m behind never stops being
+    # imminent. The log agrees: "Robot to approach for 1.200000 seconds away
+    # from collision", over and over.
+    #
+    # The physical robot runs no collision monitor at all, so nothing here is
+    # lost by matching it. Before either of them gets one, the self-return has
+    # to be dealt with -- an angular filter on the rear sector is the honest fix,
+    # since it also clears the phantom obstacle the costmap otherwise carries
+    # behind the robot forever. Turning these on without that would stop the
+    # real robot exactly as it stopped this one.
     polygons: ["SlowDown", "FootprintApproach"]
     SlowDown:
       type: "polygon"
@@ -578,7 +630,7 @@ collision_monitor:
       slowdown_ratio: 0.4
       min_points: 6
       visualize: False
-      enabled: True
+      enabled: False   # see the note above -- disabled, not removed
     FootprintApproach:
       type: "polygon"
       action_type: "approach"
@@ -587,10 +639,11 @@ collision_monitor:
       simulation_time_step: 0.1
       min_points: 6
       visualize: False
-      # Re-enabled: the false positive came from laser_frame carrying a 124 KB
-      # STL collider, which Isaac imported as a convex hull that the robot's own
-      # scan then reported as an obstacle. That collider is gone.
-      enabled: True
+      # Kept configured for when the monitor comes back. The earlier note here
+      # blamed laser_frame's STL collider, which was removed and did not fix it:
+      # the RTX lidar traces visual meshes, not colliders, so the chassis is
+      # still there to be seen.
+      enabled: False   # see the note above -- disabled, not removed
     observation_sources: ["scan"]
     scan:
       type: "scan"
@@ -600,7 +653,7 @@ collision_monitor:
       # invites someone to re-add them for a depth source without noticing.
       min_height: 0.15
       max_height: 2.0
-      enabled: True
+      enabled: False   # see the note above -- disabled, not removed
 
 docking_server:
   ros__parameters:
