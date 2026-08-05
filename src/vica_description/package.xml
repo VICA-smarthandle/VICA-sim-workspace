@@ -30,6 +30,9 @@
   <exec_depend>tf2_ros</exec_depend>
   <exec_depend>nav2_msgs</exec_depend>
   <exec_depend>nav2_bringup</exec_depend>
+  <!-- Mapping. Not a default Jazzy install:
+       sudo apt install ros-jazzy-cartographer-ros -->
+  <exec_depend>cartographer_ros</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
