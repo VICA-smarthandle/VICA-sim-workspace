@@ -354,7 +354,11 @@ planner_server:
     # Kept under the same "GridBased" key so swapping is a one-line change and
     # the behaviour tree does not care.
     GridBased:
-      plugin: "nav2_smac_planner/SmacPlannerLattice"
+      # Jazzy declares these with :: ; the physical robot's config uses the
+# Humble-era slash form, and copying it verbatim gives
+#   "the class nav2_smac_planner/SmacPlannerLattice ... does not exist"
+# at planner_server configure, which aborts the whole navigation bringup.
+      plugin: "nav2_smac_planner::SmacPlannerLattice"
       lattice_filepath: "/opt/ros/jazzy/share/nav2_smac_planner/sample_primitives/5cm_resolution/0.5m_turning_radius/diff/output.json"
       allow_reverse_expansion: false
       rotation_penalty: 5.0
@@ -377,7 +381,7 @@ planner_server:
     # both planners share must stay identical -- the real robot has a contract
     # test enforcing that, because one variable at a time is the whole point.
     GridBasedAlt:
-      plugin: "nav2_smac_planner/SmacPlannerHybrid"
+      plugin: "nav2_smac_planner::SmacPlannerHybrid"
       motion_model_for_search: "DUBIN"
       minimum_turning_radius: 0.50
       cost_penalty: 4.0
