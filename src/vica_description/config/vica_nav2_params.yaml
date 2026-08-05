@@ -247,7 +247,9 @@ local_costmap:
         z_resolution: 0.05
         z_voxels: 40
         max_obstacle_height: 2.0
-        mark_threshold: 0
+        # 1, as the robot. 0 marks a cell on a single voxel hit anywhere in the
+        # column, which turns one stray return into an obstacle.
+        mark_threshold: 1
         observation_sources: scan
         scan:
           topic: /scan
@@ -259,10 +261,21 @@ local_costmap:
           # this the observation buffer discards them, no raytrace clearing
           # happens along those bearings, and stale obstacles never get erased.
           inf_is_valid: true
-          raytrace_max_range: 3.0
-          raytrace_min_range: 0.0
-          obstacle_max_range: 2.5
-          obstacle_min_range: 0.0
+          # Ranges and persistence are the robot's. They gate which returns are
+          # believed at all, so a simulation that gates differently is not
+          # seeing the same world even when the sensor matches.
+          #
+          # obstacle_min_range 0.12 is the one that changes behaviour here: at
+          # 0.0, /scan's returns off the robot's own chassis 0.447 m astern are
+          # marked as obstacles. 0.12 does not reach them either -- that needs
+          # its own fix -- but it removes the class of near-field marks the
+          # robot has already decided not to trust.
+          raytrace_max_range: 3.5
+          raytrace_min_range: 0.05
+          obstacle_max_range: 3.0
+          obstacle_min_range: 0.12
+          observation_persistence: 0.5
+          expected_update_rate: 0.2
       static_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
         map_subscribe_transient_local: True
@@ -294,10 +307,21 @@ global_costmap:
           # this the observation buffer discards them, no raytrace clearing
           # happens along those bearings, and stale obstacles never get erased.
           inf_is_valid: true
-          raytrace_max_range: 3.0
-          raytrace_min_range: 0.0
-          obstacle_max_range: 2.5
-          obstacle_min_range: 0.0
+          # Ranges and persistence are the robot's. They gate which returns are
+          # believed at all, so a simulation that gates differently is not
+          # seeing the same world even when the sensor matches.
+          #
+          # obstacle_min_range 0.12 is the one that changes behaviour here: at
+          # 0.0, /scan's returns off the robot's own chassis 0.447 m astern are
+          # marked as obstacles. 0.12 does not reach them either -- that needs
+          # its own fix -- but it removes the class of near-field marks the
+          # robot has already decided not to trust.
+          raytrace_max_range: 3.5
+          raytrace_min_range: 0.05
+          obstacle_max_range: 3.0
+          obstacle_min_range: 0.12
+          observation_persistence: 0.5
+          expected_update_rate: 0.2
       static_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
         map_subscribe_transient_local: True

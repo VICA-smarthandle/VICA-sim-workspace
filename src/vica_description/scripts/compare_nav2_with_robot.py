@@ -70,6 +70,26 @@ MUST_MATCH = {
     ("local_costmap.local_costmap", "resolution"): "matches the lattice primitives",
     ("local_costmap.local_costmap", "width"): "sized to the controller horizon",
     ("local_costmap.local_costmap", "height"): "sized to the controller horizon",
+    # Scan gating, decided on the robot against its own lidar.
+    ("local_costmap.local_costmap", "voxel_layer.scan.obstacle_min_range"):
+        "the robot discards returns closer than this; simulation keeping "
+        "everything is why its costmap holds marks the robot's does not",
+    ("local_costmap.local_costmap", "voxel_layer.scan.raytrace_min_range"):
+        "as obstacle_min_range, for clearing",
+    ("local_costmap.local_costmap", "voxel_layer.scan.obstacle_max_range"):
+        "how far a return is trusted to mark",
+    ("local_costmap.local_costmap", "voxel_layer.scan.raytrace_max_range"):
+        "how far a beam is trusted to clear",
+    ("local_costmap.local_costmap", "voxel_layer.scan.observation_persistence"):
+        "how long a mark survives without being seen again",
+    ("local_costmap.local_costmap", "voxel_layer.scan.expected_update_rate"):
+        "how long a silent sensor is tolerated before the layer complains",
+    ("local_costmap.local_costmap", "voxel_layer.mark_threshold"):
+        "voxel column hits needed to mark the cell",
+    ("global_costmap.global_costmap", "obstacle_layer.scan.obstacle_min_range"):
+        "as the local costmap",
+    ("global_costmap.global_costmap", "obstacle_layer.scan.raytrace_min_range"):
+        "as the local costmap",
 }
 
 SIM_AUTHORITATIVE = {
@@ -78,6 +98,11 @@ SIM_AUTHORITATIVE = {
         "likelihood field reasons about returns the sensor cannot produce",
     ("amcl", "laser_min_range"):
         "A2 minimum; -1.0 leaves it to the driver",
+    ("local_costmap.local_costmap", "voxel_layer.z_voxels"):
+        "16 voxels of 0.05 is a 0.80 m ceiling under a max_obstacle_height of "
+        "2.0: the layer cannot represent what it is told to look for. 40 makes "
+        "the two agree. Both configurations carried the contradiction; this "
+        "one no longer does",
 }
 
 MUST_DIFFER = {
@@ -91,6 +116,15 @@ MUST_DIFFER = {
     ("amcl", "alpha5"): "as alpha1",
     ("planner_server", "GridBased.plugin"):
         "Jazzy names plugins with ::, Humble with /",
+    ("planner_server", "GridBasedAlt.plugin"):
+        "as GridBased; kept inert for A/B",
+    ("planner_server", "GridBased.lattice_filepath"):
+        "primitives ship with the distribution, so the path follows it",
+    ("local_costmap.local_costmap", "plugins"):
+        "the robot runs an nvblox_layer between voxel and inflation, feeding "
+        "D455 depth into the costmap so it sees what a lidar plane at 0.382 m "
+        "cannot. Simulation has no equivalent yet -- a gap to close for the "
+        "dynamic-obstacle work, not a difference to preserve",
 }
 
 
