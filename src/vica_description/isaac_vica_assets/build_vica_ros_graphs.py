@@ -400,9 +400,18 @@ def _joint_state_graph(path, articulation_root):
 def _lidar_graph(path, lidar_prim):
     """RTX lidar -> /scan.
 
+    RunOnce is not decoration. The first version of this graph ran
+    IsaacCreateRenderProduct straight off OnPlaybackTick, so a new render
+    product was created every tick. An RTX lidar accumulates a revolution
+    across many ticks, and rebuilding its render product underneath it restarts
+    that accumulation before it ever completes -- /scan is advertised, the node
+    runs, and not one message comes out. Creating the render product on a
+    single frame is what the GUI-authored graph that used to publish /scan did,
+    and the difference between the two was exactly this node.
+
     fullScan is deliberately left alone: the node documentation states "RTX
     Lidar now always produces full scans via accumulateOutputs; this setting is
-    ignored", and writing it is what emits the deprecation warning.
+    ignored". The deprecation warning appears regardless of whether it is set.
     """
     keys = og.Controller.Keys
     og.Controller.edit(
@@ -410,13 +419,21 @@ def _lidar_graph(path, lidar_prim):
         {
             keys.CREATE_NODES: [
                 ("OnPlaybackTick", "omni.graph.action.OnPlaybackTick"),
+                ("RunOnce", "isaacsim.core.nodes.OgnIsaacRunOneSimulationFrame"),
                 ("RenderProduct", "isaacsim.core.nodes.IsaacCreateRenderProduct"),
+                ("Context", "isaacsim.ros2.bridge.ROS2Context"),
                 ("LidarHelper", "isaacsim.ros2.bridge.ROS2RtxLidarHelper"),
             ],
             keys.CONNECT: [
-                ("OnPlaybackTick.outputs:tick", "RenderProduct.inputs:execIn"),
+                ("OnPlaybackTick.outputs:tick", "RunOnce.inputs:execIn"),
+                ("RunOnce.outputs:step", "RenderProduct.inputs:execIn"),
                 ("RenderProduct.outputs:execOut", "LidarHelper.inputs:execIn"),
                 ("RenderProduct.outputs:renderProductPath", "LidarHelper.inputs:renderProductPath"),
+                # The other publishers here run on the default context happily.
+                # This one is wired explicitly because the graph that used to
+                # publish /scan wired it, and after RunOnce it was the only
+                # structural difference left between the two.
+                ("Context.outputs:context", "LidarHelper.inputs:context"),
             ],
             keys.SET_VALUES: [
                 ("RenderProduct.inputs:cameraPrim", [Sdf.Path(lidar_prim)]),

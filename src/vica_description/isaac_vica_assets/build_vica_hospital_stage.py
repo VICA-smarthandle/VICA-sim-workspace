@@ -100,8 +100,20 @@ def main():
     # ---- physics and light ------------------------------------------------
     UsdPhysics.Scene.Define(stage, "/World/PhysicsScene")
 
-    light = UsdLux.DistantLight.Define(stage, "/World/Environment/defaultLight")
-    light.CreateIntensityAttr(1000.0)
+    # Only light the scene if the environment does not. hospital.usd carries a
+    # DomeLight of its own, and adding a second one on top of it just doubles
+    # the exposure -- worth avoiding while chasing a viewport that flashes white.
+    has_light = any(
+        p.IsA(UsdLux.DomeLight) or p.IsA(UsdLux.DistantLight)
+        for p in stage.Traverse()
+        if p.IsActive()
+    )
+    if has_light:
+        print("environment light   : present, none added")
+    else:
+        light = UsdLux.DistantLight.Define(stage, "/World/Environment/defaultLight")
+        light.CreateIntensityAttr(1000.0)
+        print("environment light   : none found, DistantLight added")
 
     stage.GetRootLayer().Save()
 
