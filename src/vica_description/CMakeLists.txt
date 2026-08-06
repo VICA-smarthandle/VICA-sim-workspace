@@ -46,4 +46,10 @@ install(
   RENAME measure_on_robot
 )
 
+install(
+  PROGRAMS scripts/measure_rotation.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME measure_rotation
+)
+
 ament_package()
