@@ -52,4 +52,10 @@ install(
   RENAME measure_rotation
 )
 
+install(
+  PROGRAMS scripts/rotation_space.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME rotation_space
+)
+
 ament_package()
