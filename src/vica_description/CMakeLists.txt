@@ -58,4 +58,10 @@ install(
   RENAME rotation_space
 )
 
+install(
+  PROGRAMS scripts/measure_handle.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME measure_handle
+)
+
 ament_package()
