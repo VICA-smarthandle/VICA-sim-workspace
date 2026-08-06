@@ -569,8 +569,21 @@ velocity_smoother:
     stamp_smoothed_velocity_with_smoothing_time: False
     scale_velocities: False
     feedback: "OPEN_LOOP"
-    max_velocity: [0.26, 0.0, 0.4]
-    min_velocity: [0.0, 0.0, -0.4]
+    # The robot's values. Its smoother sits above DWB's 0.4 rad/s as a loose
+    # safety net, not as a second limit -- so 1.0 here, and reverse allowed.
+    #
+    # 0.4 / 0.0 made this a hard ceiling instead, and clipped the one thing that
+    # still needed headroom. behavior_server's Spin asks for 1.0 rad/s and got
+    # 0.4, which physics then delivers about 60 % of: 0.24 rad/s, against 1.0 on
+    # the robot. Recovery from a bad heading was four times weaker here than
+    # there, in a simulator where turning was already the weak axis.
+    #
+    # min_velocity x is -0.26 for the same reason. Reverse is refused upstream,
+    # by the planner's allow_reverse_expansion false and the controller's
+    # vx_min 0.0, so nothing plans it -- but BackUp is a recovery, not a plan,
+    # and clamping it to zero silently removes a recovery rather than a motion.
+    max_velocity: [0.26, 0.0, 1.0]
+    min_velocity: [-0.26, 0.0, -1.0]
     max_accel: [2.0, 0.0, 2.0]
     max_decel: [-2.0, 0.0, -2.0]
     odom_topic: "odom"

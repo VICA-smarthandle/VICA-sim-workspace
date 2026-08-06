@@ -110,6 +110,11 @@ MUST_MATCH = {
         "False re-checks the pose every cycle instead of latching arrival",
     ("controller_server", "general_goal_checker.xy_goal_tolerance"): "arrival",
     ("controller_server", "general_goal_checker.yaw_goal_tolerance"): "arrival",
+    # The smoother's limits are a safety net above the controller's, not a
+    # second copy of them. Clamping them to the controller's values removes
+    # headroom that only the recovery behaviours use.
+    ("velocity_smoother", "max_velocity"): "Spin asks for 1.0 rad/s",
+    ("velocity_smoother", "min_velocity"): "BackUp is a recovery, not a plan",
     ("local_costmap.local_costmap", "resolution"): "matches the lattice primitives",
     ("local_costmap.local_costmap", "width"): "sized to the controller horizon",
     ("local_costmap.local_costmap", "height"): "sized to the controller horizon",
@@ -147,6 +152,18 @@ SIM_AUTHORITATIVE = {
 }
 
 MUST_DIFFER = {
+    # The smoother's acceleration limits must match whatever controller is
+    # driving it -- the robot's note is explicit about why, and it cost a
+    # collision to learn: at max_decel -1.0 against DWB's decel_lim_x -2.5, DWB
+    # chose trajectories believing it could stop in 0.104 s when it needed
+    # 0.26 s. So this follows the same rule with a different controller. MPPI
+    # here runs ax_max 2.0 and az_max 2.0, and the smoother matches those, not
+    # DWB's 2.5/3.2.
+    ("velocity_smoother", "max_accel"): "matches this workspace's controller, "
+        "as the robot's matches its own",
+    ("velocity_smoother", "max_decel"): "matches this workspace's controller, "
+        "as the robot's matches its own",
+
     ("controller_server", "FollowPath.plugin"):
         "MPPI in simulation for footprint-aware horizons, DWB on the robot",
     ("amcl", "alpha1"): "Isaac odometry is ground truth; 0.2 spreads particles "
