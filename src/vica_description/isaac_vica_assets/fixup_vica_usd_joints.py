@@ -25,7 +25,7 @@ What it does:
 Run build_vica_ros_graphs.py after this one.
 """
 
-from pxr import Sdf, Usd, UsdPhysics, UsdShade
+from pxr import PhysxSchema, Sdf, Usd, UsdPhysics, UsdShade
 
 import omni.timeline
 import omni.usd
@@ -52,6 +52,22 @@ CASTER_JOINTS = [
 # --------------------------------------------------------------------------
 # Velocity control wants zero stiffness: stiffness is the position gain, and a
 # non-zero value makes the joint fight to hold an angle it was never told to.
+# The articulation carries no PhysxArticulationAPI as imported, so it solves on
+# PhysX's defaults of four position iterations and one velocity iteration. That
+# is thin for four wheel contacts under a drive strong enough to hold 4 rad/s,
+# and under-converged contacts slip whatever friction they are given.
+#
+# Measured, turning in place at a commanded 0.3 rad/s: 0.00-0.13 rad/s achieved
+# on the defaults, 0.17 with these counts. At 0.4, the configured wz_max, 0.20
+# becomes 0.24. Above 0.5 it makes no difference, so this is not the whole of
+# the rotation deficit -- see measure_rotation -- but it is the part of it that
+# sits in the range the controller actually commands.
+#
+# Raising the drive damping a hundredfold and cutting the caster friction to a
+# thousandth both changed nothing, which is what sent the search here.
+ARTICULATION_POSITION_ITERATIONS = 64
+ARTICULATION_VELOCITY_ITERATIONS = 16
+
 WHEEL_STIFFNESS = 0.0
 WHEEL_DAMPING = 1.0e4
 WHEEL_MAX_FORCE = 1.0e5
@@ -197,6 +213,21 @@ def _bind_wheel_friction(stage):
     return bound, drive_path, caster_path
 
 
+def _configure_articulation_solver(stage):
+    """Give every articulation root explicit solver iteration counts."""
+    touched = []
+    for prim in stage.Traverse():
+        if not prim.HasAPI(UsdPhysics.ArticulationRootAPI):
+            continue
+        api = PhysxSchema.PhysxArticulationAPI.Apply(prim)
+        api.CreateSolverPositionIterationCountAttr().Set(
+            ARTICULATION_POSITION_ITERATIONS)
+        api.CreateSolverVelocityIterationCountAttr().Set(
+            ARTICULATION_VELOCITY_ITERATIONS)
+        touched.append(str(prim.GetPath()))
+    return touched
+
+
 def main():
     _require_stopped_timeline()
 
@@ -244,6 +275,14 @@ def main():
     print(f"    caster {caster_path}  "
           f"static={CASTER_STATIC_FRICTION} dynamic={CASTER_DYNAMIC_FRICTION}")
     print(f"           {', '.join(sorted(set(bound['caster']))) or 'NONE FOUND'}")
+
+    print("\n=== articulation solver")
+    roots = _configure_articulation_solver(stage)
+    for path in roots:
+        print(f"    {path}  position={ARTICULATION_POSITION_ITERATIONS} "
+              f"velocity={ARTICULATION_VELOCITY_ITERATIONS}")
+    if not roots:
+        print("    no articulation root found")
 
     if SAVE_STAGE:
         stage.GetRootLayer().Save()

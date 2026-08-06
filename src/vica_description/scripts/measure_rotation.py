@@ -8,6 +8,14 @@ physical robot can be put side by side. It drives: the robot must be on an open
 floor with room to spin. Nothing else is required -- Nav2 does not need to be
 running, and this publishes straight to /cmd_vel.
 
+It checks that room before every trial, using /scan, and refuses to measure
+without it. That guard is not precaution -- it is the fix for three separate
+measurements this tool's predecessors got wrong. A wall inside the robot's
+circumscribed radius becomes part of what is being measured, and the robot puts
+itself there: an in-place turn here drifts a few millimetres per second, so a
+run that starts clear walks into something after a handful of trials. Nothing
+in the numbers says so. They just quietly stop meaning what they say.
+
 Simulation, measured 2026-08-06 in open floor space, twice by different means
 and in agreement:
 
@@ -76,13 +84,22 @@ from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
-from sensor_msgs.msg import JointState
+from sensor_msgs.msg import JointState, LaserScan
 
 # Both workspaces' URDFs agree on these.
 WHEEL_RADIUS = 0.065
 WHEEL_SEPARATION = 0.364
 LEFT_JOINT = "left_wheel_joint"
 RIGHT_JOINT = "right_wheel_joint"
+
+# Turning in place sweeps the footprint's far corner through this radius, so
+# anything nearer is something the robot turns against rather than past.
+CIRCUMSCRIBED_RADIUS = 0.65
+
+# The lidar sees the robot's own rear panel at 0.447 m, dead astern. That is not
+# an obstacle, and excluding the sector it occupies is the difference between a
+# clearance check and a check that always fails.
+SELF_RETURN_HALF_WIDTH_DEG = 20.0
 
 
 def stamp(msg):
@@ -105,6 +122,28 @@ class Probe(Node):
         self.create_subscription(Odometry, args.odom, self.odom.append, 10)
         self.create_subscription(
             JointState, "/joint_states", self.joints.append, qos_profile_sensor_data)
+        self.scan = []
+        self.create_subscription(
+            LaserScan, args.scan, self._on_scan, qos_profile_sensor_data)
+
+    def _on_scan(self, msg):
+        self.scan = [msg]
+
+    def clearance(self):
+        """Nearest return that is not the robot's own bodywork, or None."""
+        if not self.scan:
+            return None
+        msg = self.scan[0]
+        nearest = None
+        for i, r in enumerate(msg.ranges):
+            if not math.isfinite(r) or r <= msg.range_min:
+                continue
+            deg = math.degrees(msg.angle_min + i * msg.angle_increment)
+            if abs(abs(deg) - 180.0) <= SELF_RETURN_HALF_WIDTH_DEG:
+                continue
+            if nearest is None or r < nearest:
+                nearest = r
+        return nearest
 
     def wait_for_odom(self, timeout=20.0):
         waited = 0.0
@@ -124,6 +163,15 @@ class Probe(Node):
         return t0, stamp(self.odom[-1])
 
     def trial(self, wz):
+        # Room to turn, checked now rather than assumed from the last trial.
+        for _ in range(10):
+            rclpy.spin_once(self, timeout_sec=0.2)
+            if self.scan:
+                break
+        near = self.clearance()
+        if near is not None and near < self.args.clearance:
+            return "blocked", near
+
         # Come to a full stop first, so every trial starts the same way and a
         # rate that only sustains an already-moving robot cannot be read as one
         # that starts it.
@@ -170,6 +218,10 @@ def main():
                     help="seconds to hold each rate")
     ap.add_argument("--settle", type=float, default=2.5,
                     help="seconds stopped between trials")
+    ap.add_argument("--scan", default="/scan")
+    ap.add_argument("--clearance", type=float, default=0.85,
+                    help="metres of free space required before each trial; "
+                         "the circumscribed radius is 0.65")
     args = ap.parse_args()
 
     rates = [float(r) for r in args.rates.split(",")]
@@ -189,10 +241,16 @@ def main():
     print("  " + "-" * 60)
 
     rows = []
+    blocked = 0
     for wz in rates:
         result = node.trial(wz)
         if result is None:
             print(f"  {wz:7.2f}   no odometry in the measurement window")
+            continue
+        if result[0] == "blocked":
+            print(f"  {wz:7.2f}   skipped: {result[1]:.2f} m of clearance, "
+                  f"under the {args.clearance:.2f} m needed")
+            blocked += 1
             continue
         yaw, wheels = result
         target = wz * WHEEL_SEPARATION / (2 * WHEEL_RADIUS)
@@ -204,6 +262,14 @@ def main():
     node.pub.publish(Twist())
     for _ in range(20):
         rclpy.spin_once(node, timeout_sec=0.05)
+
+    if blocked:
+        print()
+        print(f"  {blocked} of {len(rates)} trials skipped for want of room.")
+        print("  Move the robot somewhere open and run it again. A partial")
+        print("  table here is not a smaller result, it is a different one:")
+        print("  the trials that did run are the ones the robot happened to")
+        print("  have room for, which is not a property of the robot.")
 
     if len(rows) >= 3:
         losses = [wz - yaw for wz, yaw in rows]
