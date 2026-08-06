@@ -63,6 +63,10 @@ bt_navigator:
     odom_topic: /odom
     bt_loop_duration: 10
     default_server_timeout: 20
+    # The robot's tree, with BackUp removed. A person walks behind holding the
+    # handle; reversing drives the robot into them. Overridden by the launch
+    # file with the installed path.
+    default_nav_to_pose_bt_xml: "SET_BY_VICA_LAUNCH"
     wait_for_service_timeout: 1000
     action_server_result_timeout: 900.0
     navigators: ["navigate_to_pose", "navigate_through_poses"]
@@ -287,6 +291,83 @@ controller_server:
       #   enabled: true
       #   twirling_cost_power: 1
       #   twirling_cost_weight: 10.0
+
+    # The physical robot's controller, kept here so the two can be compared on
+    # the same course instead of by argument. Inert while it is named
+    # FollowPathAlt; select_controller swaps the names.
+    #
+    # Values are dev's, copied rather than re-tuned. Every one of them has a
+    # reason recorded there and most were settled by driving:
+    #
+    #   ObstacleFootprint replaced BaseObstacle because BaseObstacle checks one
+    #     cell at the trajectory's centre and assumes a round robot. VICA's
+    #     inscribed and circumscribed radii differ by 2.5x, so a free centre
+    #     says nothing about the 0.6 m tail. The swap cut slow-crawling from
+    #     11.0 s to 7.9 s.
+    #   ObstacleFootprint.scale 0.15 is a third try. At 0.08 avoiding an
+    #     obstacle cost less than leaving the path by 3 cm, so the robot tracked
+    #     paths that ran along walls. At 0.30 it got stuck: 46 s without moving
+    #     where every trajectory scored as blocked.
+    #   PathAlign.forward_point_distance 0.325 is nav2's default, restored after
+    #     0.1 put the alignment point inside the robot, where it duplicated
+    #     PathDist and left no heading information -- corners were noticed on
+    #     arrival rather than in advance.
+    #
+    # Plugin and critic names are Jazzy's, checked against the installed
+    # dwb_critics: they match Humble's here, unlike the Smac planners whose
+    # slash form aborts planner_server on configure.
+    FollowPathAlt:
+      plugin: "dwb_core::DWBLocalPlanner"
+      debug_trajectory_details: True
+      min_vel_x: 0.0
+      min_vel_y: 0.0
+      max_vel_x: 0.26
+      max_vel_y: 0.0
+      max_vel_theta: 0.4
+      min_speed_xy: 0.0
+      max_speed_xy: 0.26
+      min_speed_theta: 0.0
+      acc_lim_x: 2.0
+      acc_lim_y: 0.0
+      acc_lim_theta: 2.0
+      decel_lim_x: -2.5
+      decel_lim_y: 0.0
+      decel_lim_theta: -3.2
+      vx_samples: 20
+      vy_samples: 5
+      vtheta_samples: 20
+      # 2.5, the robot's value. Its notes make the reason concrete: DWB looks ahead
+      # in time, so sim_time x max_vel_x plus the footprint's nose is how far it
+      # checks. 1.7 gives 0.80 m and 2.5 gives 1.01 m, and at 0.80 m a chair was
+      # detected four seconds out and hit anyway because the check never reached
+      # it.
+      #
+      # It also decides whether a narrow corner is passable at all, in the
+      # opposite direction to intuition. The robot tried 2.0 and it was worse
+      # than either: "No valid trajectories" went 74 -> 168 and the narrow route
+      # was never once completed. A shorter horizon cannot draw the curve that
+      # goes around an obstacle, only see that the way ahead is blocked.
+      sim_time: 2.5
+      linear_granularity: 0.05
+      angular_granularity: 0.025
+      transform_tolerance: 0.2
+      xy_goal_tolerance: 0.25
+      trans_stopped_velocity: 0.03
+      short_circuit_trajectory_evaluation: True
+      stateful: True
+      critics: ["RotateToGoal", "Oscillation", "ObstacleFootprint", "GoalAlign",
+                "PathAlign", "PathDist", "GoalDist"]
+      ObstacleFootprint.scale: 0.15
+      PathAlign.scale: 32.0
+      PathAlign.forward_point_distance: 0.325
+      GoalAlign.scale: 24.0
+      GoalAlign.forward_point_distance: 0.325
+      PathDist.scale: 32.0
+      GoalDist.scale: 24.0
+      RotateToGoal.scale: 32.0
+      RotateToGoal.slowing_factor: 5.0
+      RotateToGoal.lookahead_time: -1.0
+
 
 local_costmap:
   local_costmap:
@@ -578,8 +659,13 @@ behavior_server:
     robot_base_frame: base_footprint
     transform_tolerance: 0.1
     simulate_ahead_time: 2.0
-    max_rotational_vel: 1.0
-    min_rotational_vel: 0.4
+    # The robot's values, and they are about the person rather than the robot.
+    # Spin at 1.0 rad/s is six times the speed the controller slows to near a
+    # goal, and its note records the complaint directly: the robot crept in and
+    # then whipped round. min matters too -- spin.cpp clamps to it, so leaving
+    # it at 0.4 removes the deceleration curve at the end of the turn entirely.
+    max_rotational_vel: 0.4
+    min_rotational_vel: 0.15
     rotational_acc_lim: 3.2
 
 waypoint_follower:

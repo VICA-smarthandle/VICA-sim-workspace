@@ -10,6 +10,7 @@ install(
     meshes
     rviz
     config
+    behavior_trees
     maps
   DESTINATION share/${PROJECT_NAME}
 )
