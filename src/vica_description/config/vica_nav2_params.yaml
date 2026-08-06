@@ -203,10 +203,36 @@ controller_server:
         # none of it -- /cmd_vel_nav's angular z averaged -0.004 rad/s over a
         # whole goal, dithering rather than committing.
         #
-        # The robot reaches the same conclusion from the other side. It runs DWB
-        # with RotateToGoal.scale 32.0, a critic whose entire job is the final
-        # turn, and it drives stably. MPPI's nearest equivalent is this, at 3.0.
-        # Raising it is the obvious experiment and has not been run.
+        # 15.0, and it is an improvement rather than a fix.
+        #
+        # Raising it does make MPPI turn the robot itself. Three 90 degree
+        # in-place goals per setting, each from a full stop on open floor:
+        #
+        #   weight   rotation achieved      net displacement   Spin recoveries
+        #    3.0     0 deg                  --                 2
+        #   15.0     8 / 77 / 46 deg        0.52 / 0.48 / 0.58 m   0
+        #   32.0     73 / 166 / 177 deg     0.54 / 0.60 / 0.57 m   0
+        #
+        # At 3.0 the controller commands no rotation at all and the Spin
+        # recovery does the work. Above that it commands its own, which is why
+        # 15.0 is kept. 32.0 is not better: asked for 90 degrees it delivers 166
+        # and 177, overshooting rather than converging.
+        #
+        # None of them reach the goal, and the displacement column is why. A
+        # goal that asks for rotation without travel gets 0.5 m of travel every
+        # time, which puts the robot outside xy_goal_tolerance 0.25, so the pose
+        # is never satisfied however well it turns. With vx_min 0.0 the robot
+        # cannot reverse out of that overshoot either -- correcting it means
+        # driving a loop -- and the planner refuses reverse for the same reason.
+        #
+        # That is the part worth carrying to the robot, which also blocks
+        # reverse. DWB's RotateToGoal commands zero linear velocity outright
+        # during the final turn. MPPI has no critic that does this: it can be
+        # asked to prefer the right heading, not to hold still while reaching
+        # it. nav2's answer is RotationShimController, which was tried on the
+        # robot with DWB and removed for triggering in-place turns that were not
+        # needed -- worth revisiting with a threshold above the 45 degree
+        # default, and with Lattice rather than the planner it was tried under.
         #
         # There is also a structural limit underneath: the horizon is 56 steps
         # of 0.05 s and wz_max is 0.4, so no sampled trajectory can turn more
@@ -217,7 +243,7 @@ controller_server:
         # This matters beyond simulation: the plan is to move the robot to MPPI
         # after validating it here, and in-place rotation is what that
         # validation has to cover.
-        cost_weight: 3.0
+        cost_weight: 15.0
         threshold_to_consider: 0.5
       PreferForwardCritic:
         enabled: true
