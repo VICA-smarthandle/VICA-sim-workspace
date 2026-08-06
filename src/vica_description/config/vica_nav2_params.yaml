@@ -190,6 +190,33 @@ controller_server:
       GoalAngleCritic:
         enabled: true
         cost_power: 1
+        # 3.0 is nav2's default and it does not turn this robot. Measured with
+        # the stack up, on an open floor with 2.1 m of clearance:
+        #
+        #   travel 2 m, no turn required   SUCCEEDED, 2.03 m, 17 s
+        #   turn 90 deg on the spot        0 deg of rotation in 120 s
+        #   turn 150 deg on the spot       125 deg, all of it from Spin
+        #
+        # The log names what moved it: "Running spin", "Turning 1.57 for spin
+        # behavior", "spin completed successfully". Every degree of in-place
+        # rotation seen here came from the recovery behaviour. MPPI commanded
+        # none of it -- /cmd_vel_nav's angular z averaged -0.004 rad/s over a
+        # whole goal, dithering rather than committing.
+        #
+        # The robot reaches the same conclusion from the other side. It runs DWB
+        # with RotateToGoal.scale 32.0, a critic whose entire job is the final
+        # turn, and it drives stably. MPPI's nearest equivalent is this, at 3.0.
+        # Raising it is the obvious experiment and has not been run.
+        #
+        # There is also a structural limit underneath: the horizon is 56 steps
+        # of 0.05 s and wz_max is 0.4, so no sampled trajectory can turn more
+        # than 64 degrees, and physics delivers about 60 % of what is commanded.
+        # Past that every candidate ends up still facing the wrong way and they
+        # score alike, which is what dithering looks like.
+        #
+        # This matters beyond simulation: the plan is to move the robot to MPPI
+        # after validating it here, and in-place rotation is what that
+        # validation has to cover.
         cost_weight: 3.0
         threshold_to_consider: 0.5
       PreferForwardCritic:
