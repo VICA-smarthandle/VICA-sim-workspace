@@ -57,11 +57,33 @@ CASTER_JOINTS = [
 # is thin for four wheel contacts under a drive strong enough to hold 4 rad/s,
 # and under-converged contacts slip whatever friction they are given.
 #
-# Measured, turning in place at a commanded 0.3 rad/s: 0.00-0.13 rad/s achieved
-# on the defaults, 0.17 with these counts. At 0.4, the configured wz_max, 0.20
-# becomes 0.24. Above 0.5 it makes no difference, so this is not the whole of
-# the rotation deficit -- see measure_rotation -- but it is the part of it that
-# sits in the range the controller actually commands.
+# Measured three times per rate, in open floor space, achieved yaw in rad/s:
+#
+#     solver     RTF      commanded 0.3           commanded 0.4
+#      4/1      0.647   0.003  -0.001  -0.006   0.001  -0.007  -0.007
+#     16/4      0.635  -0.000   0.002   0.007   0.022   0.110  -0.004
+#     32/8      0.631  -0.002   0.006   0.015   0.236   0.201   0.198
+#     64/16     0.562   0.158   0.165   0.153   0.245   0.233   0.237
+#
+# On the defaults the robot does not turn in place at all at its own wz_max of
+# 0.4. Not slowly -- at all. That is the whole of why goals needing a heading
+# change aborted on "Failed to make progress" while straight-line goals
+# succeeded. 32/8 recovers 0.4 and 64/16 also recovers 0.3, for 13 % of real
+# time against the defaults' 0.647.
+#
+# 128/32 is worse, not better: a commanded 0.3 produced 0.484, and the robot
+# crossed 1.7 m in six seconds while being told to turn on the spot. Past this
+# point the solver stops converging and starts injecting energy, so 64/16 is a
+# ceiling reached by measurement rather than a number chosen for headroom.
+#
+# One trial per setting could not have shown any of this. The first attempt put
+# 16/4 below the defaults, which cannot happen; near the threshold a single
+# six-second trial is close to a coin toss, and the ordering only appears with
+# repeats.
+#
+# Above 0.5 rad/s none of it helps -- every setting lands between 0.49 and 0.55
+# for a commanded 0.8 -- so this is not the whole rotation deficit. See
+# measure_rotation for what remains.
 #
 # Raising the drive damping a hundredfold and cutting the caster friction to a
 # thousandth both changed nothing, which is what sent the search here.

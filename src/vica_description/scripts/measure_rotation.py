@@ -16,6 +16,12 @@ itself there: an in-place turn here drifts a few millimetres per second, so a
 run that starts clear walks into something after a handful of trials. Nothing
 in the numbers says so. They just quietly stop meaning what they say.
 
+Simulation cannot turn in place below about 0.35 rad/s on PhysX's default
+solver counts, which is under its own configured wz_max of 0.4. The stage now
+carries 64 position and 16 velocity iterations, set in fixup_vica_usd_joints.py,
+which moves that floor to about 0.25. The figures below predate that change and
+are the shape of what is left, not of what was worst.
+
 Simulation, measured 2026-08-06 in open floor space, twice by different means
 and in agreement:
 
