@@ -33,6 +33,27 @@ rates are printed beside the yaw:
                                    so the tyres are slipping or something is
                                    resisting the turn
 
+The second reading is the one this stage gives, and it means what it says here
+because Isaac derives odometry from the chassis prim's own transform rather
+than from wheel encoders. Where odometry is integrated from encoders instead --
+as it is on the physical robot -- it cannot see slip by construction, and the
+yaw column has to come from an outside measurement of the real heading.
+
+The wall-clock explanation was checked and does not hold, though its
+arithmetic is convincing enough to be worth writing down. This stage runs at a
+real-time factor of 0.610, so a rotation timed with a stopwatch would read
+0.5 * 0.610 = 0.305 rad/s -- almost exactly the observed figure. It is the
+right suspicion and the wrong answer here: nothing above divides by a wall
+clock. /odom's twist.angular.z is computed by the simulator from physics state,
+and differencing the pose against /odom header stamps is a second sim-time
+reading of the same thing. At a commanded 0.5 they give 0.2931 and 0.2938. A
+clock error cannot survive two clocks that do not disagree.
+
+Two other candidates are also excluded and need not be re-examined. A 0.293
+tread in the controller would put the wheels at 1.127 rad/s; they run at 1.636,
+and the stage's DifferentialController is authored with wheelDistance 0.364.
+The caster collision radius is already the ground-contact value of 0.042.
+
 What matters is not the simulation number on its own but whether the robot
 does the same thing. If it does, simulation is faithful and the real turn rate
 is simply what it is -- plan around it. If the robot delivers its command and
