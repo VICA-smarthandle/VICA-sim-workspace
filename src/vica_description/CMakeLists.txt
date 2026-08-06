@@ -64,4 +64,34 @@ install(
   RENAME measure_handle
 )
 
+install(
+  PROGRAMS scripts/plot_run.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME plot_run
+)
+
+install(
+  PROGRAMS scripts/select_controller.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME select_controller
+)
+
+install(
+  PROGRAMS scripts/make_map_from_stage.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME make_map_from_stage
+)
+
+install(
+  PROGRAMS scripts/width_trials.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME width_trials
+)
+
+install(
+  PROGRAMS scripts/width_sweep.sh
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME width_sweep
+)
+
 ament_package()
