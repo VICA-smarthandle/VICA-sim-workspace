@@ -52,7 +52,7 @@
   planner.
 
   Simulation kept the default tree until now, which let it recover from places
-  the robot cannot recover from -- so any width or clearance measured with it
+  the robot cannot recover from, so any width or clearance measured with it
   was measured on a robot with an escape route the real one does not have.
 
   The removed line was:

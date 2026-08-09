@@ -31,6 +31,22 @@ else
     STAGE="${2:?usage: make_stage.sh <builder.py> <stage.usd>}"
 fi
 
+# Every use below is "$HERE_STAGE", which is right for a bare filename and
+# nonsense for anything else: a path pastes onto $HERE and the run fails three
+# steps later with "could not open" on a doubled path. Tab completion produces
+# a path, so this is easy to hit and the error says nothing about why.
+case "$STAGE" in
+    */*) STAGE="$(cd "$(dirname "$STAGE")" && pwd)/$(basename "$STAGE")"
+         HERE_STAGE="$STAGE" ;;
+    *)   HERE_STAGE="${HERE}/${STAGE}" ;;
+esac
+if [ ! -f "$HERE_STAGE" ] && [ -n "${BUILDER}" ]; then
+    : # the builder is about to create it
+elif [ ! -f "$HERE_STAGE" ]; then
+    echo "스테이지가 없습니다: $HERE_STAGE"
+    exit 1
+fi
+
 cd "$ISAAC"
 # shellcheck disable=SC1091
 source ./setup_ros_env.sh >/dev/null 2>&1
@@ -55,19 +71,31 @@ echo
 echo "=============================================================="
 echo " 2/3  prepare  sensors, joints, ROS graphs"
 echo "=============================================================="
-if ! ./python.sh -u "$HERE/prepare_stage.py" "$HERE/$STAGE" > /tmp/vica_prepare.log 2>&1; then
+if ! ./python.sh -u "$HERE/prepare_stage.py" "$HERE_STAGE" > /tmp/vica_prepare.log 2>&1; then
     tail -20 /tmp/vica_prepare.log
     echo "prepare 실패"
     exit 1
 fi
-grep -E "^===|built |velocity drive|articulation solver|stamped|다음:" /tmp/vica_prepare.log || true
+# The exit code is necessary and has not always been sufficient. Isaac's
+# SimulationApp.close() ends the process with status 0 of its own accord, so a
+# step that raised, printed its traceback and asked to exit 1 was read here as
+# a success; verify then passed the stage a *previous* run had prepared and
+# said 전부 통과. prepare_stage.py no longer routes failure through close(),
+# and this reads the log as well, because one of the two guards being enough
+# is the assumption that produced the wrong answer.
+if grep -q "RAISED" /tmp/vica_prepare.log; then
+    grep -B2 -A12 "RAISED" /tmp/vica_prepare.log
+    echo "prepare 단계가 예외로 죽었습니다 (종료 코드는 0 이었습니다)"
+    exit 1
+fi
+grep -E "^===|built |velocity drive|position drive|자세:|articulation solver|stamped|다음:" /tmp/vica_prepare.log || true
 
 echo
 echo "=============================================================="
 echo " 3/3  verify"
 echo "=============================================================="
 set +e
-./python.sh -u "$HERE/verify_stage.py" "$HERE/$STAGE" 8 > /tmp/vica_verify.log 2>&1
+./python.sh -u "$HERE/verify_stage.py" "$HERE_STAGE" 8 > /tmp/vica_verify.log 2>&1
 rc=$?
 set -e
 grep -E "^---|^  (PASS|FAIL)|실패|전부 통과" /tmp/vica_verify.log || tail -20 /tmp/vica_verify.log
@@ -78,4 +106,4 @@ if [ "$rc" -ne 0 ]; then
 fi
 
 # Stamped by a process that never played the stage. See stamp_verified.py.
-python3 "$HERE/stamp_verified.py" "$HERE/$STAGE"
+python3 "$HERE/stamp_verified.py" "$HERE_STAGE"

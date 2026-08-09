@@ -45,13 +45,24 @@ for name in ("attach_vica_sensors.py",
     path = f"{HERE}/{name}"
     print(f"\n=== {name}", flush=True)
     try:
-        exec(compile(open(path).read(), path, "exec"), {"__name__": "vica_prep"})
+        # __file__ as well as __name__: a step that wants a file next to
+        # itself has nothing to resolve against without it, and the failure is
+        # a NameError at import time that takes the whole step with it.
+        exec(compile(open(path).read(), path, "exec"),
+             {"__name__": "vica_prep", "__file__": path})
     except Exception:
         import traceback
         print(f"!!! {name} RAISED", flush=True)
         traceback.print_exc()
-        simulation_app.close()
-        sys.exit(1)
+        sys.stdout.flush()
+        sys.stderr.flush()
+        # os._exit rather than simulation_app.close() then sys.exit(1).
+        # close() ends the process itself and it ends it with status 0, so the
+        # sys.exit below it never ran and make_stage.sh read a failed prepare
+        # as a successful one. It then verified a stage that the previous run
+        # had prepared and printed "전부 통과", which is the exact shape of
+        # failure this pipeline exists to prevent.
+        os._exit(1)
     for _ in range(10):
         simulation_app.update()
 
