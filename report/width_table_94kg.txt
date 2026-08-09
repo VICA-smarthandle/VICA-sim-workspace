@@ -1,0 +1,28 @@
+
+=== 코스 2026-08-07 08:56:39
+
+--- dwb   inflation 0.55
+         폭     통과      출발산포   결과
+      1.40   2/3      0.12 m   reached(7.562) stuck(3.448) reached(7.621)
+      1.20   3/3      0.04 m   reached(7.522) reached(7.519) reached(7.481)
+      1.15   0/3      1.03 m   stuck(1.887) no-start(0.047) stuck(0.354)  <- 출발이 흩어짐
+      1.10   0/3      1.27 m   no-start(0.0) timeout(0.0) no-start(0.0)  <- 출발이 흩어짐
+      1.05   0/3      0.35 m   stuck(0.368) no-start(0.0) no-start(0.0)  <- 출발이 흩어짐
+      1.00   0/3      0.70 m   stuck(0.481) stuck(0.116) stuck(0.285)  <- 출발이 흩어짐
+      0.90   0/3      1.42 m   no-start(0.095) timeout(0.0) no-start(0.0)  <- 출발이 흩어짐
+      0.80   0/3      0.73 m   no-start(0.0) stuck(0.736) timeout(0.0)  <- 출발이 흩어짐
+      0.70   0/3      0.39 m   no-start(0.0) no-start(0.0) no-start(0.0)  <- 출발이 흩어짐
+
+--- mppi   inflation 0.55
+         폭     통과      출발산포   결과
+      1.40   0/3      0.69 m   stuck(1.131) timeout(0.154) timeout(0.0)  <- 출발이 흩어짐
+      1.20   0/3      0.65 m   no-start(0.087) timeout(0.368) timeout(4.516)  <- 출발이 흩어짐
+      1.15   0/3      1.19 m   no-start(0.0) timeout(0.0) timeout(0.662)  <- 출발이 흩어짐
+      1.10   0/3      0.12 m   timeout(3.606) stuck(3.706) stuck(0.179)
+      1.05   0/3      0.24 m   timeout(3.679) timeout(1.29) timeout(0.144)
+      1.00   0/3      0.46 m   stuck(0.903) timeout(0.119) no-start(0.0)  <- 출발이 흩어짐
+      0.90   0/3      0.56 m   timeout(0.0) timeout(2.835) timeout(2.951)  <- 출발이 흩어짐
+      0.80   0/3      1.75 m   timeout(3.359) timeout(2.822) no-start(0.0)  <- 출발이 흩어짐
+      0.70   0/3      1.17 m   timeout(6.036) timeout(0.993) timeout(6.426)  <- 출발이 흩어짐
+
+  출발산포 0.3 m 초과 행은 폭이 아니라 출발 위치를 측정한 것입니다.

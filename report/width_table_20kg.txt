@@ -1,0 +1,16 @@
+
+=== 코스 2026-08-07 14:37:54
+
+--- dwb   inflation 0.55
+         폭     통과      출발산포   결과
+      1.40   3/3      0.12 m   reached(7.418) reached(7.386) reached(7.488)
+      1.20   3/3      0.06 m   reached(7.492) reached(7.546) reached(7.425)
+      1.15   2/3      0.01 m   stuck(2.152) reached(7.471) reached(7.503)
+
+--- mppi   inflation 0.55
+         폭     통과      출발산포   결과
+      1.40   0/3      0.43 m   stuck(1.045) timeout(0.817) timeout(0.788)  <- 출발이 흩어짐
+      1.20   0/3      0.44 m   timeout(1.102) timeout(0.881) timeout(0.967)  <- 출발이 흩어짐
+      1.15   0/3      1.21 m   timeout(1.397) stuck(0.839) timeout(0.795)  <- 출발이 흩어짐
+
+  출발산포 0.3 m 초과 행은 폭이 아니라 출발 위치를 측정한 것입니다.

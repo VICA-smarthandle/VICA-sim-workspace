@@ -10,6 +10,11 @@ __pycache__/
 # local tooling state
 .omx/
 
+# Rendered runs. animate_run writes gif/mp4/png here, a few MB per lane and
+# regenerated from the result JSONs whenever they are wanted, so the videos
+# are output rather than source.
+media/
+
 # editor / OS
 *.swp
 *~

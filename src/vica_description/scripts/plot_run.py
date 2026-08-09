@@ -139,11 +139,22 @@ def record(duration, odom_topic):
 
 
 def footprint_at(x, y, yaw, pad=FOOTPRINT_PADDING):
-    """The footprint polygon placed at a pose, grown by the padding."""
+    """The footprint polygon placed at a pose, grown the way nav2 grows it.
+
+    nav2's padFootprint adds the padding to each coordinate separately --
+    pt.x += sign0(pt.x) * pad -- not along the radius. On this hexagon the
+    difference is not cosmetic: the handle corner (-0.595, -0.035) becomes
+    (-0.645, -0.085) and the circumscribed radius 0.650577, which is the
+    number nav2 itself prints. Padding radially gives 0.6460, and the drawn
+    half-width 0.2574 instead of 0.2775 -- 2 cm narrower than the shape the
+    costmap is actually checking, on the axis that decides whether a lane
+    fits. A plot that draws the robot thinner than nav2 believes it to be
+    will show clearance that was never there.
+    """
     pts = []
     for fx, fy in FOOTPRINT:
-        n = math.hypot(fx, fy) or 1.0
-        gx, gy = fx + pad * fx / n, fy + pad * fy / n
+        gx = fx + (-pad if fx < 0 else pad)
+        gy = fy + (-pad if fy < 0 else pad)
         pts.append((x + gx * math.cos(yaw) - gy * math.sin(yaw),
                     y + gx * math.sin(yaw) + gy * math.cos(yaw)))
     return pts
