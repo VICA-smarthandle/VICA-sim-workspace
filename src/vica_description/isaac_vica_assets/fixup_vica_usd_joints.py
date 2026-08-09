@@ -25,6 +25,9 @@ What it does:
 Run build_vica_ros_graphs.py after this one.
 """
 
+import math
+import os
+
 from pxr import PhysxSchema, Sdf, Usd, UsdPhysics, UsdShade
 
 import omni.timeline
@@ -87,12 +90,84 @@ CASTER_JOINTS = [
 #
 # Raising the drive damping a hundredfold and cutting the caster friction to a
 # thousandth both changed nothing, which is what sent the search here.
-ARTICULATION_POSITION_ITERATIONS = 64
-ARTICULATION_VELOCITY_ITERATIONS = 16
+#
+# Both of those moved the gain in the same direction it was already too far in.
+# On 2026-08-07 the wheels were measured against their own commanded rate for
+# the first time, three trials each:
+#
+#     cmd wz 0.20   wheel target 0.560   wheel actual 0.823   147%
+#     cmd wz 0.30   wheel target 0.840   wheel actual 1.338   159%
+#
+# A velocity drive that overshoots its target by half is not tracking it. That
+# is a gain problem in the joint drive, and it is upstream of everything the
+# rotation search has been looking at -- ground contact, tyre friction, caster
+# swivel and solver counts were all checked on the same day and all correct.
+# Damping is the velocity gain here, and 1e4 N m s/rad on a wheel of roughly
+# 1e-3 kg m^2 is enormous.
+#
+# So these are overridable, to be swept rather than argued about:
+#
+#     VICA_WHEEL_DAMPING=100 make_stage.sh --prepare-only <stage.usd>
+#
+# Swept once already, and it found the thing the search had been missing.
+# Same stage, same commands, three trials each:
+#
+#     cmd wz 0.30    damping 1e4    yaw 0.164    spread 0.175   <- does not repeat
+#                    damping 100    yaw 0.154    spread 0.043
+#
+# The rotation is the same. The *repeatability* is four times better, and the
+# runs that used to throw out -6.321 rad/s -- a revolution per second
+# backwards -- stopped. A drive gain that large makes the solver unstable, and
+# an unstable solver is why the same command had been answering differently
+# every time it was asked. Every rotation figure recorded before 2026-08-07
+# came off that, one sample each, and none of them should be cited.
+#
+# 100 is not adopted as the default yet, deliberately. It is measured against
+# rotation only; nothing has checked what it does to straight-line driving,
+# and the width sweep results all came off 1e4. Adopting it means re-running
+# that sweep, not editing this line. Until then both stages stay at 1e4 so
+# they can be compared with each other -- a stage that quietly differs from
+# its neighbour is the failure this whole day was spent on.
+ARTICULATION_POSITION_ITERATIONS = int(
+    os.environ.get("VICA_POSITION_ITERATIONS", 64))
+ARTICULATION_VELOCITY_ITERATIONS = int(
+    os.environ.get("VICA_VELOCITY_ITERATIONS", 16))
 
-WHEEL_STIFFNESS = 0.0
-WHEEL_DAMPING = 1.0e4
-WHEEL_MAX_FORCE = 1.0e5
+# Arm joints, when the stage carries the arm variant. Nothing here applies to
+# the driving robot: it has no joint whose name starts with the arm prefix, and
+# the loop below finds none.
+ARM_JOINT_PREFIX = os.environ.get("VICA_ARM_JOINT_PREFIX", "gen3_joint_")
+ARM_HOLD_DEG = float(os.environ.get("VICA_ARM_HOLD_DEG", 1.0))
+ARM_DAMPING_RATIO = float(os.environ.get("VICA_ARM_DAMPING_RATIO", 0.1))
+# Where the arm is told to hold. Without this the target is zero, and zero on a
+# Gen3 lite is straight up: the arm stands to attention and carries its mass as
+# high as it can. config/arm_stow_pose.yaml has the derivation.
+ARM_STOW_POSE = os.environ.get(
+    "VICA_ARM_STOW_POSE",
+    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                 "config", "arm_stow_pose.yaml"))
+
+
+def _stow_targets():
+    """joint name -> radians, or an empty dict when the file is not there."""
+    if not os.path.isfile(ARM_STOW_POSE):
+        return {}
+    out = {}
+    with open(ARM_STOW_POSE) as fh:
+        for line in fh:
+            line = line.split("#", 1)[0].strip()
+            if ":" not in line:
+                continue
+            k, v = line.split(":", 1)
+            try:
+                out[k.strip()] = float(v)
+            except ValueError:
+                pass
+    return out
+
+WHEEL_STIFFNESS = float(os.environ.get("VICA_WHEEL_STIFFNESS", 0.0))
+WHEEL_DAMPING = float(os.environ.get("VICA_WHEEL_DAMPING", 1.0e4))
+WHEEL_MAX_FORCE = float(os.environ.get("VICA_WHEEL_MAX_FORCE", 1.0e5))
 
 # --------------------------------------------------------------------------
 # Tyre friction
@@ -187,6 +262,54 @@ def _configure_velocity_drive(prim):
     drive.CreateDampingAttr().Set(WHEEL_DAMPING)
     drive.CreateMaxForceAttr().Set(WHEEL_MAX_FORCE)
     drive.CreateTargetVelocityAttr().Set(0.0)
+
+
+def _configure_position_drive(prim, hold_deg, target=None):
+    """Hold an arm joint where it is put, instead of letting gravity have it.
+
+    The URDF importer brings the effort limit across as maxForce and stops
+    there: stiffness, damping and the drive type are all unauthored, which is
+    no drive at all. Measured on vica_testroom_arm.usd before this existed,
+    the arm fell through 56 degrees in fourteen seconds and was already
+    collapsed by the first sample.
+
+    kortex_description carries no gains to copy. It has effort and velocity
+    limits and an initial_value for fake hardware, and the numbers a real
+    Gen3 lite runs on live in its controller configuration, not its
+    description. So stiffness is derived from the one number that is
+    published, rather than picked:
+
+        stiffness = effort_limit / hold_deg_in_radians
+
+    which is the gain at which the joint's own rated torque is spent holding
+    hold_deg of error. At the default 1 degree a joint carrying its full
+    rated load sags one degree, and a joint carrying a tenth of it sags a
+    tenth of that.
+
+    Damping is a fraction of stiffness rather than a critical-damping
+    calculation, because the effective inertia at each joint depends on the
+    pose of every joint outboard of it and there is no single value to
+    critically damp against. ARM_DAMPING_RATIO is overridable for the same
+    reason VICA_WHEEL_DAMPING is: to be swept rather than argued about.
+    """
+    effort = prim.GetAttribute("drive:angular:physics:maxForce")
+    effort = effort.Get() if effort and effort.HasAuthoredValue() else None
+    if not effort:
+        return None
+
+    stiffness = effort / math.radians(hold_deg)
+    damping = stiffness * ARM_DAMPING_RATIO
+
+    drive = UsdPhysics.DriveAPI.Get(prim, "angular")
+    if not drive:
+        drive = UsdPhysics.DriveAPI.Apply(prim, "angular")
+    drive.CreateTypeAttr().Set("force")
+    drive.CreateStiffnessAttr().Set(stiffness)
+    drive.CreateDampingAttr().Set(damping)
+    drive.CreateMaxForceAttr().Set(effort)
+    # USD angular drive targets are in degrees.
+    drive.CreateTargetPositionAttr().Set(math.degrees(target or 0.0))
+    return effort, stiffness, damping
 
 
 def _define_material(stage, root, name, static, dynamic):
@@ -288,6 +411,24 @@ def main():
             f"    {name:34s} velocity drive  stiffness={WHEEL_STIFFNESS} "
             f"damping={WHEEL_DAMPING} maxForce={WHEEL_MAX_FORCE}"
         )
+
+    arm = sorted(n for n in joints if n.startswith(ARM_JOINT_PREFIX))
+    if arm:
+        print(f"\n=== arm joints  (hold {ARM_HOLD_DEG} deg, "
+              f"damping ratio {ARM_DAMPING_RATIO})")
+        stow = _stow_targets()
+        print(f"    자세: {ARM_STOW_POSE if stow else '없음, 0 으로 둡니다'}")
+        for name in arm:
+            got = _configure_position_drive(joints[name], ARM_HOLD_DEG,
+                                            stow.get(name))
+            if got is None:
+                print(f"    {name:34s} SKIPPED: maxForce 가 없어 stiffness 를 "
+                      f"유도할 수 없습니다")
+                continue
+            effort, stiffness, damping = got
+            print(f"    {name:34s} position drive  effort={effort:g} "
+                  f"stiffness={stiffness:.0f} damping={damping:.0f} "
+                  f"target={math.degrees(stow.get(name, 0.0)):+.1f}deg")
 
     print("\n=== wheel friction")
     bound, drive_path, caster_path = _bind_wheel_friction(stage)

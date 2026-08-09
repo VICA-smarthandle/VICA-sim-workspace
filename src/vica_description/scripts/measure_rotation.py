@@ -22,6 +22,8 @@ carries 64 position and 16 velocity iterations, set in fixup_vica_usd_joints.py,
 which moves that floor to about 0.25. The figures below predate that change and
 are the shape of what is left, not of what was worst.
 
+[미검증] ** The table below does not reproduce. Do not cite it. **
+
 Simulation, measured 2026-08-06 in open floor space, twice by different means
 and in agreement:
 
@@ -33,10 +35,28 @@ and in agreement:
      0.70       0.473   0.227
      0.80       0.547   0.253
 
-The loss is not a percentage. It is a near-constant 0.19-0.25 rad/s whatever is
-asked for, which is what a constant resisting torque looks like -- Coulomb
-friction somewhere in the turn, not a gain that needs scaling. At the configured
-wz_max of 0.4 that constant eats about half the command.
+That reads as a near-constant 0.19-0.25 rad/s loss whatever is asked for --
+the signature of a constant resisting torque rather than a gain that needs
+scaling. It was believed for a day, and it is one sample.
+
+Re-run on 2026-08-07, same robot, same command, two stages, both carrying a
+verify_stage stamp:
+
+    cmd wz    yaw got, by run
+     0.20      -0.003    -0.003            agree, and both are zero
+     0.30       0.074     0.171   -6.321   spanning a factor of ninety, sign included
+     0.40       0.209     0.724            181% of what was asked
+
+-6.321 rad/s is a revolution per second backwards. The robot is not doing
+that; PhysX is. Whatever this measures, it is not repeatable, so no single
+run of it establishes anything -- including the constant-loss reading above.
+
+Two things follow. First, this tool needs repeats before its output means
+anything, the same way the width sweep does. Second, the physical robot was
+reported on 2026-08-07 to overshoot a 360 deg command by 5-10 deg and never
+to fall short -- and 0.37/0.364, the ratio between the odometry calibration
+constant in encoder.yaml and the measured wheel separation, predicts +5.9 deg.
+The real robot's rotation is accounted for. The deficit was only ever here.
 
 Which half of the drivetrain gives it up is worth knowing too, so the wheel
 rates are printed beside the yaw:
@@ -102,10 +122,17 @@ RIGHT_JOINT = "right_wheel_joint"
 # anything nearer is something the robot turns against rather than past.
 CIRCUMSCRIBED_RADIUS = 0.65
 
-# The lidar sees the robot's own rear panel at 0.447 m, dead astern. That is not
+# The lidar sees the robot's own rear panel at 0.443 m, dead astern. That is not
 # an obstacle, and excluding the sector it occupies is the difference between a
 # clearance check and a check that always fails.
-SELF_RETURN_HALF_WIDTH_DEG = 20.0
+#
+# Measured 2026-08-07 off a stationary robot on open floor: returns under 0.6 m
+# occupy 177.7 to 182.2 degrees, five beams of eight hundred. This was 20
+# degrees, eight times wider than the thing it excludes, which discards real
+# returns across a 40-degree arc astern -- and this tool turns the robot, so
+# that arc sweeps the whole room. A wall the robot was about to reverse into
+# read as clear.
+SELF_RETURN_HALF_WIDTH_DEG = 3.0
 
 
 def stamp(msg):
@@ -158,6 +185,23 @@ class Probe(Node):
             waited += 0.5
         return len(self.odom) >= 5
 
+    def wait_for_scan(self, timeout=20.0):
+        """Once, at startup, with room for discovery.
+
+        The per-trial wait used to be the only one, and at 0.2 s x 10 it was
+        shorter than DDS discovery on a stage whose lidar publishes at 6 Hz.
+        Every trial was then refused for want of a /scan that was in fact
+        being published the whole time -- a guard against measuring blind,
+        firing when nothing was blind. Same class of mistake as the thing it
+        guards against: a check whose answer is about the harness rather than
+        the robot.
+        """
+        waited = 0.0
+        while rclpy.ok() and not self.scan and waited < timeout:
+            rclpy.spin_once(self, timeout_sec=0.5)
+            waited += 0.5
+        return bool(self.scan)
+
     def hold(self, wz, seconds):
         """Publish a constant command for `seconds` of message time."""
         cmd = Twist()
@@ -175,7 +219,15 @@ class Probe(Node):
             if self.scan:
                 break
         near = self.clearance()
-        if near is not None and near < self.args.clearance:
+        if near is None:
+            # No /scan at all. The first version read this as "nothing is in
+            # the way" and measured, which is the opposite of what the top of
+            # this file promises -- and the exact failure the guard exists to
+            # stop, since a robot 0.66 m from a wall is inside its own 0.65 m
+            # circumscribed radius and cannot turn no matter how it is driven.
+            # Absence of evidence is not clearance.
+            return "no-scan", 0.0
+        if near < self.args.clearance:
             return "blocked", near
 
         # Come to a full stop first, so every trial starts the same way and a
@@ -225,6 +277,9 @@ def main():
     ap.add_argument("--settle", type=float, default=2.5,
                     help="seconds stopped between trials")
     ap.add_argument("--scan", default="/scan")
+    ap.add_argument("--repeats", type=int, default=3,
+                    help="trials per rate; the spread across them is printed "
+                         "and is the number to read first")
     ap.add_argument("--clearance", type=float, default=0.85,
                     help="metres of free space required before each trial; "
                          "the circumscribed radius is 0.65")
@@ -239,31 +294,73 @@ def main():
               file=sys.stderr)
         rclpy.shutdown()
         return 1
+    if not node.wait_for_scan():
+        print(f"no messages on {args.scan} within 20 s -- every trial will be "
+              f"refused.\n  This tool will not measure a turn it cannot see "
+              f"the room for.", file=sys.stderr)
+        rclpy.shutdown()
+        return 1
 
     print(f"\n  commanding {args.topic}, reading {args.odom}")
     print(f"  wheel radius {WHEEL_RADIUS}, separation {WHEEL_SEPARATION}\n")
     print(f"  {'cmd wz':>7}  {'wheel tgt':>9}  {'wheel got':>9}  "
-          f"{'yaw got':>8}  {'loss':>7}  {'% of cmd':>8}")
-    print("  " + "-" * 60)
+          f"{'yaw got':>8}  {'loss':>7}  {'% of cmd':>8}  {'spread':>7}")
+    print(f"  yaw got 은 {args.repeats}회 중앙값, spread 는 최대-최소")
+    print("  " + "-" * 72)
 
     rows = []
     blocked = 0
     for wz in rates:
-        result = node.trial(wz)
-        if result is None:
+        # Repeats, because one trial of this establishes nothing.
+        #
+        # A single pass per rate produced a table with a clean physical
+        # signature -- a constant 0.19-0.25 rad/s loss whatever was asked --
+        # and it was cited for a day. Re-running gave 0.074, 0.171 and -6.321
+        # for the same 0.30 command. The signature was a coincidence between
+        # three samples of something that does not repeat.
+        #
+        # So the spread across repeats is printed next to the median, and it
+        # is the number to read first. Where it is large the median is not a
+        # measurement of the robot, it is one draw from whatever PhysX did.
+        got_yaw, got_wheels = [], []
+        outcome = None
+        for _ in range(args.repeats):
+            result = node.trial(wz)
+            if result is None:
+                outcome = "no-odom"
+                break
+            if result[0] in ("no-scan", "blocked"):
+                outcome = result
+                break
+            got_yaw.append(result[0])
+            if result[1] is not None:
+                got_wheels.append(result[1])
+
+        if outcome == "no-odom":
             print(f"  {wz:7.2f}   no odometry in the measurement window")
             continue
-        if result[0] == "blocked":
-            print(f"  {wz:7.2f}   skipped: {result[1]:.2f} m of clearance, "
+        if outcome and outcome[0] == "no-scan":
+            print(f"  {wz:7.2f}   skipped: no {args.scan}, so clearance is "
+                  f"unknown and this refuses to guess")
+            blocked += 1
+            continue
+        if outcome and outcome[0] == "blocked":
+            print(f"  {wz:7.2f}   skipped: {outcome[1]:.2f} m of clearance, "
                   f"under the {args.clearance:.2f} m needed")
             blocked += 1
             continue
-        yaw, wheels = result
+        if not got_yaw:
+            continue
+
+        yaw = statistics.median(got_yaw)
+        spread = max(got_yaw) - min(got_yaw)
         target = wz * WHEEL_SEPARATION / (2 * WHEEL_RADIUS)
+        wheels = statistics.median(got_wheels) if got_wheels else None
         got = f"{wheels:9.3f}" if wheels is not None else "        -"
+        flag = "" if spread <= abs(wz) * 0.2 else "  <- 재현 안 됨"
         print(f"  {wz:7.2f}  {target:9.3f}  {got}  {yaw:8.3f}  "
-              f"{wz - yaw:7.3f}  {100 * yaw / wz:7.0f}%")
-        rows.append((wz, yaw))
+              f"{wz - yaw:7.3f}  {100 * yaw / wz:7.0f}%  {spread:7.3f}{flag}")
+        rows.append((wz, yaw, spread))
 
     node.pub.publish(Twist())
     for _ in range(20):
@@ -277,8 +374,23 @@ def main():
         print("  the trials that did run are the ones the robot happened to")
         print("  have room for, which is not a property of the robot.")
 
-    if len(rows) >= 3:
-        losses = [wz - yaw for wz, yaw in rows]
+    # Repeatability first. Nothing below it means anything until this passes.
+    noisy = [r for r in rows if r[2] > abs(r[0]) * 0.2]
+    if noisy and args.repeats > 1:
+        print()
+        print(f"  {len(noisy)} of {len(rows)} rates did not repeat within 20% "
+              f"of the command.")
+        for wz, yaw, spread in noisy:
+            print(f"    {wz:.2f} rad/s  ->  spread {spread:.3f} rad/s "
+                  f"across {args.repeats} trials")
+        print("  Read no loss figure off this run. The quantity is not stable,")
+        print("  so a median of it is a summary of noise. Fix the simulation")
+        print("  before fixing the robot: the physical robot overshoots a 360")
+        print("  deg command by 5-10 deg and never falls short, which is what")
+        print("  0.37/0.364 -- the odometry calibration over the measured wheel")
+        print("  separation -- predicts. There is no deficit to explain there.")
+    elif len(rows) >= 3:
+        losses = [wz - yaw for wz, yaw, _ in rows]
         spread = max(losses) - min(losses)
         mean_loss = statistics.mean(losses)
         print()

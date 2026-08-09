@@ -1,0 +1,19 @@
+
+  commanding /cmd_vel, reading /odom
+  wheel radius 0.065, separation 0.364
+
+   cmd wz  wheel tgt  wheel got   yaw got     loss  % of cmd   spread
+  yaw got 은 3회 중앙값, spread 는 최대-최소
+  ------------------------------------------------------------------------
+     0.20      0.560      1.115     0.127    0.073       63%    0.006
+     0.30      0.840      1.587     0.218    0.082       73%    0.012
+     0.40      1.120      1.884     0.305    0.095       76%    0.005
+     0.50      1.400      1.977     0.390    0.110       78%    0.008
+     0.60      1.680      2.510     0.481    0.119       80%    0.020
+     0.70      1.960      2.823     0.557    0.143       80%    0.024
+     0.80      2.240      3.102     0.658    0.142       82%    0.003
+
+  loss averages 0.109 rad/s (6.3 deg/s), spread 0.070
+  Varies with the command, so it scales rather than
+  subtracts. Look for a gain: wheel separation or radius
+  in the controller, or a velocity limit being clipped.
