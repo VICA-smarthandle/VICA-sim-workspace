@@ -2,7 +2,7 @@
 
 Run with Isaac's Python, no GUI needed:
 
-    /home/sim/isaacsim/python.sh build_vica_hospital_stage.py
+    $ISAAC_SIM/python.sh build_vica_hospital_stage.py
 
 Why this exists rather than a saved stage
 -----------------------------------------
@@ -45,9 +45,17 @@ try:
     # __file__ does not exist there. Same under exec() in a headless runner.
     HERE = os.path.dirname(os.path.abspath(__file__))
 except NameError:
-    HERE = "/home/sim/vica_ws/src/vica_description/isaac_vica_assets"
+    # Falls back to VICA_WS when __file__ is undefined, which is what happens
+    # when Isaac's Script Editor exec's this file. A hardcoded path worked on
+    # one machine and made the repository unusable on any other.
+    HERE = os.path.join(os.environ.get("VICA_WS", os.getcwd()),
+                        "src/vica_description/isaac_vica_assets")
 
-ENVIRONMENT = "/home/sim/Downloads/Environments/Hospital/hospital.usd"
+# Not in the repository: an Omniverse asset that has to be fetched. Point
+# VICA_HOSPITAL_USD at wherever it landed.
+ENVIRONMENT = os.environ.get(
+    "VICA_HOSPITAL_USD",
+    os.path.expanduser("~/Downloads/Environments/Hospital/hospital.usd"))
 ROBOT = os.path.join(HERE, "robot", "vica", "vica.usda")
 OUTPUT = os.path.join(HERE, "vica_hospital.usd")
 

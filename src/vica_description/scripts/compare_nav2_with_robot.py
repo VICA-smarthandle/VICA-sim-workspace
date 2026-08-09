@@ -47,7 +47,8 @@ import yaml
 
 
 DEFAULT_ROBOT = (
-    "/home/sim/VICA-smarthandle/vica_ros2_ws/src/vica_nav2/config/nav2_params.yaml"
+    os.environ.get("VICA_ROBOT_NAV2", os.path.expanduser(
+        "~/VICA-smarthandle/vica_ros2_ws/src/vica_nav2/config/nav2_params.yaml"))
 )
 def _default_sim():
     """Find the simulator's params whether or not the caller is in the source tree.

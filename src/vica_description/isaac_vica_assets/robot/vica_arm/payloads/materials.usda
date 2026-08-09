@@ -12,7 +12,7 @@ Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_zrkeai3s/u
 Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_zrkeai3s/temp_vica_arm/vica_arm.usd
 
 
-Generated from Composed Stage of root layer /home/sim/vica_ws/src/vica_description/isaac_vica_assets/robot/vica_arm/payloads/base.usd
+Generated from Composed Stage of root layer robot/vica_arm/payloads/base.usd
 """
     kilogramsPerUnit = 1
     metersPerUnit = 1

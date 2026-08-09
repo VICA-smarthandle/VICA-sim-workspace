@@ -32,7 +32,7 @@
 # precondition is about the robot, and this measures what raising it does.
 set -o pipefail
 
-PKG=/home/sim/vica_ws
+PKG=${VICA_WS:-$HOME/vica_ws}
 SWEEP=$PKG/src/vica_description/scripts/width_sweep.sh
 WIDTHS=(1.40 1.20 1.15)
 export RESULTS_DIR=${RESULTS_DIR:-/tmp/vica_width_ab}

@@ -26,8 +26,8 @@
 # No set -u: ROS's setup.bash reads unset variables and aborts with no output.
 set -o pipefail
 
-PKG=/home/sim/vica_ws
-ISAAC=${ISAAC_SIM:-/home/sim/isaacsim}
+PKG=${VICA_WS:-$HOME/vica_ws}
+ISAAC=${ISAAC_SIM:-$HOME/isaacsim}
 SRC_ASSETS=$PKG/src/vica_description/isaac_vica_assets
 PLAY=$SRC_ASSETS/play_stage.py
 REPEATS=${REPEATS:-3}

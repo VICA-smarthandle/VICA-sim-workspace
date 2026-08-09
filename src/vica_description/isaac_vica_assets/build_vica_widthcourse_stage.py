@@ -1,6 +1,6 @@
 """A course whose only purpose is to find the width where driving stops working.
 
-    /home/sim/isaacsim/python.sh build_vica_widthcourse_stage.py
+    $ISAAC_SIM/python.sh build_vica_widthcourse_stage.py
 
 The hospital stage and the test room both answer "does it drive", and neither
 answers "how narrow". Their corridors are whatever the building happened to
@@ -40,7 +40,8 @@ import os
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdLux, UsdPhysics
 
 HERE = os.path.dirname(os.path.abspath(__file__)) if "__file__" in dir() else (
-    "/home/sim/vica_ws/src/vica_description/isaac_vica_assets")
+os.path.join(os.environ.get("VICA_WS", os.getcwd()),
+                 "src/vica_description/isaac_vica_assets"))
 ROBOT = os.path.join(HERE, "robot", "vica", "vica.usda")
 OUTPUT = os.path.join(HERE, "vica_widthcourse.usd")
 TARGETS = os.path.join(HERE, "vica_widthcourse.json")

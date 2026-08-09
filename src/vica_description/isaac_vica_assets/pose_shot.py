@@ -1,6 +1,6 @@
 """Play a stage, check the arm holds its stowed pose, and photograph it.
 
-    /home/sim/isaacsim/python.sh pose_shot.py <stage.usd> [--seconds N] [--out DIR]
+    $ISAAC_SIM/python.sh pose_shot.py <stage.usd> [--seconds N] [--out DIR]
 
 Two questions in one launch, because each launch costs a minute of GPU and
 they are asked about the same run: does the arm stay where the drives were

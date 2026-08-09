@@ -41,10 +41,18 @@ import argparse
 import itertools
 import json
 import math
+import os
 import re
 import sys
 
 import numpy as np
+
+# Where the installed package and kortex live. Overridable because a hardcoded
+# home directory makes the script run on one machine and fail on every other.
+SHARE = os.environ.get(
+    "VICA_SHARE",
+    os.path.expanduser("~/vica_ws/install/vica_description/share/vica_description"))
+KORTEX = os.environ.get("KORTEX_SHARE", "/opt/ros/jazzy/share/kortex_description")
 
 # The chassis footprint, before nav2's padding, as authored in the nav2 config.
 # Padding is nav2's own safety margin and is not something the arm may spend.
@@ -295,9 +303,8 @@ def main(argv=None):
 
     links, joints = parse_urdf(args.urdf)
     load_hulls(args.urdf, {
-        "vica_description":
-            "/home/sim/vica_ws/install/vica_description/share/vica_description",
-        "kortex_description": "/opt/ros/jazzy/share/kortex_description"})
+        "vica_description": SHARE,
+        "kortex_description": KORTEX})
     arm_joints = sorted(n for n in joints if n.startswith(args.prefix))
     if not arm_joints:
         print(f"{args.prefix} 로 시작하는 조인트가 없습니다. 팔 없는 URDF 입니까?",

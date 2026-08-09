@@ -19,7 +19,7 @@
 set -e
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
-ISAAC="${ISAAC_SIM:-/home/sim/isaacsim}"
+ISAAC="${ISAAC_SIM:-$HOME/isaacsim}"
 # --prepare-only re-prepares and verifies a stage that already exists, for the
 # stages built before this pipeline did. Rebuilding those would mean fetching
 # the environment asset again, which is not in the repository.

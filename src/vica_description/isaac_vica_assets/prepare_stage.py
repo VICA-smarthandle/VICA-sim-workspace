@@ -20,7 +20,8 @@ import sys
 import time
 
 STAGE = sys.argv[1]
-HERE = "/home/sim/vica_ws/src/vica_description/isaac_vica_assets"
+HERE = os.path.join(os.environ.get("VICA_WS", os.getcwd()),
+                    "src/vica_description/isaac_vica_assets")
 
 from isaacsim import SimulationApp  # noqa: E402
 simulation_app = SimulationApp({"headless": True})

@@ -1,6 +1,6 @@
 """Turn a URDF into the robot USD the stages reference, without the GUI.
 
-    /home/sim/isaacsim/python.sh import_urdf_to_usd.py [--arm] [--out DIR]
+    $ISAAC_SIM/python.sh import_urdf_to_usd.py [--arm] [--out DIR]
 
       --arm      import urdf/vica_arm.urdf into robot/vica_arm/
                  (default: urdf/vica.urdf into robot/vica/)

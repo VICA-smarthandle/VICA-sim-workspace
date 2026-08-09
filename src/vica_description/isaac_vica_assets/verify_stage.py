@@ -1,6 +1,6 @@
 """Refuse to hand over a stage that will not work.
 
-    /home/sim/isaacsim/python.sh verify_stage.py <stage.usd> [seconds]
+    $ISAAC_SIM/python.sh verify_stage.py <stage.usd> [seconds]
 
 Exits non-zero on any failure, so it can gate a pipeline.
 

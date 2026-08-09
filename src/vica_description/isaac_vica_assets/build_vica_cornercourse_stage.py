@@ -1,6 +1,6 @@
 """Build a course of L-corners, one per width, and put VICA at the mouth.
 
-    /home/sim/isaacsim/python.sh build_vica_cornercourse_stage.py
+    $ISAAC_SIM/python.sh build_vica_cornercourse_stage.py
 
 Then: make_stage.sh --prepare-only vica_cornercourse.usd
 
@@ -57,7 +57,11 @@ import os
 try:
     HERE = os.path.dirname(os.path.abspath(__file__))
 except NameError:                      # exec'd from the Script Editor
-    HERE = "/home/sim/vica_ws/src/vica_description/isaac_vica_assets"
+    # Falls back to VICA_WS when __file__ is undefined, which is what happens
+    # when Isaac's Script Editor exec's this file. A hardcoded path worked on
+    # one machine and made the repository unusable on any other.
+    HERE = os.path.join(os.environ.get("VICA_WS", os.getcwd()),
+                        "src/vica_description/isaac_vica_assets")
 
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdLux, UsdPhysics
 

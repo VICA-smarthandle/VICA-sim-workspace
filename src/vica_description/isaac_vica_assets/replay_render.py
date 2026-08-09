@@ -1,6 +1,6 @@
 """Re-render a recorded run with the real robot, from the results JSON.
 
-    /home/sim/isaacsim/python.sh replay_render.py <result.json> [options]
+    $ISAAC_SIM/python.sh replay_render.py <result.json> [options]
 
       --stage PATH     course USD (default: read from the run's spec)
       --view top|iso|chase        camera framing (default iso)

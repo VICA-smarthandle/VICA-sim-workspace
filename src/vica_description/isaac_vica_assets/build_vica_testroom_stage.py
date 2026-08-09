@@ -1,6 +1,6 @@
 """Build a light 10 x 10 m test floor with corridors, and put VICA in it.
 
-    /home/sim/isaacsim/python.sh build_vica_testroom_stage.py
+    $ISAAC_SIM/python.sh build_vica_testroom_stage.py
 
 Why not the hospital
 --------------------
@@ -42,7 +42,11 @@ import sys
 try:
     HERE = os.path.dirname(os.path.abspath(__file__))
 except NameError:
-    HERE = "/home/sim/vica_ws/src/vica_description/isaac_vica_assets"
+    # Falls back to VICA_WS when __file__ is undefined, which is what happens
+    # when Isaac's Script Editor exec's this file. A hardcoded path worked on
+    # one machine and made the repository unusable on any other.
+    HERE = os.path.join(os.environ.get("VICA_WS", os.getcwd()),
+                        "src/vica_description/isaac_vica_assets")
 
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdLux, UsdPhysics
 

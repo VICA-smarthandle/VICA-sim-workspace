@@ -1,6 +1,6 @@
 """A course for measuring what it costs to go round something.
 
-    /home/sim/isaacsim/python.sh build_vica_avoidcourse_stage.py
+    $ISAAC_SIM/python.sh build_vica_avoidcourse_stage.py
 
 Writes vica_avoidcourse.usd and vica_avoidcourse.json beside this file.
 
@@ -42,7 +42,8 @@ import os
 from pxr import Gf, Usd, UsdGeom, UsdLux, UsdPhysics
 
 HERE = os.path.dirname(os.path.abspath(__file__)) if "__file__" in dir() else (
-    "/home/sim/vica_ws/src/vica_description/isaac_vica_assets")
+os.path.join(os.environ.get("VICA_WS", os.getcwd()),
+                 "src/vica_description/isaac_vica_assets"))
 ROBOT = os.path.join(HERE, "robot", "vica", "vica.usda")
 OUTPUT = os.path.join(HERE, "vica_avoidcourse.usd")
 TARGETS = os.path.join(HERE, "vica_avoidcourse.json")

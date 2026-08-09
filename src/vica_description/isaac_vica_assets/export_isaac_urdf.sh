@@ -67,7 +67,11 @@ write_variant() {   # $1 = variant name, $2 = xacro args...
     local out="${pkg_dir}/urdf/vica.urdf"
     [ "${variant}" = "arm" ] && out="${pkg_dir}/urdf/vica_arm.urdf"
 
-    xacro "${xacro_in}" "$@" -o "${out}"
+    # Relative, so the header comment xacro writes does not record whoever
+    # happened to build it. The absolute form put /home/<user>/... into a file
+    # that is committed to a public repository.
+    ( cd "${pkg_dir}" && xacro "urdf/$(basename "${xacro_in}")" "$@" \
+        -o "${out}" )
     check_urdf "${out}" >/dev/null
 
     # Stamp goes in after check_urdf, so a malformed expansion never gets one.

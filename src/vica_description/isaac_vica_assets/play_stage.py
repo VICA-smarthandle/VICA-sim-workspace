@@ -1,6 +1,6 @@
 """Open a stage, press Play, and let the app drive it.
 
-    /home/sim/isaacsim/python.sh play_stage.py <stage.usd> [seconds]
+    $ISAAC_SIM/python.sh play_stage.py <stage.usd> [seconds]
 
 The loop is simulation_app.update() rather than SimulationContext.step(), which
 is what the GUI does. The step() convenience produced every /odom timestamp
