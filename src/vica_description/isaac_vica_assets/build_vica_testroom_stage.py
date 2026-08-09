@@ -37,6 +37,7 @@ amcl's set_initial_pose of (0,0,0) needs no changing between the two.
 """
 
 import os
+import sys
 
 try:
     HERE = os.path.dirname(os.path.abspath(__file__))
@@ -46,8 +47,18 @@ except NameError:
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdLux, UsdPhysics
 
 
-ROBOT = os.path.join(HERE, "robot", "vica", "vica.usda")
-OUTPUT = os.path.join(HERE, "vica_testroom.usd")
+# --arm builds the same room around the arm variant, under its own name.
+#
+# The width and avoid course builders deliberately do not get this switch. A
+# driving result is about a 20 kg robot, and a builder that can quietly produce
+# a 27 kg one behind the same stage filename is how two robots end up in one
+# table. This room measures nothing, so the switch is safe here and nowhere
+# else.
+_ARM = "--arm" in sys.argv
+ROBOT = os.path.join(HERE, "robot",
+                     "vica_arm" if _ARM else "vica",
+                     "vica_arm.usda" if _ARM else "vica.usda")
+OUTPUT = os.path.join(HERE, "vica_testroom_arm.usd" if _ARM else "vica_testroom.usd")
 
 PHYSICS_VARIANT_SET = "Physics"
 PHYSICS_VARIANT = "physx"

@@ -1,0 +1,41 @@
+# The arm pose the robot drives with.
+#
+# Derived by scripts/stow_pose.py, not taken from a catalogue:
+# kortex_description defines no stowed pose. Its config/initial_positions.yaml
+# is zeros for every joint, and zero on a Gen3 lite is straight up, which puts
+# the arm's mass as high as it can go. There is no SRDF or MoveIt configuration
+# in the package to take a "home" or "retract" from.
+#
+# The constraints it was derived under:
+#
+#   hard   every arm mesh stays inside the chassis footprint in plan view, so
+#          the robot's passable width does not change when the arm is fitted
+#   hard   every arm mesh stays above the deck (z 0.170 in base_link, measured
+#          off the mesh; the collision box says 0.259 and there is no surface
+#          there) so the arm is stowed on the body rather than inside it
+#   hard   every arm mesh stays out of the mast box the handle is bolted to
+#   hard   joint limits
+#   soft   whole-robot centre of mass as low as possible
+#
+# What it buys, against the zero pose:
+#
+#   centre of mass   0.4642 -> 0.2790 m above ground
+#   forward tipping    4.64 -> 5.94 m/s^2
+#   margin on velocity_smoother's 2.5 m/s^2 max_decel   1.86x -> 2.38x
+#   highest point     1.483 -> 0.703 m
+#   deck and mast, both kept clear                                   0 mm
+#
+# [미검증] The clearance is a static geometric check on mesh bounding boxes at
+# this exact pose. It is not a simulation result: the arm variant was imported
+# with allow_self_collision False, so PhysX does not test arm against chassis
+# and will not report a breach. Treat the clearances as design margin, not proof.
+#
+# Riser 0.10 m. Two joints sit on their limits, which is an artefact of a grid
+# search whose endpoints are the limits and means the pose has no room to be
+# nudged in those directions.
+gen3_joint_1: -2.68
+gen3_joint_2: -2.61
+gen3_joint_3: 1.9575
+gen3_joint_4: 1.3000000000000003
+gen3_joint_5: 0.0
+gen3_joint_6: 0.0

@@ -1,0 +1,431 @@
+#usda 1.0
+(
+    customLayerData = {
+        string creator = "URDF USD Converter v0.1.3"
+    }
+    defaultPrim = "VICA"
+    doc = """Generated from Composed Stage of root layer /tmp/tmprmuq6afg/VICA.usdc
+
+
+Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_zrkeai3s/usdex_vica_arm/VICA.usdc
+
+
+Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_zrkeai3s/temp_vica_arm/vica_arm.usd
+
+
+Generated from Composed Stage of root layer /home/sim/vica_ws/src/vica_description/isaac_vica_assets/robot/vica_arm/payloads/base.usd
+"""
+    kilogramsPerUnit = 1
+    metersPerUnit = 1
+    subLayers = [
+        @./physics.usda@
+    ]
+    upAxis = "Z"
+)
+
+over "VICA"
+{
+    over "Physics"
+    {
+        def MjcActuator "left_wheel_joint_actuator"
+        {
+            uniform double[] mjc:biasPrm = [0, 0, -0.10000000149011612, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:biasType = "affine"
+            uniform double mjc:forceRange:max = 100
+            uniform double mjc:forceRange:min = -100
+            uniform double[] mjc:gainPrm = [0.10000000149011612, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:gainType = "fixed"
+            custom rel mjc:target
+            prepend rel mjc:target = </VICA/Physics/left_wheel_joint>
+        }
+
+        def MjcActuator "right_wheel_joint_actuator"
+        {
+            uniform double[] mjc:biasPrm = [0, 0, -0.10000000149011612, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:biasType = "affine"
+            uniform double mjc:forceRange:max = 100
+            uniform double mjc:forceRange:min = -100
+            uniform double[] mjc:gainPrm = [0.10000000149011612, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:gainType = "fixed"
+            custom rel mjc:target
+            prepend rel mjc:target = </VICA/Physics/right_wheel_joint>
+        }
+
+        def MjcActuator "front_left_caster_wheel_joint_actuator"
+        {
+            uniform double mjc:forceRange:max = inf
+            uniform double mjc:forceRange:min = -inf
+            custom rel mjc:target
+            prepend rel mjc:target = </VICA/Physics/front_left_caster_wheel_joint>
+        }
+
+        def MjcActuator "front_right_caster_wheel_joint_actuator"
+        {
+            uniform double mjc:forceRange:max = inf
+            uniform double mjc:forceRange:min = -inf
+            custom rel mjc:target
+            prepend rel mjc:target = </VICA/Physics/front_right_caster_wheel_joint>
+        }
+
+        def MjcActuator "front_right_caster_steer_joint_actuator"
+        {
+            uniform double mjc:forceRange:max = inf
+            uniform double mjc:forceRange:min = -inf
+            custom rel mjc:target
+            prepend rel mjc:target = </VICA/Physics/front_right_caster_steer_joint>
+        }
+
+        def MjcActuator "front_left_caster_steer_joint_actuator"
+        {
+            uniform double mjc:forceRange:max = inf
+            uniform double mjc:forceRange:min = -inf
+            custom rel mjc:target
+            prepend rel mjc:target = </VICA/Physics/front_left_caster_steer_joint>
+        }
+
+        def MjcActuator "gen3_joint_1_actuator"
+        {
+            uniform double mjc:forceRange:max = 10
+            uniform double mjc:forceRange:min = -10
+            custom rel mjc:target
+            prepend rel mjc:target = </VICA/Physics/gen3_joint_1>
+        }
+
+        def MjcActuator "gen3_joint_2_actuator"
+        {
+            uniform double mjc:forceRange:max = 14
+            uniform double mjc:forceRange:min = -14
+            custom rel mjc:target
+            prepend rel mjc:target = </VICA/Physics/gen3_joint_2>
+        }
+
+        def MjcActuator "gen3_joint_3_actuator"
+        {
+            uniform double mjc:forceRange:max = 10
+            uniform double mjc:forceRange:min = -10
+            custom rel mjc:target
+            prepend rel mjc:target = </VICA/Physics/gen3_joint_3>
+        }
+
+        def MjcActuator "gen3_joint_4_actuator"
+        {
+            uniform double mjc:forceRange:max = 7
+            uniform double mjc:forceRange:min = -7
+            custom rel mjc:target
+            prepend rel mjc:target = </VICA/Physics/gen3_joint_4>
+        }
+
+        def MjcActuator "gen3_joint_5_actuator"
+        {
+            uniform double mjc:forceRange:max = 7
+            uniform double mjc:forceRange:min = -7
+            custom rel mjc:target
+            prepend rel mjc:target = </VICA/Physics/gen3_joint_5>
+        }
+
+        def MjcActuator "gen3_joint_6_actuator"
+        {
+            uniform double mjc:forceRange:max = 7
+            uniform double mjc:forceRange:min = -7
+            custom rel mjc:target
+            prepend rel mjc:target = </VICA/Physics/gen3_joint_6>
+        }
+
+        over "left_wheel_joint" (
+            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        )
+        {
+        }
+
+        over "right_wheel_joint" (
+            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        )
+        {
+        }
+
+        over "front_left_caster_wheel_joint" (
+            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        )
+        {
+        }
+
+        over "front_right_caster_wheel_joint" (
+            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        )
+        {
+        }
+
+        over "front_right_caster_steer_joint" (
+            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        )
+        {
+        }
+
+        over "front_left_caster_steer_joint" (
+            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        )
+        {
+        }
+
+        over "laser_joint"
+        {
+        }
+
+        over "camera_joint"
+        {
+        }
+
+        over "arm_riser_joint"
+        {
+        }
+
+        over "gen3_joint_1" (
+            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        )
+        {
+        }
+
+        over "gen3_joint_2" (
+            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        )
+        {
+        }
+
+        over "gen3_joint_3" (
+            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        )
+        {
+        }
+
+        over "gen3_joint_4" (
+            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        )
+        {
+        }
+
+        over "gen3_joint_5" (
+            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        )
+        {
+        }
+
+        over "gen3_joint_6" (
+            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        )
+        {
+        }
+
+        over "gen3_base_joint"
+        {
+        }
+    }
+
+    over "Geometry"
+    {
+        over "base_footprint"
+        {
+            over "base_link"
+            {
+                over "left_wheel_1"
+                {
+                    over "left_wheel_1"
+                    {
+                    }
+
+                    over "cylinder"
+                    {
+                    }
+                }
+
+                over "right_wheel_1"
+                {
+                    over "right_wheel_1"
+                    {
+                    }
+
+                    over "cylinder"
+                    {
+                    }
+                }
+
+                over "front_right_caster_steer_1"
+                {
+                    over "front_right_caster_wheel_1"
+                    {
+                        over "front_right_caster_wheel_1"
+                        {
+                        }
+
+                        over "cylinder"
+                        {
+                        }
+                    }
+
+                    over "front_right_caster_steer_1"
+                    {
+                    }
+
+                    over "box"
+                    {
+                    }
+                }
+
+                over "front_left_caster_steer_1"
+                {
+                    over "front_left_caster_wheel_1"
+                    {
+                        over "front_left_caster_wheel_1"
+                        {
+                        }
+
+                        over "cylinder"
+                        {
+                        }
+                    }
+
+                    over "front_left_caster_steer_1"
+                    {
+                    }
+
+                    over "box"
+                    {
+                    }
+                }
+
+                over "laser_frame"
+                {
+                }
+
+                over "camera_link"
+                {
+                    over "camera_optical_frame"
+                    {
+                    }
+
+                    over "camera_color_optical_frame"
+                    {
+                    }
+
+                    over "camera_depth_optical_frame"
+                    {
+                    }
+
+                    over "box"
+                    {
+                    }
+                }
+
+                over "arm_riser_link"
+                {
+                    over "box"
+                    {
+                    }
+
+                    over "arm_mount_link"
+                    {
+                        over "gen3_base_link"
+                        {
+                            over "base_link"
+                            {
+                            }
+
+                            over "gen3_shoulder_link"
+                            {
+                                over "shoulder_link"
+                                {
+                                }
+
+                                over "gen3_arm_link"
+                                {
+                                    over "arm_link"
+                                    {
+                                    }
+
+                                    over "gen3_forearm_link"
+                                    {
+                                        over "forearm_link"
+                                        {
+                                        }
+
+                                        over "gen3_lower_wrist_link"
+                                        {
+                                            over "lower_wrist_link"
+                                            {
+                                            }
+
+                                            over "gen3_upper_wrist_link"
+                                            {
+                                                over "upper_wrist_link"
+                                                {
+                                                }
+
+                                                over "upper_wrist_link_1"
+                                                {
+                                                }
+
+                                                over "gen3_end_effector_link"
+                                                {
+                                                    over "gen3_dummy_link"
+                                                    {
+                                                    }
+                                                }
+                                            }
+
+                                            over "lower_wrist_link_1"
+                                            {
+                                            }
+                                        }
+
+                                        over "forearm_link_1"
+                                        {
+                                        }
+                                    }
+
+                                    over "arm_link_1"
+                                    {
+                                    }
+                                }
+
+                                over "shoulder_link_1"
+                                {
+                                }
+                            }
+
+                            over "base_link_1"
+                            {
+                            }
+                        }
+                    }
+
+                    over "box_1"
+                    {
+                    }
+                }
+
+                over "base_link"
+                {
+                }
+
+                over "chassis_body_collision"
+                {
+                }
+
+                over "chassis_mast_collision"
+                {
+                }
+            }
+        }
+    }
+
+    over "Materials"
+    {
+        over "camera_black"
+        {
+        }
+    }
+
+    over "VisualMaterials"
+    {
+    }
+}
+

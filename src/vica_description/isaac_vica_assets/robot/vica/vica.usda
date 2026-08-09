@@ -83,6 +83,9 @@ def Xform "VICA" (
         {
             over "base_link"
             {
+                float3 physics:diagonalInertia = (0.42631575, 0.66062814, 0.7716404)
+                float physics:mass = 16.5675
+
                 over "camera_link"
                 {
                     def Xform "rsd455" (

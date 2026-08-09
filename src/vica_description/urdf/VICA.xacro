@@ -4,6 +4,67 @@
 <!-- Keep includes relative so this file expands before the package is installed. -->
 <xacro:include filename="materials.xacro" />
 
+<!-- Optional manipulator, off by default.
+     ============================================================
+     Two robots are built from this one file: the driving robot,
+     which stays in step with the physical platform and carries
+     every width, cornering and HIL result; and an arm-carrying
+     variant used to study what a manipulator would cost.
+
+     They must come from one source. The export chain already
+     showed what happens otherwise: urdf/vica.urdf sat holding a
+     0.293 m wheel separation for days after this file was
+     corrected to 0.364, and nothing in the chain said so. That was
+     one artefact drifting from one source. Two hand-maintained
+     robot descriptions would be the same failure with nowhere to
+     look for the truth.
+
+     use_arm:=false is the default deliberately: expanding this
+     file with no arguments must produce exactly the robot the
+     driving results were measured on. Anything that changes the
+     footprint, the mass, the inertia or the lidar plane belongs
+     inside the guarded block, never outside it.
+
+         export_isaac_urdf.sh          -> urdf/vica.urdf
+         export_isaac_urdf.sh (arm)    -> urdf/vica_arm.urdf
+
+     The arm is a Kinova Gen3 lite on a riser. [미검증] What is
+     modelled here is its mass and its stowed envelope, not its
+     kinematics: the six joints need kortex_description, which is
+     not in this workspace and whose installation is an approval
+     item. So use_arm:=true today gives a robot that weighs and
+     balances like the real thing and cannot move an elbow.
+
+     That split is deliberate rather than a shortcut. Everything the
+     driving stack cares about is the stowed case: the footprint it
+     plans against, the plane the lidar sweeps, and the load the
+     brakes have to stop. All three are settled by a rigid lump of
+     the right mass in the right place. Reaching for a button is the
+     part that needs joints, and that part needs the package.
+     -->
+<xacro:arg name="use_arm" default="false" />
+<xacro:property name="use_arm" value="$(arg use_arm)" />
+<!-- Riser height. An argument because it is the one number worth sweeping:
+     it buys reach at the cost of CoM height, and both sides of that trade
+     are printed by scripts/mass_properties.py.
+
+     0.10, down from 0.25. The 0.25 was set to clear a 1.10 m button that a
+     deck-mounted arm was calculated to miss by 7 mm, using the stand-in
+     cylinder before kortex_description existed. Sampled against the real
+     kinematics from the measured deck, the trade reads:
+
+         riser   forward reach at 1.10 m   past the robot's nose   CoM
+         0.00           0.311 m                   +6 mm          0.310 m
+         0.10           0.508 m                 +203 mm          0.336 m
+         0.15           0.518 m                 +213 mm          0.347 m
+         0.25           0.468 m                 +163 mm          0.369 m
+
+     At 0 the gripper barely clears the robot's own front edge, so the robot
+     would have to touch the wall to press anything. 0.10 buys almost all the
+     standoff 0.15 does and carries the mass 11 mm lower. -->
+<xacro:arg name="arm_riser_h" default="0.10" />
+<xacro:property name="arm_riser_h" value="$(arg arm_riser_h)" />
+
 <!-- Geometry exported from CAD is expressed in metres through a 0.001 mesh scale.
      Coordinates below match vica_ros2_ws@dev (commit 621e181), which is the
      canonical source: tape-measured on the robot and cross-checked against the
@@ -11,9 +72,30 @@
      found in this model came from a hand-copied number drifting out of step. -->
 <xacro:property name="body_center_z" value="0.041" />
 <xacro:property name="base_link_height" value="0.19" />
-<!-- Simplified chassis collisions derived from the lower body and mast bounds. -->
-<xacro:property name="chassis_body_size" value="0.61 0.28 0.401" />
-<xacro:property name="chassis_body_origin" value="0 0 0.0585" />
+<!-- Simplified chassis collisions derived from the lower body and mast bounds.
+     Held as components so the deck top can be derived rather than copied: it
+     is 0.259 above base_link, and a second place recording that number is a
+     second place for it to go stale. -->
+<xacro:property name="chassis_body_size_x" value="0.61" />
+<xacro:property name="chassis_body_size_y" value="0.28" />
+<xacro:property name="chassis_body_size_z" value="0.401" />
+<xacro:property name="chassis_body_origin_z" value="0.0585" />
+<xacro:property name="chassis_body_size"
+                value="${chassis_body_size_x} ${chassis_body_size_y} ${chassis_body_size_z}" />
+<xacro:property name="chassis_body_origin" value="0 0 ${chassis_body_origin_z}" />
+<!-- Deck top, base_link relative. Absolute height is this plus base_link_height.
+     Derived from the collision box, and the collision box is 89 mm taller than
+     the body it stands for. Nothing mounts on it. -->
+<xacro:property name="chassis_deck_z"
+                value="${chassis_body_origin_z + chassis_body_size_z / 2}" />
+<!-- The deck a bolt can actually go into, measured off meshes/base_link.stl:
+     the upward facing triangles there total 0.2608 m2 over 0.590 x 0.453 m,
+     which is the top plate. chassis_deck_z above is 0.259 and the mesh has
+     no upward facing surface within 20 mm of it at all: the arm riser was
+     mounted there and stood 89 mm in the air beside the mast, which is what
+     the first render showed. Re-measure with a mesh scan if base_link.stl
+     is ever regenerated from CAD. -->
+<xacro:property name="chassis_deck_measured_z" value="0.170" />
 <xacro:property name="chassis_mast_size" value="0.24 0.04 0.414" />
 <xacro:property name="chassis_mast_origin" value="-0.385 0 0.466" />
 
@@ -60,10 +142,47 @@
 </joint>
 
 <link name="base_link">
+  <!-- Chassis mass, weighed 2026-08-07.
+       ========================================================
+       The robot is 20 kg on a scale. This link carried 90.847,
+       and the eight links together came to 94.280, which is 4.71 times
+       the real machine. The exported inertia came out of CAD, so
+       the likeliest cause is a material density that was never
+       set; the shape is right and the density is not.
+
+       Only this link is corrected. The other seven are left
+       alone because their values are all plausible for the parts
+       they describe: 0.566 kg for a 65 mm rubber drive wheel,
+       0.115 kg for a caster wheel, 0.164 kg for the lidar
+       (an RPLIDAR is about 0.19). Scaling those down with the
+       chassis would have made them physically absurd to make an
+       arithmetic total come out right.
+
+       20 - 3.4325 (the other seven) = 16.5675, and the inertia
+       scales with it at 0.182367 for unchanged geometry.
+
+       What this changes, beyond the number:
+         rotational inertia izz  4.167 -> 0.760 kg m^2
+         drive wheel normal load  288 N -> 61 N
+         caster scrub resistance 17.4 N -> 3.7 N
+
+       And the centre of mass moves, because the wheels and
+       casters (low and spread out) now carry a fifth of the
+       robot instead of a twenty-fifth:
+         x  +0.00087 -> -0.01089   (further behind the axle)
+         z   0.22026 ->  0.20241   (lower)
+       which takes the forward tipping deceleration from 6.82 to
+       7.99 m/s^2. Correcting the mass made the robot harder to
+       tip, not easier.
+
+       [미검증] The distribution within this link is still CAD's.
+       Weighing the drive and caster axles separately would give
+       the real x, and a tilt test the real z; until then the two
+       numbers above are the shape's, not the robot's. -->
   <inertial>
     <origin xyz="0.004031215194176557 3.002726997808124e-17 0.03506562657816282" rpy="0 0 0"/>
-    <mass value="90.84709962539795"/>
-    <inertia ixx="2.402108" iyy="3.622523" izz="4.166828" ixy="0.0" iyz="-0.0" ixz="0.343284"/>
+    <mass value="16.5675"/>
+    <inertia ixx="0.438065" iyy="0.660628" izz="0.759891" ixy="0.0" iyz="-0.0" ixz="0.062604"/>
   </inertial>
   <visual>
     <origin xyz="0 0 -${body_center_z}" rpy="0 0 0"/>
@@ -342,5 +461,160 @@
   <parent link="camera_link"/>
   <child link="camera_depth_optical_frame"/>
 </joint>
+
+<!-- Manipulator mount. Nothing below this line exists unless use_arm:=true. -->
+<xacro:if value="${use_arm}">
+
+  <!-- Where an arm may be bolted, and only there.
+       ==========================================================
+       x = 0, the deck centre, is not a placeholder. The drive axle
+       contact line is at base_link x = +0.154 and the loaded CoM sits
+       0.153 m behind it, so the forward tipping margin is 0.153 m and
+       nothing else. Stacking mass vertically over x = 0 barely touches
+       it; 20 kg on this deck takes the tipping deceleration from
+       6.82 to 5.78 m/s^2, against a 2.5 m/s^2 braking limit. Reaching
+       forward is what spends it: the same 20 kg held out at x = 0.55
+       drops it to 1.57, which is below the limit the controller
+       already plans against.
+
+       So reach is bought with a riser, not by moving this joint
+       forward. A 0.3 m riser cuts the reach needed for a 1.2 m
+       elevator button from 1.16 m to 0.98 m and costs almost nothing
+       in stability.
+
+       z = 0.259 is the chassis collision top (origin 0.0585 + half of
+       0.401), which is 0.449 m above the ground. The mast occupies
+       x -0.505 to -0.265, so the usable deck is x in [-0.265, +0.305].
+
+       Two things an arm mounted here must not do, both of which are
+       cheaper to design around than to discover:
+         - block the lidar plane at 0.382 m above ground. The robot
+           would read its own arm as a wall.
+         - stow outside the nav2 footprint hexagon, whose forward edge
+           is x = +0.305. Widening that polygon invalidates every
+           width result measured against it.
+       -->
+  <!-- Riser. Why there is one at all:
+
+       A Gen3 lite reaches 0.76 m. Bolted straight to the deck at
+       0.449 m above ground it cannot touch a 1.10 m elevator button.
+       Park the robot with its front edge 0.10 m off the wall and the
+       button sits 0.405 m ahead and 0.651 m up, which is 0.767 m
+       away. Seven millimetres short, and it gets worse fast: back
+       off to 0.5 m and the button is 0.82 m away.
+
+       0.25 m of riser drops that to 0.57 m. It costs CoM height and
+       nothing else, because the mass goes straight up over x = 0
+       where the tipping arm barely notices it. mass_properties.py
+       prints both variants; the forward tipping limit goes 7.99 to
+       4.39 m/s^2, still 1.76x the 2.5 m/s^2 the smoother can
+       command.
+
+       The riser starts at the deck top, 0.449 m above ground, which
+       is above the 0.382 m lidar plane. It cannot occlude the scan.
+       Its 0.12 m square section sits well inside the footprint
+       hexagon, so the polygon every width result was measured
+       against does not move. -->
+  <xacro:property name="arm_riser_side" value="0.12" />
+  <xacro:property name="arm_riser_mass" value="2.0" />
+
+  <!-- The riser is optional, and 0 is a real choice rather than a degenerate
+       one: at 0 the link and its 2 kg do not exist and the arm bolts straight
+       to the deck.
+
+       It was 0.25 by default because a 0.76 m arm on the deck was calculated
+       to miss a 1.10 m button by 7 mm. That calculation was done against the
+       stand-in cylinder, before kortex_description was installed. Sampled
+       against the real kinematics, the arm reaches 1.10 m from the deck with
+       no riser at all, in 574 of 16807 sampled poses, extending 0.492 m
+       forward. The riser buys margin, not reach, and it costs 2 kg at the top
+       of the robot. -->
+  <xacro:if value="${arm_riser_h > 0}">
+    <link name="arm_riser_link">
+      <visual>
+        <origin xyz="0 0 ${arm_riser_h / 2}" rpy="0 0 0"/>
+        <geometry>
+          <box size="${arm_riser_side} ${arm_riser_side} ${arm_riser_h}"/>
+        </geometry>
+        <material name="silver"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 ${arm_riser_h / 2}" rpy="0 0 0"/>
+        <geometry>
+          <box size="${arm_riser_side} ${arm_riser_side} ${arm_riser_h}"/>
+        </geometry>
+      </collision>
+      <inertial>
+        <origin xyz="0 0 ${arm_riser_h / 2}" rpy="0 0 0"/>
+        <mass value="${arm_riser_mass}"/>
+        <inertia
+          ixx="${arm_riser_mass * (arm_riser_side ** 2 + arm_riser_h ** 2) / 12}"
+          iyy="${arm_riser_mass * (arm_riser_side ** 2 + arm_riser_h ** 2) / 12}"
+          izz="${arm_riser_mass * 2 * arm_riser_side ** 2 / 12}"
+          ixy="0.0" iyz="0.0" ixz="0.0"/>
+      </inertial>
+    </link>
+
+    <joint name="arm_riser_joint" type="fixed">
+      <origin xyz="0 0 ${chassis_deck_measured_z}" rpy="0 0 0"/>
+      <parent link="base_link"/>
+      <child link="arm_riser_link"/>
+    </joint>
+
+    <link name="arm_mount_link"/>
+
+    <joint name="arm_mount_joint" type="fixed">
+      <origin xyz="0 0 ${arm_riser_h}" rpy="0 0 0"/>
+      <parent link="arm_riser_link"/>
+      <child link="arm_mount_link"/>
+    </joint>
+  </xacro:if>
+
+  <xacro:unless value="${arm_riser_h > 0}">
+    <link name="arm_mount_link"/>
+
+    <joint name="arm_mount_joint" type="fixed">
+      <origin xyz="0 0 ${chassis_deck_measured_z}" rpy="0 0 0"/>
+      <parent link="base_link"/>
+      <child link="arm_mount_link"/>
+    </joint>
+  </xacro:unless>
+
+  <!-- The real arm, from ros-jazzy-kortex-description 0.2.6.
+       The stand in cylinder that used to sit here is gone: it existed only
+       because the link lengths and joint limits were unknown, and they are
+       not any more. What it gave was a mass and a stowed envelope; what this
+       gives in addition is six joints, real meshes, and the limits that say
+       where the gripper can and cannot reach.
+
+       The include lives inside this xacro:if on purpose. VICA.xacro has to
+       expand on a machine that has never heard of kortex_description, which
+       is every machine that only drives, including the physical robot's.
+       At the top of the file the include would run unconditionally and
+       use_arm:=false would stop working there.
+
+       prefix is not decoration. The macro names its own root
+       "${prefix}base_link", and this robot already has a base_link; without
+       a prefix the two collide and the arm silently reparents the chassis.
+
+       robot_ip and the gripper name are required parameters of a macro
+       written for a real arm on a network. Nothing in simulation reads them.
+       0.0.0.0 is there to be obviously not an address. -->
+  <xacro:include filename="$(find kortex_description)/arms/gen3_lite/6dof/urdf/gen3_lite_macro.xacro" />
+
+  <xacro:load_arm
+      parent="arm_mount_link"
+      prefix="gen3_"
+      dof="6"
+      vision="false"
+      robot_ip="0.0.0.0"
+      gripper_joint_name="gen3_gripper"
+      use_fake_hardware="true"
+      sim_isaac="false"
+      sim_gazebo="false">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </xacro:load_arm>
+
+</xacro:if>
 
 </robot>
