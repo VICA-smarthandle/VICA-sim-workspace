@@ -95,4 +95,22 @@ install(
   RENAME width_sweep
 )
 
+install(
+  PROGRAMS scripts/inflation_ab.sh
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME inflation_ab
+)
+
+install(
+  PROGRAMS scripts/width_report.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME width_report
+)
+
+install(
+  PROGRAMS scripts/animate_run.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME animate_run
+)
+
 ament_package()

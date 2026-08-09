@@ -72,13 +72,46 @@ def read_walls(stage_path):
     return walls
 
 
+def _cells(span, resolution, tol=1e-3):
+    """Cells needed to cover a span, without float32 buying an extra one.
+
+    USD stores coordinates as float32, so a course whose walls span exactly
+    31.60 m comes back as 31.600000381469727. Divided by 0.05 that is
+    632.0000076, and a plain ceil makes it 633: one column of free cells
+    outside the boundary wall, running the whole edge of an otherwise exact
+    map. It surfaced as a 0.05 m entry in the corridor widths printed below,
+    which is not a corridor.
+
+    Harmless for driving, since the strip lies outside the walls and the robot
+    never reaches it. Not harmless for anything that measures the map.
+
+    The tolerance is in cells, not metres: within a thousandth of a cell of a
+    whole number, that is the number. At 0.05 m resolution a thousandth of a
+    cell is 0.05 mm, far below anything the geometry means.
+    """
+    n = span / resolution
+    nearest = round(n)
+    return int(nearest if abs(n - nearest) < tol else math.ceil(n))
+
+
 def rasterise(walls, resolution):
     x0 = min(w[0] for w in walls)
     y0 = min(w[1] for w in walls)
     x1 = max(w[2] for w in walls)
     y1 = max(w[3] for w in walls)
-    cols = int(math.ceil((x1 - x0) / resolution))
-    rows = int(math.ceil((y1 - y0) / resolution))
+    # Round the cell count before ceiling it, or float32 buys an extra cell.
+    #
+    # USD stores coordinates as float32, so a course whose walls span exactly
+    # 31.60 m comes back as 31.600000381469727. Divided by 0.05 that is
+    # 632.0000076, and ceil makes it 633 -- one column of free cells outside
+    # the boundary wall, along the whole edge, on a map that is otherwise
+    # exact. It showed up as a 0.05 m entry in the list of corridor widths the
+    # builder prints, which is not a corridor.
+    #
+    # Harmless for driving, since the strip is outside the walls and the robot
+    # never reaches it. Not harmless for anything that measures the map.
+    cols = _cells(x1 - x0, resolution)
+    rows = _cells(y1 - y0, resolution)
     grid = np.full((rows, cols), FREE, dtype=np.uint8)
 
     # Cell centres, so a wall claims a cell when it covers the middle of it.

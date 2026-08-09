@@ -44,6 +44,7 @@ import argparse
 import json
 import math
 import os
+import re
 import sys
 import time
 
@@ -58,14 +59,50 @@ from sensor_msgs.msg import LaserScan
 
 # The lidar sees the robot's own rear panel at 0.447 m. Excluding that sector is
 # the difference between a clearance check and one that always fails.
-SELF_RETURN_HALF_WIDTH_DEG = 20.0
+# The robot's own bodywork, dead astern. Measured 2026-08-07 off a stationary
+# robot on open floor: returns under 0.6 m occupy 177.7 to 182.2 degrees and
+# read 0.442-0.444 m. That is five beams of eight hundred.
+#
+# It was 20 degrees before, which is eight times wider than the thing it
+# excludes and throws away real returns across a 40-degree arc behind the
+# robot -- the arc a reversing or turning robot most needs. Clearance then
+# reads more generous than it is, which is the wrong direction for a guard.
+#
+# 3 degrees covers the measured extent with margin. Anything closer than 0.6 m
+# outside this sector is a real obstacle and should stop the trial.
+SELF_RETURN_HALF_WIDTH_DEG = 3.0
 MIN_START_CLEARANCE = 0.35
 MOVED_THRESHOLD = 0.10
+# How far AMCL may disagree with the intended spawn before the run is refused.
+# Lanes are 3.4 m apart, so anything approaching a metre is already ambiguous
+# about which lane is being driven; 0.5 m leaves room for AMCL settling
+# without leaving room for being in the wrong place.
+START_OFFSET_LIMIT = 0.5
 STATUS = {4: "reached", 6: "aborted", 5: "canceled"}
 
 
 def stamp(msg):
     return msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+
+
+def inflation_of():
+    """The inflation_radius the running nav2 was built with, or None.
+
+    Read from the installed config rather than asked of the running node,
+    because a parameter query answers for whichever costmap replies first and
+    the two are supposed to agree. If they ever do not, this returns the pair
+    and the report shows it rather than picking one.
+    """
+    try:
+        from ament_index_python.packages import get_package_share_directory
+        path = os.path.join(get_package_share_directory("vica_description"),
+                            "config", "vica_nav2_params.yaml")
+        vals = re.findall(r"^\s*inflation_radius:\s*([0-9.]+)", open(path).read(),
+                          re.M)
+        uniq = sorted({float(v) for v in vals})
+        return uniq[0] if len(uniq) == 1 else uniq
+    except Exception:
+        return None
 
 
 def yaw_of(msg):
@@ -77,10 +114,21 @@ class Trials(Node):
     def __init__(self, args):
         super().__init__("width_trials")
         self.args = args
-        self.odom, self.scan = [], []
+        self.odom, self.scan, self.amcl = [], [], []
         self.create_subscription(Odometry, "/odom", self.odom.append, 50)
         self.create_subscription(
             LaserScan, "/scan", lambda m: self.scan.append(m), qos_profile_sensor_data)
+        # Keep only the latest -- this is a position, not a history, and an
+        # unbounded buffer on a 10 Hz topic across a 500 s trial is 5000
+        # messages nothing reads.
+        #
+        # Transient local, because AMCL publishes rarely: it updates on motion,
+        # so a stationary robot produces nothing and a volatile subscriber that
+        # arrives late sees an empty topic on a perfectly localised robot.
+        self.create_subscription(
+            PoseWithCovarianceStamped, "/amcl_pose",
+            lambda m: self.amcl.__setitem__(slice(None), [m]),
+            QoSProfile(depth=5, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL))
         self.initial = self.create_publisher(
             PoseWithCovarianceStamped, "/initialpose",
             QoSProfile(depth=1, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL))
@@ -111,15 +159,29 @@ class Trials(Node):
         return m.position.x, m.position.y, yaw_of(self.odom[-1])
 
     def pose_map(self):
-        """The same pose in the map frame, which is where the goals are.
+        """Where the robot is in the map frame, which is where the goals are.
 
-        odom starts at zero wherever the robot spawned; the goals come from the
-        course in world coordinates. Comparing them directly made every
+        /amcl_pose when there is one, because that is the only source that is
+        actually in the frame the goals are in. The fallback -- spawn plus
+        odom -- is an assumption wearing a coordinate's clothes: it is right
+        only while the spawn is what the caller thinks and odom has not been
+        cleared since. Both of those failed.
+
+        odom starts at zero wherever the robot spawned; the goals come from
+        the course in world coordinates. Comparing them directly made every
         "distance to goal" wrong by the spawn offset -- a trial that arrived
-        exactly reported 8.86 m remaining.
+        exactly reported 8.86 m remaining. Adding the spawn fixed that and
+        introduced a quieter problem: the sum is only the map frame if AMCL
+        agrees, and nothing checked that it did.
         """
+        if self.amcl:
+            p = self.amcl[-1].pose.pose
+            return p.position.x, p.position.y, yaw_of(self.amcl[-1])
         x, y, a = self.pose()
         return self.spawn[0] + x, self.spawn[1] + y, a
+
+    def pose_source(self):
+        return "amcl" if self.amcl else "odom+spawn"
 
     def clearance(self):
         self.scan.clear()
@@ -155,14 +217,46 @@ class Trials(Node):
         msg.pose.pose.orientation.w = math.cos(yaw / 2)
         msg.pose.covariance[0] = msg.pose.covariance[7] = 0.05
         msg.pose.covariance[35] = 0.02
+        # Drop whatever AMCL last said before seeding, so the wait below cannot
+        # be satisfied by a pose that predates the seed.
+        self.amcl.clear()
         for _ in range(3):
             self.initial.publish(msg)
             self.spin(0.5)
 
+    def wait_for_localisation(self, x, y, timeout=30.0, tol=0.30):
+        """Wait until AMCL reports a pose that agrees with the seed.
+
+        Publishing /initialpose does not mean AMCL has taken it. Its first
+        published pose is (0, 0, 0) -- the parameter default, re-applied on
+        every activation -- and the seeded one arrives some seconds later. In
+        between, /amcl_pose answers with a position that is neither where the
+        robot is nor where it was told the robot is.
+
+        The harness used to read whatever was there after a three-second spin
+        and record it as the trial's start. Measured against the simulator's
+        own transform, the robot was at its spawn to within a millimetre and
+        AMCL agreed to within 0.020 m once it had converged -- but the recorded
+        starts were up to 3.2 m out, almost all of it in the corridor axis.
+        Those were mid-convergence samples, and they went into the table as if
+        the robot had been somewhere else.
+
+        A start-offset guard was added before this and did not catch it: it ran
+        immediately after seeding, when AMCL still agreed by construction. The
+        check has to wait for the answer, not ask before it exists.
+        """
+        t = time.time()
+        while rclpy.ok() and time.time() - t < timeout:
+            rclpy.spin_once(self, timeout_sec=0.2)
+            if self.amcl:
+                p = self.amcl[-1].pose.pose.position
+                if math.hypot(p.x - x, p.y - y) <= tol:
+                    return math.hypot(p.x - x, p.y - y)
+        return None
+
     def goal(self, x, y, yaw, limit, label, guard=True):
         """One trial. Returns the record, or None if it was not run."""
         clear0 = self.clearance()
-        x0, y0, a0 = self.pose_map()
         if guard and clear0 < MIN_START_CLEARANCE:
             print(f"    {label:26s} 건너뜀 (시작 여유 {clear0:.2f} m)", flush=True)
             return {"label": label, "result": "skipped", "clearance_start": clear0}
@@ -174,7 +268,19 @@ class Trials(Node):
         g.pose.pose.orientation.z = math.sin(yaw / 2)
         g.pose.pose.orientation.w = math.cos(yaw / 2)
 
+        # Sample the start after clearing, not before.
+        #
+        # x0 used to be read above this line, so it carried whatever odom had
+        # accumulated since the simulator started playing while x1 carried
+        # only what came after the clear. "moved" was then the difference
+        # between two poses measured from different origins, and "from" was
+        # not the start of anything. Three repeats of one lane reported
+        # starts 12 m apart on a course where the spawn had not moved.
         self.odom.clear()
+        self.spin(0.3)
+        x0, y0, a0 = self.pose_map()
+        src0 = self.pose_source()
+
         fut = self.ac.send_goal_async(g)
         rclpy.spin_until_future_complete(self, fut, timeout_sec=30)
         handle = fut.result()
@@ -218,6 +324,9 @@ class Trials(Node):
             "sim_seconds": round(sim_span, 2),
             "clearance_start": round(clear0, 3),
             "clearance_min": round(min_clear, 3),
+            "pose_source": src0,
+            "start_offset_m": round(math.hypot(x0 - self.spawn[0],
+                                               y0 - self.spawn[1]), 3),
             "track": track,
         }
         print(f"    {label:26s} {outcome:9s} 이동 {moved:5.2f} m  "
@@ -273,6 +382,7 @@ def main():
     # failing, because the table looks like a result.
     stage_path = os.path.join(os.path.dirname(os.path.abspath(spec_path)),
                               spec.get("stage", ""))
+    course_stamp = None
     if os.path.isfile(stage_path):
         from pxr import Sdf
 
@@ -285,6 +395,7 @@ def main():
                   file=sys.stderr)
             return 2
         print(f"  스테이지 검증 통과: {stamp}", flush=True)
+        course_stamp = stamp
 
     rclpy.init()
     node = Trials(args)
@@ -314,6 +425,34 @@ def main():
     node.seed_localisation(sx, sy, 0.0)
     node.spin(3.0)
 
+    # And where AMCL says it is, which is a different question.
+    #
+    # The odom check above only establishes that the robot has not moved since
+    # the simulator placed it. It cannot tell whether the simulator placed it
+    # where this run intends -- odom reads zero at the wrong spawn just as
+    # happily as at the right one. A sweep once drove six lanes believing each
+    # was the one named in the filename.
+    #
+    # AMCL is in the map frame, the same frame the goals are in, so this
+    # compares like with like. What it has to establish is not that AMCL agrees
+    # right now -- seeded at (sx, sy) it agrees by construction, and did so
+    # while recording starts 3.2 m out -- but that AMCL has actually taken the
+    # seed and settled on it.
+    off = node.wait_for_localisation(sx, sy, timeout=30.0,
+                                     tol=START_OFFSET_LIMIT)
+    if off is None:
+        here = ""
+        if node.amcl:
+            p = node.amcl[-1].pose.pose.position
+            here = f" 마지막 보고 ({p.x:+.2f}, {p.y:+.2f})."
+        print(f"  AMCL 이 30초 안에 스폰 ({sx:+.2f}, {sy:+.2f}) 으로 수렴하지 "
+              f"않았습니다.{here}\n"
+              f"  이 상태로 측정하면 파일 이름과 다른 레인을 주행합니다.",
+              file=sys.stderr)
+        rclpy.shutdown()
+        return 4
+    print(f"  출발 위치 확인: AMCL 오차 {off:.2f} m", flush=True)
+
     records = []
     if args.phase == "gaps":
         west, east = spec["gap_run"]["west"], spec["gap_run"]["east"]
@@ -341,11 +480,25 @@ def main():
                 rec["width"] = lane["width"]
                 records.append(rec)
 
+    # The course stamp travels with the numbers.
+    #
+    # Two sweeps were once compared that had driven different courses. Widths
+    # were added between them, every lane moved, and the same "1.20 m" meant a
+    # goal at x=6.10 in one run and x=11.20 in the other. Both tables looked
+    # complete and neither said which course it was about, so the comparison
+    # read as a controller result for several hours.
+    #
+    # Nothing here can detect that on its own -- a single run has nothing to
+    # disagree with. So each run records what it drove, and width_report
+    # refuses to put two stamps in one table.
     payload = {
         "controller": args.controller,
         "phase": args.phase,
         "width": args.width,
         "spec": os.path.basename(spec_path),
+        "course_stamp": course_stamp,
+        "spawn": [sx, sy],
+        "inflation_radius": inflation_of(),
         "records": records,
     }
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)

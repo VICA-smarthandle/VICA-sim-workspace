@@ -165,9 +165,19 @@ def main():
         speed = math.hypot(vx, vy)
         speeds.append(speed)
 
-        if vx_prev is not None and speed > 1e-3:
-            ax = (vx - vx_prev) / max(t[i] - t[i - 1], 1e-6)
-            ay = (vy - vy_prev) / max(t[i] - t[i - 1], 1e-6)
+        # Two /odom messages can carry the same header stamp -- Isaac's graph
+        # publishes on the render tick and the clock does not always advance
+        # between two of them. The first version divided by max(dt, 1e-6),
+        # which turns a duplicate stamp into a division by a microsecond and
+        # reports an acceleration ~50000x too large. It only touches the tail,
+        # so the median stayed believable while p95 and max were artefacts.
+        #
+        # A duplicate stamp carries no acceleration information, so skip it.
+        # Clamping invents a number; skipping admits there isn't one.
+        dt_a = t[i] - t[i - 1]
+        if vx_prev is not None and speed > 1e-3 and dt_a > 0:
+            ax = (vx - vx_prev) / dt_a
+            ay = (vy - vy_prev) / dt_a
             # The component across the direction of travel. Forward
             # acceleration is felt as pace; this one is felt as being pulled
             # off balance, which is the failure that matters for a walking aid.
