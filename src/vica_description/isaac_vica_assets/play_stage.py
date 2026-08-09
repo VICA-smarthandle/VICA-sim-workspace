@@ -26,8 +26,16 @@ SECONDS = float(sys.argv[2]) if len(sys.argv) > 2 else 120.0
 # result rather than the lane does. That is how a 1.20 m lane went from 3/3 to
 # 0/3 by being moved to the far end when three widths were added.
 SPAWN = None
+SPAWN_YAW = None
 if len(sys.argv) > 4:
     SPAWN = (float(sys.argv[3]), float(sys.argv[4]))
+# Optional heading, degrees. The corner course needs it: its cells are entered
+# northbound, and a robot dropped facing east has to turn 90 degrees on the
+# spot before the corner it is there to measure. That turn is a separate
+# difficulty with its own open question, and it failed first -- the trial moved
+# 0.0 m with 1.383 m of clearance and never reached the corner at all.
+if len(sys.argv) > 5:
+    SPAWN_YAW = float(sys.argv[5])
 
 from isaacsim import SimulationApp  # noqa: E402
 
@@ -76,11 +84,21 @@ if SPAWN is not None:
     from pxr import Gf, UsdGeom  # noqa: E402
 
     _v = _stage.GetPrimAtPath("/World/VICA")
-    for _op in UsdGeom.Xformable(_v).GetOrderedXformOps():
+    _xf = UsdGeom.Xformable(_v)
+    _has_rot = False
+    for _op in _xf.GetOrderedXformOps():
         if _op.GetOpName() == "xformOp:translate":
             _op.Set(Gf.Vec3d(SPAWN[0], SPAWN[1], 0.0))
+        if _op.GetOpName().startswith("xformOp:rotate"):
+            _has_rot = True
+            if SPAWN_YAW is not None:
+                _op.Set(Gf.Vec3f(0.0, 0.0, SPAWN_YAW))
+    if SPAWN_YAW is not None and not _has_rot:
+        _xf.AddRotateXYZOp().Set(Gf.Vec3f(0.0, 0.0, SPAWN_YAW))
     simulation_app.update()
-    print(f"=== spawn moved to {SPAWN}", flush=True)
+    print(f"=== spawn moved to {SPAWN}"
+          + (f" yaw {SPAWN_YAW:.1f} deg" if SPAWN_YAW is not None else ""),
+          flush=True)
 
 timeline = omni.timeline.get_timeline_interface()
 timeline.play()

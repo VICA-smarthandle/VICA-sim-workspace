@@ -133,6 +133,7 @@ class Trials(Node):
             PoseWithCovarianceStamped, "/initialpose",
             QoSProfile(depth=1, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL))
         self.spawn = (0.0, 0.0)   # set from the course spec before any trial
+        self.spawn_yaw = 0.0      # and the heading it spawned at
         self.ac = ActionClient(self, NavigateToPose, "navigate_to_pose")
         if not self.ac.wait_for_server(timeout_sec=60):
             raise SystemExit("navigate_to_pose 액션 서버가 없습니다 -- nav2 가 떠 있나요?")
@@ -178,7 +179,22 @@ class Trials(Node):
             p = self.amcl[-1].pose.pose
             return p.position.x, p.position.y, yaw_of(self.amcl[-1])
         x, y, a = self.pose()
-        return self.spawn[0] + x, self.spawn[1] + y, a
+        return self.odom_to_map(x, y, a)
+
+    def odom_to_map(self, x, y, a):
+        """Odom is aligned with the spawn heading, not with the map.
+
+        Adding the spawn translation and stopping there is only right when the
+        robot spawned facing along +x, which every course did until the corner
+        one. Facing north, "forward" in odom is +y in the map, and the sum
+        reported a robot driving east up an open strip while it was in fact
+        driving north up a corridor. The track was 90 degrees wrong and the
+        drift it appeared to show did not exist.
+        """
+        c, s = math.cos(self.spawn_yaw), math.sin(self.spawn_yaw)
+        return (self.spawn[0] + c * x - s * y,
+                self.spawn[1] + s * x + c * y,
+                a + self.spawn_yaw)
 
     def pose_source(self):
         return "amcl" if self.amcl else "odom+spawn"
@@ -297,8 +313,9 @@ class Trials(Node):
                 min_clear = min(min_clear, self.clearance_cached())
 
         # Track first, then the pose: the track is what the buffer holds.
-        track = [[stamp(m), self.spawn[0] + m.pose.pose.position.x,
-                  self.spawn[1] + m.pose.pose.position.y, yaw_of(m)]
+        track = [[stamp(m), *self.odom_to_map(m.pose.pose.position.x,
+                                              m.pose.pose.position.y,
+                                              yaw_of(m))]
                  for m in self.odom]
         x1, y1, a1 = self.pose_map()
         moved = math.hypot(x1 - x0, y1 - y0)
@@ -359,6 +376,9 @@ def main():
     ap.add_argument("--limit", type=float, default=150.0,
                     help="wall seconds allowed per trial")
     ap.add_argument("--controller", default="unknown", help="recorded in the results")
+    ap.add_argument("--spawn-yaw", type=float, default=None,
+                    help="heading the robot was spawned at, radians; "
+                         "defaults to the course spec's start_yaw")
     ap.add_argument("--spawn", default=None,
                     help="x,y the robot was actually spawned at, when the course "
                          "spec's own start was overridden")
@@ -422,7 +442,17 @@ def main():
         rclpy.shutdown()
         return 3
 
-    node.seed_localisation(sx, sy, 0.0)
+    # The heading the robot was actually spawned at, not zero.
+    #
+    # Seeding AMCL at 0 while the stage put the robot elsewhere makes the
+    # localiser start off by however much the two disagree, and every pose the
+    # trial records is measured from that. The corner course is the first
+    # course that spawns facing anywhere but east.
+    spawn_yaw = float(spec.get("start_yaw", 0.0))
+    if args.spawn_yaw is not None:
+        spawn_yaw = args.spawn_yaw
+    node.spawn_yaw = spawn_yaw
+    node.seed_localisation(sx, sy, spawn_yaw)
     node.spin(3.0)
 
     # And where AMCL says it is, which is a different question.
@@ -467,13 +497,26 @@ def main():
                 records.append(rec)
     else:
         lane = min(spec["lanes"], key=lambda l: abs(l["width"] - args.width))
-        print(f"\n  레인 {lane['width']:.2f} m, {args.repeats}회", flush=True)
-        node.goal(lane["entry"][0], lane["entry"][1], math.pi / 2, args.limit,
+        # Headings come from the lane when it states them.
+        #
+        # Both were pi/2 here, which is right for a straight lane running north
+        # and wrong for anything that turns: a corner's exit faces along the
+        # leg it ends on, and asking for pi/2 there tells the robot to arrive
+        # sideways. It would have been read as the corner being impassable.
+        # Straight courses say nothing and keep the old numbers.
+        entry_yaw = lane.get("entry_yaw", math.pi / 2)
+        exit_yaw = lane.get("exit_yaw", math.pi / 2)
+        print(f"\n  레인 {lane['width']:.2f} m, {args.repeats}회   "
+              f"진입 {math.degrees(entry_yaw):.0f}도 -> 탈출 "
+              f"{math.degrees(exit_yaw):.0f}도", flush=True)
+        node.goal(lane["entry"][0], lane["entry"][1], entry_yaw, args.limit,
                   "레인 입구로", guard=False)
         for k in range(args.repeats):
             up = k % 2 == 0
             tgt = lane["exit"] if up else lane["entry"]
-            heading = math.pi / 2 if up else -math.pi / 2
+            # Coming back, the robot arrives where it started facing the way
+            # it came from, which is the entry heading reversed.
+            heading = exit_yaw if up else entry_yaw - math.pi
             rec = node.goal(tgt[0], tgt[1], heading, args.limit,
                             f"{'통과 위로' if up else '통과 아래로'} #{k + 1}")
             if rec:

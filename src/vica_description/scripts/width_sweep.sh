@@ -103,6 +103,12 @@ for W in "${WIDTHS[@]}"; do
         # 1.20 m lane went from 3/3 to 0/3 purely by being moved to the far
         # end when three widths were added.
         SPAWN=$(python3 "$SRC_ASSETS/lane_spawn.py" "$SPEC" "$W")
+        # The heading the course spawns at, if it says. Courses that do not
+        # say get 0, which is what every course did before the corner one.
+        SPAWN_YAW=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1])).get('start_yaw',0.0))" "$SPEC")
+        SPAWN_YAW_DEG=$(python3 -c "import math,sys;print(math.degrees(float(sys.argv[1])))" "$SPAWN_YAW")
+        QZ=$(python3 -c "import math,sys;print(math.sin(float(sys.argv[1])/2))" "$SPAWN_YAW")
+        QW=$(python3 -c "import math,sys;print(math.cos(float(sys.argv[1])/2))" "$SPAWN_YAW")
         SPAWN_X=${SPAWN%% *}
         SPAWN_Y=${SPAWN##* }
         if [ -z "$SPAWN_X" ] || [ -z "$SPAWN_Y" ]; then
@@ -113,7 +119,7 @@ for W in "${WIDTHS[@]}"; do
         stop_everything
         LOG=/tmp/vica_sweep_sim.log
         (cd "$ISAAC" && source ./setup_ros_env.sh >/dev/null 2>&1 && \
-            nohup ./python.sh -u "$PLAY" "$STAGE" 900 "$SPAWN_X" "$SPAWN_Y" > "$LOG" 2>&1 &)
+            nohup ./python.sh -u "$PLAY" "$STAGE" 900 "$SPAWN_X" "$SPAWN_Y" "$SPAWN_YAW_DEG" > "$LOG" 2>&1 &)
         for _ in $(seq 1 40); do grep -q "=== playing" "$LOG" 2>/dev/null && break; sleep 5; done
         sleep 14
 
@@ -122,7 +128,7 @@ for W in "${WIDTHS[@]}"; do
         sleep 25
         timeout 20 ros2 topic pub --once /initialpose \
             geometry_msgs/msg/PoseWithCovarianceStamped \
-            "{header: {frame_id: map}, pose: {pose: {position: {x: $SPAWN_X, y: $SPAWN_Y}, orientation: {w: 1.0}}, covariance: [0.05,0,0,0,0,0, 0,0.05,0,0,0,0, 0,0,0,0,0,0, 0,0,0,0,0,0, 0,0,0,0,0,0, 0,0,0,0,0,0.02]}}" \
+            "{header: {frame_id: map}, pose: {pose: {position: {x: $SPAWN_X, y: $SPAWN_Y}, orientation: {z: $QZ, w: $QW}}, covariance: [0.05,0,0,0,0,0, 0,0.05,0,0,0,0, 0,0,0,0,0,0, 0,0,0,0,0,0, 0,0,0,0,0,0, 0,0,0,0,0,0.02]}}" \
             >/dev/null 2>&1
 
         ready=0
@@ -157,7 +163,8 @@ for W in "${WIDTHS[@]}"; do
         # to sit at x >= 0.
         timeout 500 ros2 run vica_description width_trials \
             --phase lane --width "$W" --repeats 1 --spawn="$SPAWN_X,$SPAWN_Y" \
-            --spec "$SPEC" --controller "$CONTROLLER" --out "$OUT" 2>&1 \
+            --spec "$SPEC" --controller "$CONTROLLER" --out "$OUT" \
+            --spawn-yaw "$SPAWN_YAW" 2>&1 \
             | grep -E "통과|건너뜀|거부|출발 위치|검증|AMCL|없습니다|않았습니다"
         rc=${PIPESTATUS[0]}
         # No `set -e` to match the `set +e` above: errexit is never enabled in
