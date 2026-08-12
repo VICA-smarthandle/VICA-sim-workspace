@@ -4,6 +4,13 @@
 
 Writes vica_avoidcourse.usd and vica_avoidcourse.json beside this file.
 
+Two environment variables build a variant instead, leaving the measured course
+and its results untouched:
+
+    VICA_AVOID_NAME=vica_avoidcourse_narrow \
+    VICA_AVOID_WIDTHS=0.30,0.40,0.50,0.60,0.70 \
+    $ISAAC_SIM/python.sh build_vica_avoidcourse_stage.py
+
 The width course answered "how narrow a corridor". This one answers a
 different question with the same units, so the two can be read against each
 other: **a 1.20 m gap beside an obstacle -- is it the same as a 1.20 m
@@ -45,8 +52,17 @@ HERE = os.path.dirname(os.path.abspath(__file__)) if "__file__" in dir() else (
 os.path.join(os.environ.get("VICA_WS", os.getcwd()),
                  "src/vica_description/isaac_vica_assets"))
 ROBOT = os.path.join(HERE, "robot", "vica", "vica.usda")
-OUTPUT = os.path.join(HERE, "vica_avoidcourse.usd")
-TARGETS = os.path.join(HERE, "vica_avoidcourse.json")
+
+# The course writes under its own name so a variant cannot land on top of the
+# measured one. The 18-pass DWB baseline in results/avoid_20kg is the only
+# evidence that this course was ever driven successfully, and rebuilding the
+# same filename with different lanes would leave a results directory whose spec
+# no longer describes it -- the numbers would still read as 17/18 while meaning
+# something else. The physical robot's investigation names losing a baseline as
+# one of the things that cost it the most time.
+NAME = os.environ.get("VICA_AVOID_NAME", "vica_avoidcourse")
+OUTPUT = os.path.join(HERE, NAME + ".usd")
+TARGETS = os.path.join(HERE, NAME + ".json")
 
 PHYSICS_VARIANT_SET = "Physics"
 PHYSICS_VARIANT = "physx"
@@ -59,7 +75,21 @@ FLOOR_THICKNESS = 0.5
 
 # The free gap beside the block. Same numbers as the width course's lanes, so
 # the two tables line up column for column.
-GAP_WIDTHS = [1.40, 1.20, 1.15, 1.10, 1.00, 0.90]
+#
+# VICA_AVOID_WIDTHS overrides them. The reason it exists: this course only ever
+# measured 0.90 m and wider, and DWB passed 17 of 18. The physical robot stops
+# in front of a person in a 1.0 m corridor, where the gap left beside a person
+# is nearer 0.3 m -- narrower than the robot's own padded width of 0.555 m, and
+# a full 0.6 m below anything this course has driven. The measured range and
+# the failing range do not overlap, so the existing table cannot speak to the
+# failure at all.
+GAP_WIDTHS = [float(w) for w in os.environ["VICA_AVOID_WIDTHS"].split(",")] \
+    if os.environ.get("VICA_AVOID_WIDTHS") else [1.40, 1.20, 1.15, 1.10, 1.00, 0.90]
+
+# Run each lane's side walls the full depth of the course, so a lane is a
+# closed tube rather than one branch of a ring. See _lane() for what this is
+# for and why it is not the default.
+ISOLATE = os.environ.get("VICA_AVOID_ISOLATE") == "1"
 
 CORRIDOR_WIDTH = 2.6     # wide enough that the gap, not the corridor, decides
 BLOCK_DEPTH = 0.6        # how far along the corridor the block extends
@@ -114,8 +144,29 @@ def _lane(stage, index, gap):
     root = f"/World/Course/Lane_{int(round(gap * 100)):03d}"
     UsdGeom.Xform.Define(stage, root)
 
-    _wall(stage, f"{root}/Left", xc - w / 2 - t, 0.0, xc - w / 2, h)
-    _wall(stage, f"{root}/Right", xc + w / 2, 0.0, xc + w / 2 + t, h)
+    # How far up and down the side walls run. Stopping them at the corridor
+    # ends leaves the approach strip open across the whole course, and the
+    # approach strip is what joins every lane to every other lane: a robot that
+    # cannot fit through its own gap can drive sideways, up a wider lane, along
+    # the exit strip and back down to its goal. The course is a ring.
+    #
+    # That cost nothing while the narrowest gap was 0.90 m, because the robot
+    # always fitted and never looked for another way. It stops being free the
+    # moment a gap is impassable, which is the whole point of the narrow
+    # variant: the 0.60 m lane's robot started at x=2.30 and ended at x=7.21,
+    # five metres away, lined up with the *neighbouring* lane's gap at 7.25. It
+    # was not failing to pass 0.60 m; it was going round.
+    #
+    # Isolating the lanes closes the ring, so "reached the goal" can only mean
+    # "went through the gap". Off by default: the measured course was built
+    # without it, and rebuilding that file with a different topology would
+    # leave results/avoid_20kg describing a course that no longer exists.
+    y_lo, y_hi = (0.0, h)
+    if ISOLATE:
+        _, _, y_min, y_max = _course_extent()
+        y_lo, y_hi = y_min, y_max
+    _wall(stage, f"{root}/Left", xc - w / 2 - t, y_lo, xc - w / 2, y_hi)
+    _wall(stage, f"{root}/Right", xc + w / 2, y_lo, xc + w / 2 + t, y_hi)
 
     # Block on the left for even lanes, right for odd. A line that works for
     # one side is not a line that works for a corridor.

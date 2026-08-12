@@ -1,0 +1,95 @@
+{
+  "stage": "vica_avoidcourse_narrow.usd",
+  "start": [
+    -10.5,
+    -2.5
+  ],
+  "lanes": [
+    {
+      "width": 0.3,
+      "entry": [
+        -10.5,
+        -1.0
+      ],
+      "exit": [
+        -10.5,
+        7.8
+      ],
+      "gap_centre_x": -9.35,
+      "block_side": "left"
+    },
+    {
+      "width": 0.4,
+      "entry": [
+        -6.3,
+        -1.0
+      ],
+      "exit": [
+        -6.3,
+        7.8
+      ],
+      "gap_centre_x": -7.3999999999999995,
+      "block_side": "right"
+    },
+    {
+      "width": 0.5,
+      "entry": [
+        -2.0999999999999996,
+        -1.0
+      ],
+      "exit": [
+        -2.0999999999999996,
+        7.8
+      ],
+      "gap_centre_x": -1.0499999999999996,
+      "block_side": "left"
+    },
+    {
+      "width": 0.6,
+      "entry": [
+        2.1000000000000014,
+        -1.0
+      ],
+      "exit": [
+        2.1000000000000014,
+        7.8
+      ],
+      "gap_centre_x": 1.1000000000000014,
+      "block_side": "right"
+    },
+    {
+      "width": 0.7,
+      "entry": [
+        6.300000000000001,
+        -1.0
+      ],
+      "exit": [
+        6.300000000000001,
+        7.8
+      ],
+      "gap_centre_x": 7.250000000000001,
+      "block_side": "left"
+    },
+    {
+      "width": 0.8,
+      "entry": [
+        10.5,
+        -1.0
+      ],
+      "exit": [
+        10.5,
+        7.8
+      ],
+      "gap_centre_x": 9.6,
+      "block_side": "right"
+    }
+  ],
+  "corridor_width": 2.6,
+  "block": {
+    "depth": 0.6,
+    "y": [
+      3.0,
+      3.6
+    ]
+  }
+}
