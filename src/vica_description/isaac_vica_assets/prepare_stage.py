@@ -20,8 +20,18 @@ import sys
 import time
 
 STAGE = sys.argv[1]
-HERE = os.path.join(os.environ.get("VICA_WS", os.getcwd()),
-                    "src/vica_description/isaac_vica_assets")
+# The steps this runs sit next to this file, so this file's own directory is
+# what finds them -- not the working directory, and not VICA_WS.
+#
+# It was VICA_WS with a getcwd() fallback, and make_stage.sh cds to the Isaac
+# installation before calling this, so an unset VICA_WS sent it looking under
+# $ISAAC_SIM/src/vica_description/... and it died on the first step with
+# FileNotFoundError. That is every invocation through make_stage.sh on a
+# machine that has not exported VICA_WS, which is the documented way to run it.
+# __file__ is always right here: python.sh runs this as a script argument.
+HERE = os.path.dirname(os.path.abspath(__file__)) if "__file__" in dir() else \
+    os.path.join(os.environ.get("VICA_WS", os.getcwd()),
+                 "src/vica_description/isaac_vica_assets")
 
 from isaacsim import SimulationApp  # noqa: E402
 simulation_app = SimulationApp({"headless": True})
