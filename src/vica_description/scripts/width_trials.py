@@ -49,13 +49,43 @@ import sys
 import time
 
 import rclpy
-from geometry_msgs.msg import PoseWithCovarianceStamped
+from geometry_msgs.msg import PoseWithCovarianceStamped, Twist
 from nav2_msgs.action import NavigateToPose
-from nav_msgs.msg import Odometry
+from nav2_msgs.msg import BehaviorTreeLog
+from nav_msgs.msg import Odometry, Path
 from rclpy.action import ActionClient
 from rclpy.node import Node
 from rclpy.qos import QoSDurabilityPolicy, QoSProfile, qos_profile_sensor_data
 from sensor_msgs.msg import LaserScan
+
+# A stopped robot is the same observation whatever stopped it, and the record
+# used to end there: "timeout", a distance, a track of identical poses. That is
+# the one distinction the physical robot's investigation says decides the fix
+# (nav2_backlog / devlog 2026-08-12 section 7.2) -- a planner that cannot draw a
+# path needs a different change from a controller that refuses to follow one it
+# has, and both look like a robot standing still.
+#
+# Three topics separate them, and they are the same three on the physical robot,
+# so a diagnosis measured here is a diagnosis that transfers:
+#
+#   /plan              the planner's output. No messages, or every message
+#                      empty, means the planner is the blocker.
+#   /cmd_vel_nav       the controller's raw output, upstream of the smoother
+#                      and the collision monitor. A plan present and this
+#                      pinned at zero means the controller is refusing.
+#   /behavior_tree_log which recovery node is running. Time spent in Wait or
+#                      Spin is time the tree chose to spend, not time the
+#                      obstacle cost.
+#
+# /cmd_vel is deliberately not the one sampled: it is the collision monitor's
+# output, so a zero there is ambiguous between the controller commanding zero
+# and the monitor zeroing a command that existed.
+CMD_ZERO = 1e-3        # rad/s and m/s below which a command is "no command"
+PLAN_SHORT_M = 0.5     # a plan ending further than this from the goal is a stub
+RECOVERY_LEAVES = ("Wait", "Spin", "SpinLeft", "SpinRight", "BackUp",
+                   "ClearEntireCostmap-Context", "ClearEntireCostmap-Subtree")
+RECOVERY_CONTAINER = "RecoveryActions"
+RECOVERY_NODES = RECOVERY_LEAVES + (RECOVERY_CONTAINER, "ClearingActions")
 
 # The lidar sees the robot's own rear panel at 0.447 m. Excluding that sector is
 # the difference between a clearance check and one that always fails.
@@ -129,6 +159,30 @@ class Trials(Node):
             PoseWithCovarianceStamped, "/amcl_pose",
             lambda m: self.amcl.__setitem__(slice(None), [m]),
             QoSProfile(depth=5, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL))
+        # Why the diagnosis buffers are wall-clock and not the ROS clock the
+        # track uses: the track is measured in simulated seconds because it is
+        # compared against distances the robot drove, and Isaac's clock is what
+        # drove them. These are compared against each other and against the
+        # trial's own timeout, which is wall-clock, and mixing the two produced
+        # a "recovery took 41 s" on a trial that ran 30.
+        self.plans, self.cmds, self.bt = [], [], []
+        # The plan's own end point, not just how many poses it has. A planner
+        # that cannot reach the goal can still return a path -- to the nearest
+        # reachable cell, which on this course is the near side of a gap the
+        # robot does not fit through. That path is non-empty, so counting
+        # messages calls it a success, and the robot dutifully drives to the
+        # obstacle and stops. Measuring where the path ends is what separates
+        # "planned to the goal" from "planned as far as it could get".
+        self.create_subscription(Path, "/plan",
+                                 lambda m: self.plans.append(
+                                     (time.time(), len(m.poses),
+                                      m.poses[-1].pose.position.x if m.poses else None,
+                                      m.poses[-1].pose.position.y if m.poses else None)), 10)
+        self.create_subscription(Twist, "/cmd_vel_nav",
+                                 lambda m: self.cmds.append(
+                                     (time.time(), m.linear.x, m.angular.z)), 50)
+        self.create_subscription(BehaviorTreeLog, "/behavior_tree_log",
+                                 self.bt.append, 20)
         self.initial = self.create_publisher(
             PoseWithCovarianceStamped, "/initialpose",
             QoSProfile(depth=1, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL))
@@ -293,9 +347,15 @@ class Trials(Node):
         # not the start of anything. Three repeats of one lane reported
         # starts 12 m apart on a course where the spawn had not moved.
         self.odom.clear()
+        # Same reason as the odom clear above: these accumulate from whenever
+        # nav2 came up, and a lane's diagnosis has to describe that lane.
+        self.plans.clear()
+        self.cmds.clear()
+        self.bt.clear()
         self.spin(0.3)
         x0, y0, a0 = self.pose_map()
         src0 = self.pose_source()
+        t_goal = time.time()
 
         fut = self.ac.send_goal_async(g)
         rclpy.spin_until_future_complete(self, fut, timeout_sec=30)
@@ -344,12 +404,114 @@ class Trials(Node):
             "pose_source": src0,
             "start_offset_m": round(math.hypot(x0 - self.spawn[0],
                                                y0 - self.spawn[1]), 3),
+            "diag": self.diagnose(t_goal, (x, y)),
             "track": track,
         }
         print(f"    {label:26s} {outcome:9s} 이동 {moved:5.2f} m  "
               f"남은거리 {rec['remaining_m']:5.2f} m  "
               f"최소여유 {min_clear:.2f} m  {sim_span:5.1f}s", flush=True)
+        d = rec["diag"]
+        print(f"    {'':26s} 진단 {d['verdict']:17s} "
+              f"plan {d['plan_msgs']}건({d['plan_empty']} 빈것)  "
+              f"cmd 0 비율 {d['cmd_zero_frac']:.0%}  "
+              f"경로끝-목표 {d['plan_short_m']} m  "
+              f"복구 {d['recovery_s']:.1f}s {d['recovery_top'] or '-'}", flush=True)
         return rec
+
+    def diagnose(self, t_goal, goal):
+        """Which of the three stopped the robot -- planner, controller, tree.
+
+        Reports the counts as well as the verdict, because the verdict is a
+        threshold on them and a threshold is the part most likely to be wrong.
+        A reader who disagrees with the rule can recompute it from the record.
+        """
+        span = max(time.time() - t_goal, 1e-6)
+        n_plan = len(self.plans)
+        n_empty = sum(1 for _, n, _, _ in self.plans if n == 0)
+        n_good = n_plan - n_empty
+        last_good = max((t for t, n, _, _ in self.plans if n > 0), default=None)
+
+        # How close the planned paths actually got to the goal.
+        ends = [math.hypot(px - goal[0], py - goal[1])
+                for _, n, px, py in self.plans if n and px is not None]
+        plan_short = round(min(ends), 2) if ends else None
+        plan_short_last = round(ends[-1], 2) if ends else None
+
+        n_cmd = len(self.cmds)
+        n_zero = sum(1 for _, v, w in self.cmds
+                     if abs(v) < CMD_ZERO and abs(w) < CMD_ZERO)
+        zero_frac = (n_zero / n_cmd) if n_cmd else 1.0
+
+        # Time each behaviour-tree node spent RUNNING. The log reports
+        # transitions, so a node's runtime is the gap between the tick that put
+        # it in RUNNING and the next tick that took it out. A node still
+        # running when the trial ends is closed at the trial's end.
+        running, secs, ticks = {}, {}, {}
+        for msg in self.bt:
+            for ev in msg.event_log:
+                name = ev.node_name
+                t = ev.timestamp.sec + ev.timestamp.nanosec * 1e-9
+                if ev.current_status == "RUNNING" and name not in running:
+                    running[name] = t
+                    ticks[name] = ticks.get(name, 0) + 1
+                elif ev.previous_status == "RUNNING" and name in running:
+                    secs[name] = secs.get(name, 0.0) + max(t - running.pop(name), 0.0)
+        for name, t0 in running.items():
+            # No wall-clock end stamp exists for these -- the log's clock is
+            # ROS time. Use the last event seen rather than time.time().
+            last = max((ev.timestamp.sec + ev.timestamp.nanosec * 1e-9
+                        for m in self.bt for ev in m.event_log), default=t0)
+            secs[name] = secs.get(name, 0.0) + max(last - t0, 0.0)
+
+        # The behaviour tree nests, so these times overlap: RecoveryActions is
+        # running for the whole time Spin and Wait run inside it. Adding them up
+        # counts the same seconds two and three times over -- a 60.1 s trial
+        # reported 107.7 s of recovery, which is not a number that can exist.
+        #
+        # The container's own time is the answer when there is one. Summing the
+        # leaves is the fallback for a tree shaped differently from this one,
+        # and leaves do not nest inside each other.
+        rec_secs = {n: s for n, s in secs.items() if n in RECOVERY_NODES}
+        if RECOVERY_CONTAINER in secs:
+            rec_total = secs[RECOVERY_CONTAINER]
+        else:
+            rec_total = sum(s for n, s in rec_secs.items()
+                            if n in RECOVERY_LEAVES)
+        leaves = {n: s for n, s in rec_secs.items() if n in RECOVERY_LEAVES}
+        top = max(leaves, key=leaves.get) if leaves else None
+
+        # PLAN_SHORT_M: a plan whose end sits further than this from the goal is
+        # not a plan to the goal. It is one goal tolerance plus a margin -- the
+        # planner is allowed to stop short by its own tolerance and still have
+        # done its job.
+        if n_good == 0:
+            verdict = "planner-fail"
+        elif plan_short is not None and plan_short > PLAN_SHORT_M:
+            verdict = "plan-stops-short"
+        elif zero_frac >= 0.8 and n_cmd:
+            verdict = "controller-refuse"
+        elif rec_total >= 0.25 * span:
+            verdict = "bt-recovery"
+        else:
+            verdict = "driving"
+
+        return {
+            "verdict": verdict,
+            "span_s": round(span, 2),
+            "plan_msgs": n_plan,
+            "plan_empty": n_empty,
+            "plan_short_m": plan_short,
+            "plan_short_last_m": plan_short_last,
+            "plan_gap_s": round(time.time() - last_good, 2) if last_good else None,
+            "cmd_msgs": n_cmd,
+            "cmd_zero_frac": round(zero_frac, 3),
+            "recovery_s": round(rec_total, 2),
+            "recovery_top": top,
+            "bt_seconds": {n: round(s, 2) for n, s in sorted(
+                secs.items(), key=lambda kv: -kv[1])[:8]},
+            "bt_ticks": {n: ticks[n] for n in sorted(
+                ticks, key=lambda n: -ticks[n])[:8]},
+        }
 
     def clearance_cached(self):
         if not self.scan:

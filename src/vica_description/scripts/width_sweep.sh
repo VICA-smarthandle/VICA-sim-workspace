@@ -165,7 +165,7 @@ for W in "${WIDTHS[@]}"; do
             --phase lane --width "$W" --repeats 1 --spawn="$SPAWN_X,$SPAWN_Y" \
             --spec "$SPEC" --controller "$CONTROLLER" --out "$OUT" \
             --spawn-yaw "$SPAWN_YAW" 2>&1 \
-            | grep -E "통과|건너뜀|거부|출발 위치|검증|AMCL|없습니다|않았습니다"
+            | grep -E "통과|건너뜀|거부|출발 위치|검증|AMCL|없습니다|않았습니다|진단"
         rc=${PIPESTATUS[0]}
         # No `set -e` to match the `set +e` above: errexit is never enabled in
         # this script (line 27 turns on pipefail and nothing else), so turning
