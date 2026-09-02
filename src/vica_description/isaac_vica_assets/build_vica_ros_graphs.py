@@ -22,6 +22,9 @@ Sensor graphs are skipped with a warning when their prim is absent, so the
 script still succeeds on a stage that carries only the robot body.
 """
 
+import math
+import os
+
 from pxr import Usd, UsdGeom, UsdPhysics
 from usdrt import Sdf
 
@@ -225,6 +228,32 @@ GRAPHS = [
     "ROS_Lidar",
     "ROS_Camera",
 ]
+
+# The two ultrasonic probes. Isaac publishes them as LaserScan, because the
+# bridge has no Range publisher; scripts/ultrasonic_range.py converts each one
+# to the sensor_msgs/Range that nav2's RangeSensorLayer wants, on the topic
+# dev's driver uses. The conversion runs outside Isaac on purpose: publishing
+# from inside with rclpy takes the process down, because Isaac's bridge has
+# already loaded its own rcl and the second load breaks the dynamic linker
+#   "Inconsistency detected by ld.so: dl-close.c: _dl_close_worker"
+# [미검증] Off by default. IsaacReadRaycastSensor feeding ROS2PublishLaserScan
+# segfaults the process during play, with numRows/numCols set and without, in
+# verify_stage and in play_stage alike. The crash carries no message naming the
+# graph; the stage simply dies a few seconds after the timeline starts.
+#
+# Set VICA_USONIC_GRAPHS=1 to build them anyway when someone picks the problem
+# back up. The sensors themselves attach fine and the costmap layers and the
+# LaserScan-to-Range converter are all in place -- the missing piece is a way
+# to get the depths out of the process.
+USONIC_GRAPHS = os.environ.get("VICA_USONIC_GRAPHS", "0") not in ("0", "false", "")
+USONIC = (
+    ("ROS_UltrasonicLeft", "usonic_front_left", "/ultrasonic/front_left_scan"),
+    ("ROS_UltrasonicRight", "usonic_front_right", "/ultrasonic/front_right_scan"),
+)
+USONIC_FOV_DEG = 30.0
+USONIC_RAYS = 7
+USONIC_MIN_RANGE = 0.02
+USONIC_MAX_RANGE = 4.0
 
 # The ultrasonic probes are NOT published from a graph. There is no
 # ROS2PublishRange node, and the generic ROS2Publisher resolves its message
@@ -637,6 +666,63 @@ def _camera_graph(path, color_prim, depth_prim):
 # --------------------------------------------------------------------------
 # Entry point
 # --------------------------------------------------------------------------
+def _usonic_graph(path, sensor_prim, frame_id, topic):
+    """Raycast probe -> LaserScan.
+
+    ROS2PublishLaserScan takes linearDepthData as a plain array input, so the
+    raycast's per-ray depths feed it directly; nothing here needs an RTX lidar.
+    The remaining inputs describe the fan, and are written rather than derived
+    so the message says what the probe actually is.
+
+    LaserScan rather than Range because the bridge publishes no Range, and
+    rather than rclpy inside this process because that crashes it. The shape
+    that nav2 consumes is produced by ultrasonic_range.py outside.
+    """
+    keys = og.Controller.Keys
+    fov = math.radians(USONIC_FOV_DEG)
+    og.Controller.edit(
+        {"graph_path": path, "evaluator_name": "execution"},
+        {
+            keys.CREATE_NODES: [
+                ("OnPlaybackTick", "omni.graph.action.OnPlaybackTick"),
+                ("Context", "isaacsim.ros2.bridge.ROS2Context"),
+                ("ReadTime", "isaacsim.core.nodes.IsaacReadSimulationTime"),
+                ("ReadRay", "isaacsim.sensors.physics.IsaacReadRaycastSensor"),
+                ("PublishScan", "isaacsim.ros2.bridge.ROS2PublishLaserScan"),
+            ],
+            keys.CONNECT: [
+                ("OnPlaybackTick.outputs:tick", "ReadRay.inputs:execIn"),
+                ("ReadRay.outputs:execOut", "PublishScan.inputs:execIn"),
+                ("Context.outputs:context", "PublishScan.inputs:context"),
+                ("ReadTime.outputs:simulationTime", "PublishScan.inputs:timeStamp"),
+                ("ReadRay.outputs:depths", "PublishScan.inputs:linearDepthData"),
+            ],
+            keys.SET_VALUES: [
+                ("ReadRay.inputs:raycastSensorPrim", [Sdf.Path(sensor_prim)]),
+                ("PublishScan.inputs:topicName", topic),
+                ("PublishScan.inputs:frameId", frame_id),
+                ("PublishScan.inputs:horizontalFov", USONIC_FOV_DEG),
+                ("PublishScan.inputs:horizontalResolution",
+                 USONIC_FOV_DEG / max(1, USONIC_RAYS - 1)),
+                ("PublishScan.inputs:depthRange",
+                 [USONIC_MIN_RANGE, USONIC_MAX_RANGE]),
+                ("PublishScan.inputs:rotationRate", 0.0),
+                # numRows and numCols are not optional. The node is written for
+                # an RTX lidar and indexes linearDepthData by them; left at
+                # their defaults against a seven element array it reads off the
+                # end, and the process dies with a segmentation fault during
+                # play with nothing in the log naming this graph.
+                ("PublishScan.inputs:numRows", 1),
+                ("PublishScan.inputs:numCols", USONIC_RAYS),
+                ("PublishScan.inputs:azimuthRange",
+                 [-USONIC_FOV_DEG / 2.0, USONIC_FOV_DEG / 2.0]),
+                ("PublishScan.inputs:queueSize", 1),
+            ],
+        },
+    )
+    print(f"built             : {path.split('/')[-1]} -> {topic}")
+
+
 def main():
     _require_stopped_timeline()
 
@@ -684,6 +770,18 @@ def main():
         built.append("ROS_Camera")
     else:
         skipped.append("ROS_Camera (RSD455 colour/depth prims not found)")
+
+    for graph_name, link, topic in (USONIC if USONIC_GRAPHS else ()):
+        ray = None
+        for prim in stage.Traverse():
+            if prim.GetName() == f"{link}_ray":
+                ray = str(prim.GetPath())
+                break
+        if ray:
+            _usonic_graph(f"{graph_root}/{graph_name}", ray, link, topic)
+            built.append(graph_name)
+        else:
+            skipped.append(f"{graph_name} (no {link}_ray prim)")
 
     if SAVE_STAGE:
         stage.GetRootLayer().Save()

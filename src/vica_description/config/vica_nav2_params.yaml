@@ -493,8 +493,20 @@ local_costmap:
       # where the lidar plane (0.382) and the depth band (0.30 to 1.05) both
       # see nothing, so anything shorter than about 30 cm is theirs alone.
       #
-      # play_stage.py publishes these, not an OmniGraph; the bridge has no
-      # Range publisher. See the note there.
+      # [미검증] Nothing publishes into these topics yet. An IsaacRaycastSensor
+      # prim under the robot segfaults the process a few seconds into play --
+      # with the ultrasonic ROS graphs built and with them disabled alike, so
+      # it is the prim and not the publishing. Both are behind env switches
+      # (VICA_USONIC_SENSORS, VICA_USONIC_GRAPHS), off by default.
+      #
+      # The layers stay enabled on purpose. RangeSensorLayer with no publisher
+      # contributes nothing and costs nothing, and leaving them wired means the
+      # day a range source works, it is one switch rather than an archaeology
+      # exercise. scripts/ultrasonic_range.py is already written for it.
+      #
+      # What this costs the comparison: the 0.25 m boxes in the courses are
+      # invisible to the robot. That is not a hole in the measurement so much
+      # as a measurement of its own -- it is exactly why the robot has probes.
       range_sensor_front_left:
         plugin: "nav2_costmap_2d::RangeSensorLayer"
         enabled: True

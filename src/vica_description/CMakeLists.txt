@@ -108,6 +108,12 @@ install(
 )
 
 install(
+  PROGRAMS scripts/ultrasonic_range.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME ultrasonic_range
+)
+
+install(
   PROGRAMS scripts/inflation_ab.sh
   DESTINATION lib/${PROJECT_NAME}
   RENAME inflation_ab

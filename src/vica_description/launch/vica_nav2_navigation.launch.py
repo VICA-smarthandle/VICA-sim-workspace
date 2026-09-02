@@ -110,5 +110,16 @@ def generate_launch_description():
                 }],
                 respawn=False,
             ),
+            # The ultrasonic probes, from what Isaac can publish into what nav2
+            # can consume. See the script for why the conversion cannot live
+            # inside the simulator process.
+            Node(
+                package="vica_description",
+                executable="ultrasonic_range",
+                name="ultrasonic_range",
+                output="screen",
+                parameters=[{"use_sim_time": use_sim_time}],
+                respawn=False,
+            ),
         ]
     )

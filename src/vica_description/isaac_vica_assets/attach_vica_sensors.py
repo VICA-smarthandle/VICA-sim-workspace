@@ -36,11 +36,19 @@ Order: export_isaac_urdf.sh -> URDF importer -> fixup_vica_usd_joints.py ->
 this -> build_vica_hospital_stage.py -> build_vica_ros_graphs.py.
 """
 
+import math
+import os
+
 import omni.kit.commands
 import omni.timeline
 import omni.usd
 
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdPhysics
+
+# The ultrasonic probes. Imported at the top rather than inside the helper so a
+# build without the extension fails on load with the name in the message,
+# rather than halfway through authoring a stage.
+from isaacsim.sensors.experimental.physics import Raycast
 
 
 # --------------------------------------------------------------------------
@@ -419,6 +427,16 @@ def _set_lidar_range(stage, lidar_root):
 # case the probes exist to catch; DYP-A22 opens about 60 degrees and the fan
 # below covers the middle 30 of it. nav2's RangeSensorLayer takes the minimum
 # anyway, so more rays only sharpen the same number.
+# [미검증] Off by default. An IsaacRaycastSensor prim under the robot crashes
+# the process during play: verify_stage segfaults a few seconds after the
+# timeline starts, with the ultrasonic ROS graphs built and with them disabled
+# alike, so it is the prims and not the publishing. The crash names nothing.
+#
+# Set VICA_USONIC_SENSORS=1 to attach them anyway when someone picks this back
+# up. Everything downstream is already in place and waiting: the URDF frames
+# and meshes, the costmap RangeSensorLayers, and scripts/ultrasonic_range.py.
+# What is missing is a way to read a range at 0.091 m that this build survives.
+USONIC_SENSORS = os.environ.get("VICA_USONIC_SENSORS", "0") not in ("0", "false", "")
 USONIC_NAMES = ("usonic_front_left", "usonic_front_right")
 USONIC_MIN_RANGE_M = 0.02
 USONIC_MAX_RANGE_M = 4.0
@@ -434,6 +452,9 @@ def _attach_usonic(stage, base_link):
     instanceable, and a sensor parented there is advertised and never fires.
     Both probes now carry a visual cylinder, so both would hit it.
     """
+    if not USONIC_SENSORS:
+        print("    usonic  -> SKIPPED (VICA_USONIC_SENSORS unset; see the note)")
+        return []
     made = []
     for name in USONIC_NAMES:
         frame = f"{base_link}/{name}"
@@ -459,29 +480,28 @@ def _attach_usonic(stage, base_link):
         xf.AddTranslateOp().Set(Gf.Vec3d(*offset))
 
         path = f"{mount}/{name}_ray"
-        prim = stage.GetPrimAtPath(path)
-        if not prim:
-            prim = stage.DefinePrim(path, "IsaacRaycastSensor")
-        # Written every run, not only on create: these are settings, and a
-        # re-run has to be able to correct a probe configured by an older
-        # version of this file.
-        for attr, kind, value in (
-            ("minRange", Sdf.ValueTypeNames.Float, USONIC_MIN_RANGE_M),
-            ("maxRange", Sdf.ValueTypeNames.Float, USONIC_MAX_RANGE_M),
-            ("drawPoints", Sdf.ValueTypeNames.Bool, False),
-            ("drawLines", Sdf.ValueTypeNames.Bool, False),
-        ):
-            a = prim.GetAttribute(attr) or prim.CreateAttribute(attr, kind)
-            a.Set(value)
-        # The fan, as yaw offsets about the mount's z.
-        half = USONIC_FAN_DEG / 2.0
-        step = USONIC_FAN_DEG / max(1, USONIC_FAN_RAYS - 1)
-        angles = [(-half + i * step) for i in range(USONIC_FAN_RAYS)]
-        a = (prim.GetAttribute("beamAngles")
-             or prim.CreateAttribute("beamAngles", Sdf.ValueTypeNames.FloatArray))
-        a.Set([float(v) for v in angles])
+        # Removed and rebuilt rather than updated in place. Raycast.create
+        # auto-numbers a path that already exists, so a re-run over a stage
+        # that has probes would leave usonic_front_left_ray_01 beside the
+        # original and publish from neither.
+        if stage.GetPrimAtPath(path):
+            stage.RemovePrim(path)
+
+        # Rays as explicit origins and directions, which is what the authoring
+        # class takes. The fan opens in the mount's xy plane about its forward
+        # (+x) axis. DYP-A22 is about 60 degrees wide; this covers the middle
+        # 30, which is where an echo strong enough to report comes from.
+        half = math.radians(USONIC_FAN_DEG) / 2.0
+        n = USONIC_FAN_RAYS
+        step = (2 * half) / max(1, n - 1)
+        origins, dirs = [], []
+        for k in range(n):
+            a = -half + k * step
+            origins.append([0.0, 0.0, 0.0])
+            dirs.append([math.cos(a), math.sin(a), 0.0])
+        Raycast.create(path, ray_origins=origins, ray_directions=dirs)
         print(f"    usonic  -> {path}  at {tuple(round(v, 4) for v in offset)}  "
-              f"{USONIC_FAN_RAYS} rays over {USONIC_FAN_DEG:.0f} deg")
+              f"{n} rays over {USONIC_FAN_DEG:.0f} deg")
         made.append(path)
     return made
 
