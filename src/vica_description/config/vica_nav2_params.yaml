@@ -611,6 +611,68 @@ local_costmap:
       # bandwidth the RViz session does not need.
       always_send_full_costmap: False
 
+global_costmap:
+  global_costmap:
+    ros__parameters:
+      update_frequency: 1.0
+      publish_frequency: 1.0
+      global_frame: map
+      robot_base_frame: base_footprint
+      use_sim_time: true
+      # Ported from the robot (vica_ros2_ws vica_nav2) on 2026-09-03. Until
+      # then this file had no global_costmap section at all, so the planner ran
+      # on nav2's defaults: a circular robot of the default radius, no static
+      # layer settings of ours, and an obstacle layer nobody had looked at.
+      #
+      # That is not a small difference. The two costmaps must agree about the
+      # robot's shape or the planner produces paths the controller then
+      # refuses, and the robot stands in a corridor with a plan it cannot
+      # follow. The robot's own config says so in as many words and has a test
+      # named after it: test_local_and_global_costmap_use_the_same_footprint.
+      #
+      # It showed up here as a dynamic-obstacle trial where the robot stopped
+      # 1.45 m short of a walker and never went round, with
+      # "controller_server: Failed to make progress" in the log, on both DWB
+      # and MPPI and in both a 2.0 m and a 2.4 m corridor.
+      footprint: "[[0.305, 0.225], [0.305, -0.225], [-0.305, -0.225], [-0.415, -0.035], [-0.415, 0.035], [-0.305, 0.225]]"
+      footprint_padding: 0.05
+      resolution: 0.05
+      track_unknown_space: true
+      plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+      # The robot also lists a keepout filter here. Not ported: nothing in this
+      # workspace publishes /keepout_costmap_filter_info, and a filter waiting
+      # on a topic that never arrives is a costmap that never finishes
+      # configuring. The courses have no keepout zones to declare.
+      #
+      # The robot's nvblox_layer is not ported either, and it is not in the
+      # robot's own plugins list. The sim's equivalent camera path is
+      # depth_scan, which feeds the local costmap's voxel layer.
+      obstacle_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        enabled: True
+        observation_sources: scan
+        scan:
+          topic: /scan
+          max_obstacle_height: 2.0
+          clearing: True
+          marking: True
+          data_type: "LaserScan"
+          raytrace_max_range: 3.5
+          raytrace_min_range: 0.05
+          obstacle_max_range: 3.0
+          obstacle_min_range: 0.12
+          observation_persistence: 0.5
+          expected_update_rate: 0.2
+          inf_is_valid: true
+      static_layer:
+        plugin: "nav2_costmap_2d::StaticLayer"
+        map_subscribe_transient_local: True
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        cost_scaling_factor: 3.5
+        inflation_radius: 0.55
+      always_send_full_costmap: True
+
 # The map YAML is supplied through the required `map` launch argument.
 # map_server:
 #   ros__parameters:

@@ -1,0 +1,29 @@
+{
+  "outcome": "timeout",
+  "samples": 3601,
+  "goal": [
+    24.0,
+    0.0
+  ],
+  "start": [
+    1.5,
+    0.0
+  ],
+  "walker": {
+    "prim": "/World/Course/Walker",
+    "cross_x": 12.0,
+    "park_y": 1.9,
+    "end_y": 0.0,
+    "radius": 0.175,
+    "height": 1.7
+  },
+  "low_box": {
+    "x": 18.0,
+    "width": 0.3,
+    "depth": 0.3,
+    "height": 0.25,
+    "side": "south"
+  },
+  "trigger_m": 3.0,
+  "walk_speed": 1.2
+}
