@@ -230,7 +230,14 @@ def _cell(stage, index, width):
     lw = _low_width(w)
     if LOW_OBSTACLE and lw > 0:
         y = ENTRY_LEN / 2.0
-        a, b = X(-w / 2), X(-w / 2 + s * lw)
+        # X already carries the cell's hand. Multiplying by s again here
+        # squared it, so the box was laid out along world +x whichever way the
+        # cell faced, and in the left-handed cells -- 0.90 and 1.20 -- that put
+        # it entirely inside the outer wall. Corner_120's corridor runs
+        # x 8.05..9.25 and its box sat at 9.25..9.55. Two of the five cells had
+        # no low obstacle in them at all, and 1.20 is the screening width, so
+        # the screen was the one measuring a bare corner.
+        a, b = X(-w / 2), X(-w / 2 + lw)
         _low_box(stage, f"{root}/LowBox",
                  min(a, b), y - LOW_DEPTH / 2, max(a, b), y + LOW_DEPTH / 2)
 
