@@ -69,21 +69,31 @@ if not omni.usd.get_context().open_stage(STAGE):
     print("FAILED to open stage", flush=True)
     simulation_app.close()
     sys.exit(1)
-for _ in range(30):
-    simulation_app.update()
 
-# Load payloads before playing. Without this the robot's rigid bodies exist
-# with no articulation behind them and it free-falls: odom went to z -168 on a
-# stage whose own verification, which does call Load(), had just passed. The
-# default open does not always bring them in, and nothing says so.
-_stage = omni.usd.get_context().get_stage()
-_stage.Load()
-simulation_app.update()
-
+# Move the robot BEFORE anything else touches the stage.
+#
+# This used to sit after Load() and thirty update()s, and by then the physics
+# parse had already placed the articulation at the pose the USD carried.
+# Rewriting the parent Xform afterwards moved the colliders and left the root
+# body: the robot then settled 48 mm lower, which is exactly where the chassis
+# collider reaches the floor, and drove nowhere with its wheels turning.
+#
+# Measured, on this robot and on the August one alike:
+#
+#     spawn left alone      base_link z 0.190, held
+#     spawn overridden      base_link z 0.142, held  <- chassis on the floor
+#
+# 0.142 is not a settling depth. The drive wheels are 0.065 radius on an axle
+# 0.125 below base_link, so at 0.190 they touch the ground and at 0.142 they
+# are 48 mm inside it. Nothing was holding the robot up but its belly.
+#
+# Authoring the pose here, before the first update, means the parse sees the
+# robot where it is meant to be and there is nothing to disagree with.
 if SPAWN is not None:
     from pxr import Gf, UsdGeom  # noqa: E402
 
-    _v = _stage.GetPrimAtPath("/World/VICA")
+    _s0 = omni.usd.get_context().get_stage()
+    _v = _s0.GetPrimAtPath("/World/VICA")
     _xf = UsdGeom.Xformable(_v)
     _has_rot = False
     for _op in _xf.GetOrderedXformOps():
@@ -95,24 +105,83 @@ if SPAWN is not None:
                 _op.Set(Gf.Vec3f(0.0, 0.0, SPAWN_YAW))
     if SPAWN_YAW is not None and not _has_rot:
         _xf.AddRotateXYZOp().Set(Gf.Vec3f(0.0, 0.0, SPAWN_YAW))
-    simulation_app.update()
     print(f"=== spawn moved to {SPAWN}"
           + (f" yaw {SPAWN_YAW:.1f} deg" if SPAWN_YAW is not None else ""),
           flush=True)
+
+for _ in range(30):
+    simulation_app.update()
+
+# Load payloads before playing. Without this the robot's rigid bodies exist
+# with no articulation behind them and it free-falls: odom went to z -168 on a
+# stage whose own verification, which does call Load(), had just passed. The
+# default open does not always bring them in, and nothing says so.
+_stage = omni.usd.get_context().get_stage()
+_stage.Load()
+simulation_app.update()
 
 timeline = omni.timeline.get_timeline_interface()
 timeline.play()
 print(f"=== playing for ~{SECONDS:.0f}s via app.update()", flush=True)
 
+import math  # noqa: E402
 import time  # noqa: E402
+
+# Where the robot actually is, read off the stage.
+#
+# /odom is the only other answer and it is not independent: it comes from a
+# graph in this same stage, so "the robot did not move" and "the odometry is
+# broken" look identical from outside. This separates them.
+from pxr import Usd as _Usd, UsdGeom as _UsdGeom, UsdPhysics as _UsdPhysics  # noqa: E402
+
+_root = None
+for _p in _stage.Traverse():
+    if _p.HasAPI(_UsdPhysics.ArticulationRootAPI):
+        _root = _p
+        break
+
+
+def _world_xyz():
+    if _root is None:
+        return None
+    m = _UsdGeom.Xformable(_root).ComputeLocalToWorldTransform(_Usd.TimeCode.Default())
+    t = m.ExtractTranslation()
+    return (t[0], t[1], t[2])
+
+
+# Also written to a file, not only stdout.
+#
+# The pose trace is the one output worth keeping when a run is driven from a
+# harness that pipes stdout somewhere and then dies: the shell goes, the
+# simulator carries on, and the only record of where the robot went goes with
+# the shell. VICA_POSE_LOG overrides the path.
+_pose_log = os.environ.get("VICA_POSE_LOG", "/tmp/vica_play_pose.log")
+try:
+    _pose_fh = open(_pose_log, "w")
+except OSError:
+    _pose_fh = None
+
+
+def _say(line):
+    print(line, flush=True)
+    if _pose_fh:
+        _pose_fh.write(line + "\n")
+        _pose_fh.flush()
+
 
 started = time.time()
 frames = 0
+_p0 = _world_xyz()
+if _p0:
+    _say(f"=== robot at ({_p0[0]:+.3f},{_p0[1]:+.3f},{_p0[2]:+.3f})")
 while time.time() - started < SECONDS:
     simulation_app.update()
     frames += 1
-    if frames % 600 == 0:
-        print(f"    {frames} frames, {time.time() - started:.0f}s wall", flush=True)
+    if frames % 300 == 0:
+        _p = _world_xyz()
+        _d = math.hypot(_p[0] - _p0[0], _p[1] - _p0[1]) if _p else float("nan")
+        _say(f"    {frames} frames, {time.time() - started:.0f}s, "
+             f"robot ({_p[0]:+.3f},{_p[1]:+.3f},{_p[2]:+.3f}) moved {_d:.3f} m")
 
 timeline.stop()
 print(f"=== done, {frames} frames", flush=True)

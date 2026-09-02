@@ -75,12 +75,24 @@ CAMERA_DEPTH_SUFFIX = (
 LEFT_WHEEL_JOINT = "left_wheel_joint"
 RIGHT_WHEEL_JOINT = "right_wheel_joint"
 
-# Geometry, not the odometry calibration constant. The real robot's
-# encoder_feedback wheel_base_m is 0.37, an effective tread fitted by rotation
-# test; it compensates for tyre scrub that PhysX does not reproduce. Isaac must
-# use the measured centre-to-centre distance instead.
+# 0.387, the robot's own wheel_base_m, by decision on 2026-09-02.
+#
+# This file used 0.364, the tape-measured centre-to-centre distance, on the
+# argument that 0.37 was an odometry correction absorbing tyre scrub that PhysX
+# does not reproduce. That argument is weaker now: encoder.yaml moved to 0.387
+# on 2026-08-30 off a bag measurement, comparing IMU against wheel yaw over ten
+# turns, and the wheels were found to overstate rotation by 4.7 %. The check
+# afterwards (run1139) put IMU/wheel at 1.010, inside one percent.
+#
+# The two uses are still opposite directions of the same number -- the robot
+# reads wheel rotation to infer yaw, this writes yaw to command wheels -- so
+# matching them is a choice rather than a correction. Made deliberately, to
+# keep one fewer difference between the two.
+#
+# It does not affect straight-line driving: wheelDistance drops out of the
+# formula when angular velocity is zero.
 WHEEL_RADIUS = 0.065
-WHEEL_DISTANCE = 0.364
+WHEEL_DISTANCE = 0.387
 
 # --------------------------------------------------------------------------
 # Publish gating
