@@ -8,3 +8,20 @@
 ==============================================================
 
   --- 등장거리 6.0 m  #1
+  timeout, 3601 표본 -> /home/sim/VICA-smarthandle/vica_ws/results/obstacle24/dwb_hybrid/trigger_6.0_r1.csv
+
+  --- 등장거리 4.0 m  #1
+obstacle_sweep.sh: line 82: 21125 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_obstacle_nav2.log 2>&1
+  timeout, 3601 표본 -> /home/sim/VICA-smarthandle/vica_ws/results/obstacle24/dwb_hybrid/trigger_4.0_r1.csv
+
+  --- 등장거리 2.0 m  #1
+obstacle_sweep.sh: line 85: /proc/25240/cmdline: No such file or directory
+obstacle_sweep.sh: line 85: /proc/25499/cmdline: No such file or directory
+obstacle_sweep.sh: line 82: 25560 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_obstacle_nav2.log 2>&1
+obstacle_sweep.sh: line 85: /proc/27197/cmdline: No such file or directory
+  failed, 1872 표본 -> /home/sim/VICA-smarthandle/vica_ws/results/obstacle24/dwb_hybrid/trigger_2.0_r1.csv
+obstacle_sweep.sh: line 82: 29768 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_obstacle_nav2.log 2>&1
+obstacle_sweep.sh: line 85: /proc/30926/cmdline: No such file or directory
+
+=== 완료. 표를 보려면:
+    ros2 run vica_description obstacle_report /home/sim/VICA-smarthandle/vica_ws/results/obstacle24/dwb_hybrid

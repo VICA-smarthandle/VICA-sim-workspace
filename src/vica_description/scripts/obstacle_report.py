@@ -45,9 +45,27 @@ import os
 import re
 import sys
 
-# Robot and walker radii, for calling a contact. 0.31 is the robot's own
-# half-diagonal without padding: the padded footprint is what nav2 plans with,
-# not what physically touches.
+# The robot's own outline, unpadded, in its own frame. From the URDF: the
+# footprint hexagon runs x -0.415 to +0.305 and y -0.225 to +0.225, and a
+# rectangle through those bounds is what this measures against.
+#
+# Not a circle. A circumscribed radius of 0.31 is right for something the robot
+# is driving at and wrong for something it is passing beside, and it is the
+# passing case that decides whether squeezing past a person was safe. Using the
+# circle reported a 0.23 m contact on a run where the robot's own trajectory
+# put its side 0.155 m clear of the walker.
+# The nav2 footprint itself, unpadded, from config/vica_nav2_params.yaml. A
+# rectangle through its bounds was the first attempt and it is wrong where it
+# matters: the hexagon's rear is cut back to +/-0.035 at x -0.415 and only
+# reaches +/-0.225 at x -0.305, and the corner that grazes a person the robot
+# is turning away from is exactly that cut one. The rectangle over-reported the
+# overlap by 0.10 m.
+ROBOT_FOOTPRINT = [
+    (0.305, 0.225), (0.305, -0.225), (-0.305, -0.225),
+    (-0.415, -0.035), (-0.415, 0.035), (-0.305, 0.225),
+]
+# Kept for the detection test, which is about how far away something is seen
+# and not about which part of the robot is nearest.
 ROBOT_R = 0.31
 STOPPED = 0.03          # m/s, below which it is stopped rather than crawling
 DECEL_FRAC = 0.90       # of cruise speed
@@ -62,6 +80,46 @@ def _read(path):
     with open(path) as fh:
         return [{k: (float(v) if v not in ("", None) else float("nan"))
                  for k, v in row.items()} for row in csv.DictReader(fh)]
+
+
+def _point_in_polygon(px, py, poly):
+    inside = False
+    n = len(poly)
+    for i in range(n):
+        x1, y1 = poly[i]
+        x2, y2 = poly[(i + 1) % n]
+        if (y1 > py) != (y2 > py):
+            xc = x1 + (py - y1) * (x2 - x1) / (y2 - y1)
+            if px < xc:
+                inside = not inside
+    return inside
+
+
+def _dist_to_segment(px, py, x1, y1, x2, y2):
+    dx, dy = x2 - x1, y2 - y1
+    n2 = dx * dx + dy * dy
+    t = 0.0 if n2 == 0 else max(0.0, min(1.0, ((px - x1) * dx + (py - y1) * dy) / n2))
+    return math.hypot(px - (x1 + t * dx), py - (y1 + t * dy))
+
+
+def _clearance(rx, ry, yaw, wx, wy, wr):
+    """Gap between the robot's outline and the walker's, in metres.
+
+    Negative means they overlap. The walker is put into the robot's frame and
+    measured against the footprint polygon, so passing beside someone is scored
+    on the robot's width, driving at them on its length, and turning away from
+    them on whichever corner is actually nearest -- which is the case that
+    matters here, because what grazes a person is the tail swinging out.
+    """
+    dx, dy = wx - rx, wy - ry
+    c, s = math.cos(-yaw), math.sin(-yaw)
+    px, py = dx * c - dy * s, dx * s + dy * c
+    n = len(ROBOT_FOOTPRINT)
+    d = min(_dist_to_segment(px, py, *ROBOT_FOOTPRINT[i],
+                             *ROBOT_FOOTPRINT[(i + 1) % n]) for i in range(n))
+    if _point_in_polygon(px, py, ROBOT_FOOTPRINT):
+        d = -d
+    return d - wr
 
 
 class _ByTime:
@@ -128,7 +186,7 @@ def analyse(trial_csv, walk_csv, meta):
         w = index.at(s["t"])
         if w is None:
             continue
-        gap = math.hypot(cross_x - s["x"], w["walker_y"] - s["y"]) - contact
+        gap = _clearance(s["x"], s["y"], s["yaw"], cross_x, w["walker_y"], wr)
         rows.append({**s, "walker_y": w["walker_y"], "walking": w["walking"],
                      "true_speed": w["robot_speed"], "gap": gap})
     if not rows:
