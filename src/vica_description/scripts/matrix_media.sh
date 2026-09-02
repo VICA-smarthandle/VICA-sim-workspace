@@ -112,7 +112,12 @@ for course in $COURSES; do
 
     xy=$(focus_xy "$course")
     if [ -n "$xy" ]; then
-        focus=(--focus point --focus-xy "$xy")
+        # "--focus-xy=..." and not "--focus-xy ...". The U-turn course's
+        # centre is at x -3.2, and argparse reads a following value that
+        # starts with a minus as another option unless it parses as a number.
+        # "-3.2,5.0" does not, so the separated form fails with "expected one
+        # argument" and the closeup silently never got made.
+        focus=(--focus point "--focus-xy=$xy")
     else
         focus=(--focus goal)
     fi
