@@ -1,0 +1,14 @@
+1단계 선별: 12조합 x 1.20 m x 3코스
+
+##############################################################
+ dwb + lattice   vica_cornercourse   폭 1.20
+##############################################################
+  controller 는 이미 dwb 입니다.
+  planner    navfn -> lattice
+  colcon build 후 nav2 를 다시 띄워야 반영됩니다.
+==============================================================
+ dwb + lattice   inflation 0.55   레인 1.20   각 1회
+ 결과 /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_cornercourse/dwb_lattice_infl0.55
+==============================================================
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3411762/cmdline: No such file or directory
+  --- 1.20 m  #1
