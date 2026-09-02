@@ -4,16 +4,16 @@
         string creator = "URDF USD Converter v0.1.3"
     }
     defaultPrim = "VICA"
-    doc = """Generated from Composed Stage of root layer /tmp/tmpl44tt13y/VICA.usdc
+    doc = """Generated from Composed Stage of root layer /tmp/tmpshfdn6r9/VICA.usdc
 
 
-Generated from Composed Stage of root layer /tmp/urdf_import_vica_21xbm69r/usdex_vica/VICA.usdc
+Generated from Composed Stage of root layer /tmp/urdf_import_vica_jiqquxca/usdex_vica/VICA.usdc
 
 
-Generated from Composed Stage of root layer /tmp/urdf_import_vica_21xbm69r/temp_vica/vica.usd
+Generated from Composed Stage of root layer /tmp/urdf_import_vica_jiqquxca/temp_vica/vica.usd
 
 
-Generated from Composed Stage of root layer robot/vica/payloads/base.usd
+Generated from Composed Stage of root layer /home/sim/vica_ws/src/vica_description/isaac_vica_assets/robot/vica_1/payloads/base.usd
 """
     kilogramsPerUnit = 1
     metersPerUnit = 1
@@ -223,7 +223,7 @@ over "VICA"
                     }
                 }
 
-                over "base_link"
+                over "base_link_mast"
                 {
                 }
 

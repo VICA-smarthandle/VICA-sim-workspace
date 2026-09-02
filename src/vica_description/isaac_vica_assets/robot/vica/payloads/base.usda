@@ -4,16 +4,16 @@
         string creator = "URDF USD Converter v0.1.3"
     }
     defaultPrim = "VICA"
-    doc = """Generated from Composed Stage of root layer /tmp/tmpl44tt13y/VICA.usdc
+    doc = """Generated from Composed Stage of root layer /tmp/tmpshfdn6r9/VICA.usdc
 
 
-Generated from Composed Stage of root layer /tmp/urdf_import_vica_21xbm69r/usdex_vica/VICA.usdc
+Generated from Composed Stage of root layer /tmp/urdf_import_vica_jiqquxca/usdex_vica/VICA.usdc
 
 
-Generated from Composed Stage of root layer /tmp/urdf_import_vica_21xbm69r/temp_vica/vica.usd
+Generated from Composed Stage of root layer /tmp/urdf_import_vica_jiqquxca/temp_vica/vica.usd
 
 
-Generated from Composed Stage of root layer robot/vica/payloads/base.usd
+Generated from Composed Stage of root layer /home/sim/vica_ws/src/vica_description/isaac_vica_assets/robot/vica_1/payloads/base.usd
 """
     kilogramsPerUnit = 1
     metersPerUnit = 1
@@ -31,7 +31,7 @@ def Xform "VICA" (
     kind = "component"
 )
 {
-    float3[] extentsHint = [(-0.505, -0.2265, 0.000030815678), (0.305, 0.2265, 0.86300004), (3.4028235e38, 3.4028235e38, 3.4028235e38), (-3.4028235e38, -3.4028235e38, -3.4028235e38), (3.4028235e38, 3.4028235e38, 3.4028235e38), (-3.4028235e38, -3.4028235e38, -3.4028235e38), (-0.505, -0.2159, -1.1832667e-10), (0.305, 0.2159, 0.863)]
+    float3[] extentsHint = [(-0.47800002, -0.2265, 0.000030815678), (0.305, 0.2265, 1.075), (3.4028235e38, 3.4028235e38, 3.4028235e38), (-3.4028235e38, -3.4028235e38, -3.4028235e38), (3.4028235e38, 3.4028235e38, 3.4028235e38), (-3.4028235e38, -3.4028235e38, -3.4028235e38), (-0.478, -0.2159, -1.1832667e-10), (0.305, 0.2159, 1.075)]
 
     def Scope "Materials"
     {
@@ -54,9 +54,9 @@ def Xform "VICA" (
                 double3 xformOp:translate = (0, 0, 0.19)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
 
-                def Xform "base_link" (
+                def Xform "base_link_mast" (
                     instanceable = true
-                    prepend references = @./instances.usda@</Instances/base_link>
+                    prepend references = @./instances.usda@</Instances/base_link_mast>
                 )
                 {
                     quatd xformOp:orient = (1, 0, 0, 0)
@@ -280,7 +280,7 @@ def Xform "VICA" (
                 {
                     quatf xformOp:orient = (1, 0, 0, 0)
                     float3 xformOp:scale = (1, 1, 1)
-                    double3 xformOp:translate = (0.28683, 0, 0.13)
+                    double3 xformOp:translate = (-0.225, 0, 0.81)
                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
 
                     def Cube "box" (
@@ -342,8 +342,8 @@ def Xform "VICA" (
                     uniform token purpose = "guide"
                     double size = 1
                     quatf xformOp:orient = (1, 0, 0, 0)
-                    float3 xformOp:scale = (0.24, 0.04, 0.414)
-                    double3 xformOp:translate = (-0.385, 0, 0.466)
+                    float3 xformOp:scale = (0.24, 0.04, 0.626)
+                    double3 xformOp:translate = (-0.358, 0, 0.572)
                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
                 }
             }

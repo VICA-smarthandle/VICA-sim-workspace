@@ -96,16 +96,50 @@
      the first render showed. Re-measure with a mesh scan if base_link.stl
      is ever regenerated from CAD. -->
 <xacro:property name="chassis_deck_measured_z" value="0.170" />
-<xacro:property name="chassis_mast_size" value="0.24 0.04 0.414" />
-<xacro:property name="chassis_mast_origin" value="-0.385 0 0.466" />
+<!-- The handle post, as the redesign leaves it. Bounds read off
+     meshes/base_link_mast.stl rather than copied from a drawing:
+       x  -0.478 .. -0.238   (0.24 deep, centre -0.358)
+       z   0.259 ..  0.885   base_link relative, absolute 0.449 .. 1.075
+     The old numbers described base_link.stl, whose post stopped at 0.863
+     absolute and ran back to -0.505. A collider still standing there would
+     have put a wall behind the robot that the render does not show. -->
+<xacro:property name="chassis_mast_size" value="0.24 0.04 0.626" />
+<xacro:property name="chassis_mast_origin" value="-0.358 0 0.572" />
 
 <!-- Sensor origins are relative to base_link. -->
 <xacro:property name="laser_x" value="0.185" />
 <xacro:property name="laser_y" value="0.0" />
 <xacro:property name="laser_z" value="0.192" />
-<xacro:property name="camera_x" value="0.28683" />
+<!-- Camera moved onto the handle post, following vica_ros2_ws@dev 6cb71a9.
+       camera_x  0.28683 -> -0.225   back 512 mm
+       camera_z  0.130   ->  0.810   absolute 1.000 m
+     x puts the 26 mm deep camera box's back face on -0.238, which is the
+     post's front face above. The two are flush, not guessed.
+
+     The height is 1.000 m by decision, taken when nothing had been measured
+     and vica_ros2_ws@dev still carried the 2026-08-18 design value 0.885
+     (absolute 1.075).
+
+     [미검증] The real robot has been measured since, three times, and this
+     is not any of them. vica_ros2_ws@dev now reads:
+
+         2026-08-24   ground 0.910   camera_z 0.720   first tape measure
+         2026-08-29   ground 1.025   camera_z 0.835
+         2026-08-30   ground 1.045   camera_z 0.855   after a remount
+
+     and it carries a camera_pitch of -0.0124 rad (0.7 degrees up, found by
+     fitting the floor plane in the depth cloud) that this file does not have
+     at all. So the sim robot sits 45 mm low and dead level while the real one
+     is 1.045 and tilted. That gap is a decision waiting to be made, not a
+     measurement waiting to be taken: matching it means rebuilding every stage
+     USD, and the courses in this repository were measured with the robot as
+     it stands here. Nothing downstream of this file has been re-run against
+     the real numbers. -->
+<!-- ** Anything measured on a stage built before that decision was measured
+     against a 1.000 m camera. Say so when the numbers are quoted. -->
+<xacro:property name="camera_x" value="-0.225" />
 <xacro:property name="camera_y" value="0.0" />
-<xacro:property name="camera_z" value="0.130" />
+<xacro:property name="camera_z" value="0.810" />
 
 <!-- Wheel placement. wheel_separation is the measured centre-to-centre distance.
      It is NOT the odometry constant. The real robot's encoder_feedback uses
@@ -184,10 +218,15 @@
     <mass value="16.5675"/>
     <inertia ixx="0.438065" iyy="0.660628" izz="0.759891" ixy="0.0" iyz="-0.0" ixz="0.062604"/>
   </inertial>
+  <!-- base_link_mast.stl, not base_link.stl: the same body with the rear
+       full-width rail and skirt cut away and the handle post carried up to
+       1.075 absolute, which is where the camera now mounts. Copied from
+       vica_ros2_ws@dev (55e1b0f). The collision below is still derived from
+       the primitives above, not from this mesh. -->
   <visual>
     <origin xyz="0 0 -${body_center_z}" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="package://vica_description/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+      <mesh filename="package://vica_description/meshes/base_link_mast.stl" scale="0.001 0.001 0.001"/>
     </geometry>
     <material name="body_blue"/>
   </visual>
