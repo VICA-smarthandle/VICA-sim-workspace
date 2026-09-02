@@ -53,21 +53,42 @@ except NameError:
 
 # Not in the repository: an Omniverse asset that has to be fetched. Point
 # VICA_HOSPITAL_USD at wherever it landed.
+#
+# The four VICA_ENV_* settings below make this the builder for any downloaded
+# environment, not only the hospital. Nothing about composing a stage out of
+# "somebody's building" plus "our robot" is specific to a hospital, and the
+# alternative was a second file differing in four constants and drifting from
+# this one the first time either was fixed. The hotel stand-in is:
+#
+#     VICA_ENV_USD=~/Downloads/Environments/Office/office.usd \
+#     VICA_ENV_NAME=vica_office VICA_ENV_STALE= \
+#     ./make_stage.sh build_vica_hospital_stage.py vica_office.usd
 ENVIRONMENT = os.environ.get(
-    "VICA_HOSPITAL_USD",
-    os.path.expanduser("~/Downloads/Environments/Hospital/hospital.usd"))
+    "VICA_ENV_USD",
+    os.environ.get(
+        "VICA_HOSPITAL_USD",
+        os.path.expanduser("~/Downloads/Environments/Hospital/hospital.usd")))
+ENV_NAME = os.environ.get("VICA_ENV_NAME", "vica_hospital")
+# The prim the environment is referenced under. Cosmetic, but it is what shows
+# in the stage tree, so it says which building this is.
+ENV_PRIM = os.environ.get("VICA_ENV_PRIM") or (
+    "Hospital" if ENV_NAME == "vica_hospital" else "Environment")
 ROBOT = os.path.join(HERE, "robot", "vica", "vica.usda")
-OUTPUT = os.path.join(HERE, "vica_hospital.usd")
+OUTPUT = os.path.join(HERE, ENV_NAME + ".usd")
 
 # The prim inside the environment that holds the stale robot. Deactivated
 # rather than removed: it is composed from a reference, so it cannot be removed
 # from here, and overriding it off is the operation that actually works.
-STALE_ROBOT_PRIM = "vica2"
+# Empty for environments that carry no robot of their own.
+STALE_ROBOT_PRIM = os.environ.get("VICA_ENV_STALE", "vica2")
 
 # VICA spawns at the world origin, which is where the saved hospital map places
 # it and where amcl's initial pose expects it. maps/hospital.yaml records the
-# check that (0,0) is free space there.
-ROBOT_TRANSLATE = Gf.Vec3d(0.0, 0.0, 0.0)
+# check that (0,0) is free space there. VICA_ENV_SPAWN is "x,y" for an
+# environment whose origin is inside a wall.
+_spawn = os.environ.get("VICA_ENV_SPAWN")
+ROBOT_TRANSLATE = Gf.Vec3d(*[float(v) for v in _spawn.split(",")], 0.0) \
+    if _spawn else Gf.Vec3d(0.0, 0.0, 0.0)
 
 # The variant that carries the robot's rigid bodies and joints. See the note
 # where it is applied.
@@ -96,14 +117,15 @@ def main():
     stage.SetDefaultPrim(world.GetPrim())
 
     # ---- environment ------------------------------------------------------
-    hospital = UsdGeom.Xform.Define(stage, "/World/Hospital")
-    hospital.GetPrim().GetReferences().AddReference(
+    env = UsdGeom.Xform.Define(stage, f"/World/{ENV_PRIM}")
+    env.GetPrim().GetReferences().AddReference(
         _relative(ENVIRONMENT, HERE)
     )
 
-    stale = stage.OverridePrim(f"/World/Hospital/{STALE_ROBOT_PRIM}")
-    if stale:
-        stale.SetActive(False)
+    if STALE_ROBOT_PRIM:
+        stale = stage.OverridePrim(f"/World/{ENV_PRIM}/{STALE_ROBOT_PRIM}")
+        if stale:
+            stale.SetActive(False)
 
     # ---- robot ------------------------------------------------------------
     robot = UsdGeom.Xform.Define(stage, "/World/VICA")
@@ -188,7 +210,9 @@ def main():
     print(f"wrote               : {OUTPUT}")
     print(f"environment         : {_relative(ENVIRONMENT, HERE)}")
     print(f"robot               : {_relative(ROBOT, HERE)}")
-    print(f"stale robot         : /World/Hospital/{STALE_ROBOT_PRIM} deactivated")
+    print(f"stale robot         : "
+          f"{'/World/' + ENV_PRIM + '/' + STALE_ROBOT_PRIM + ' deactivated' if STALE_ROBOT_PRIM else '없음'}")
+    print(f"robot spawn         : {tuple(round(v, 3) for v in ROBOT_TRANSLATE)}")
     print(f"articulation roots  : {arts}")
     print(f"colliders in stage  : {colliders}")
     if len(arts) != 1:

@@ -138,6 +138,37 @@ def pick(runs, prefer):
     return max(runs, key=lambda r: len(r["track"]))
 
 
+def _view_for(args, xs, ys, goal, sides):
+    """The rectangle the frame covers.
+
+    The default fits the whole run in, which is the right choice for reading a
+    path and the wrong one for reading the robot. A corner trial approaches
+    along 27 m of corridor and turns inside 3 m of it; framed on the track, the
+    robot is four pixels across and the corner it is negotiating is a smudge in
+    one edge. --focus goal --window 8 puts the corner across the frame with the
+    robot large enough to see which way its handle is pointing.
+
+    Nothing is cropped in either case. The axes keep an equal aspect, so a
+    window narrower than the figure is padded rather than cut.
+    """
+    if args.focus == "track":
+        return (min(xs) - 2.0,
+                max(xs) - min(xs) < 4 and min(xs) + 4.0 or max(xs) + 2.0,
+                min(min(ys), goal[1]) - 1.5,
+                max(max(ys), goal[1]) + 1.5)
+
+    w = args.window if args.window else 8.0
+    if args.focus == "goal":
+        cx, cy = goal[0], goal[1]
+    elif args.focus == "start":
+        cx, cy = sides[0]["track"][0][1], sides[0]["track"][0][2]
+    else:
+        if not args.focus_xy:
+            raise SystemExit("--focus point 에는 --focus-xy 'x,y' 가 필요합니다")
+        cx, cy = (float(v) for v in args.focus_xy.split(","))
+    return (cx - w / 2.0, cx + w / 2.0, cy - w / 2.0, cy + w / 2.0)
+
+
 def draw_course(ax, walls, view):
     for x, y, w, h in walls:
         ax.add_patch(Rectangle((x, y), w, h, facecolor="#444", edgecolor="none",
@@ -223,6 +254,19 @@ def main():
     ap.add_argument("--fps", type=int, default=20)
     ap.add_argument("--dpi", type=int, default=200,
                     help="still resolution; 200 is print quality")
+    ap.add_argument("--focus", default="track",
+                    choices=("track", "goal", "start", "point"),
+                    help="what the frame is built around. track fits the whole "
+                         "run in, which is right for seeing a path and wrong "
+                         "for seeing the robot: over a 27 m approach it becomes "
+                         "a smear. goal or start centres a window on one end, "
+                         "point takes --focus-xy.")
+    ap.add_argument("--window", type=float, default=None,
+                    help="metres across, for the focused views. Default 8, "
+                         "which holds a corner cell, a crossing or a dead end "
+                         "with the 0.83 m robot still large enough to read.")
+    ap.add_argument("--focus-xy", default=None,
+                    help='"x,y" for --focus point')
     ap.add_argument("--stride", type=int, default=8,
                     help="use every Nth track sample; tracks are ~1400 long")
     args = ap.parse_args()
@@ -253,8 +297,7 @@ def main():
     xs = [p[1] for s in sides for p in s["track"]]
     ys = [p[2] for s in sides for p in s["track"]]
     goal = sides[0]["goal"] or [0, 0]
-    view = (min(xs) - 2.0, max(xs) - min(xs) < 4 and min(xs) + 4.0 or max(xs) + 2.0,
-            min(min(ys), goal[1]) - 1.5, max(max(ys), goal[1]) + 1.5)
+    view = _view_for(args, xs, ys, goal, sides)
 
     storyboard(sides, walls, view, args.width, args.out)
 
