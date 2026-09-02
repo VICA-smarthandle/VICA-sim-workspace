@@ -35,7 +35,7 @@ SHARE=$(ros2 pkg prefix vica_description)/share/vica_description
 mkdir -p "$OUT"
 
 declare -A WIDE=( [vica_cornercourse]=9 [vica_avoidcourse]=9 [vica_uturncourse]=10 )
-declare -A NEAR=( [vica_cornercourse]=5 [vica_avoidcourse]=4 [vica_uturncourse]=7 )
+declare -A NEAR=( [vica_cornercourse]=5 [vica_avoidcourse]=4 [vica_uturncourse]=5 )
 
 # What the closeup is centred on, per course, read out of the course's own
 # spec rather than guessed.
@@ -58,9 +58,11 @@ if lane is None:
 if "gap_centre_x" in lane:                       # avoid: beside the block
     y = spec["block"]["y"]
     print(f'{lane["gap_centre_x"]},{(y[0] + y[1]) / 2.0}')
-elif lane.get("turn") == "uturn":                # uturn: at the dead end
-    x, y = lane["entry"]
-    print(f'{x},{y + float(spec.get("deadend_len", 4.0)) / 2.0}')
+elif lane.get("turn") == "uturn":                # uturn: where it turns
+    # The entry pose, not half a corridor further in. deadend_len measures the
+    # corridor from its mouth, and adding half of it put the frame above the
+    # dead end wall with the turn itself down in a corner.
+    print(",".join(str(v) for v in lane["entry"]))
 else:                                            # corner: at the corner
     print(",".join(str(v) for v in lane["exit"]))
 PY2
