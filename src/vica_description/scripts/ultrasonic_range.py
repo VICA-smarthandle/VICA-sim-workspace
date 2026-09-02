@@ -91,18 +91,35 @@ PROBES = (
 class UltrasonicRange(Node):
     def __init__(self):
         super().__init__("ultrasonic_range")
-        # Best effort, matching what a sensor driver publishes and what the
-        # costmap layer subscribes with. Reliable here would leave the
-        # subscription incompatible and the layer would see nothing at all,
-        # silently -- the failure looks like a probe that reports no obstacle.
-        qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT)
+        # Default QoS on the Range, depth 10, which is exactly what the robot's
+        # own driver uses: create_publisher(Range, t, 10) in
+        # user_guidance_driver_node. Anything else here is a difference between
+        # sim and hardware that nav2 can see.
+        #
+        # An earlier version published best effort, on the reasoning that a
+        # sensor driver does and that reliable would leave the costmap layer
+        # incompatible. Both halves were wrong. The driver publishes reliable,
+        # and compatibility only fails the other way round: a reliable
+        # publisher feeds a best effort subscriber perfectly well, while a best
+        # effort publisher feeds a reliable one nothing at all. RViz asks for
+        # reliable, so the cones simply never appeared:
+        #
+        #   New publisher discovered on topic '/ultrasonic/front_left',
+        #   offering incompatible QoS. No messages will be sent to it.
+        #   Last incompatible policy: RELIABILITY_QOS_POLICY
+        #
+        # The subscription keeps best effort. Isaac's LaserScan is published
+        # reliable, and a best effort subscriber takes that happily; asking for
+        # reliable off a sensor stream only buys retransmissions of scans that
+        # are already stale by the time they arrive.
+        sub_qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT)
         self._pubs = {}
         for scan_topic, range_topic in PROBES:
-            pub = self.create_publisher(Range, range_topic, qos)
+            pub = self.create_publisher(Range, range_topic, 10)
             self._pubs[scan_topic] = pub
             self.create_subscription(
                 LaserScan, scan_topic,
-                lambda msg, t=scan_topic: self._on_scan(msg, t), qos)
+                lambda msg, t=scan_topic: self._on_scan(msg, t), sub_qos)
             self.get_logger().info(f"{scan_topic} -> {range_topic}")
 
     def _on_scan(self, msg, scan_topic):

@@ -75,24 +75,55 @@ CAMERA_DEPTH_SUFFIX = (
 LEFT_WHEEL_JOINT = "left_wheel_joint"
 RIGHT_WHEEL_JOINT = "right_wheel_joint"
 
-# 0.387, the robot's own wheel_base_m, by decision on 2026-09-02.
+# 0.4658, which is not a distance. It is the number that makes this robot turn
+# at the rate it is asked to, and it is 20 % larger than the wheels are apart.
 #
-# This file used 0.364, the tape-measured centre-to-centre distance, on the
-# argument that 0.37 was an odometry correction absorbing tyre scrub that PhysX
-# does not reproduce. That argument is weaker now: encoder.yaml moved to 0.387
-# on 2026-08-30 off a bag measurement, comparing IMU against wheel yaw over ten
-# turns, and the wheels were found to overstate rotation by 4.7 %. The check
-# afterwards (run1139) put IMU/wheel at 1.010, inside one percent.
+# The history matters, because the value has now been three things. It was
+# 0.364, the tape-measured centre-to-centre distance. On 2026-09-02 it became
+# 0.387 to match the robot's own encoder.yaml, which had moved there on
+# 2026-08-30 off a bag comparing IMU against wheel yaw over ten turns. Both
+# choices were about agreeing with a number elsewhere. Neither was ever checked
+# against what the simulated robot actually did.
 #
-# The two uses are still opposite directions of the same number -- the robot
-# reads wheel rotation to infer yaw, this writes yaw to command wheels -- so
-# matching them is a choice rather than a correction. Made deliberately, to
-# keep one fewer difference between the two.
+# Checked now, on a stage whose physics finally works -- the robot spent a
+# month settled 48 mm into the floor -- with the wheels driven directly and the
+# yaw read off the articulation's own transform. Commanded against delivered:
+#
+#     wheelDistance 0.387     0.20 -> 0.157   0.30 -> 0.243
+#                             0.40 -> 0.332   0.50 -> 0.426    mean 0.83
+#     wheelDistance 0.4658    0.20 -> 0.187   0.30 -> 0.298
+#                             0.40 -> 0.409   0.50 -> 0.522    mean 1.02
+#
+# So the stage was giving up a sixth of every turn, smoothly and repeatably,
+# and nav2 was being asked to corner with a robot that would not rotate.
+#
+# The physical robot does the opposite. measure_rotation.py records it
+# overshooting a 360 degree command by 5 to 10 degrees on 2026-08-07 and never
+# falling short, which is about +1.5 %. A mean of 1.02 is therefore closer to
+# the robot than a mean of 1.00 would be, and this is not tuned further.
+#
+# Why a scale factor rather than a fix: the wheels deliver their commanded rate
+# exactly -- straight-line driving measures 100.0 to 100.5 % at every speed from
+# 0.039 to 0.500 m/s -- so the loss is in the ground, not the drive. Two casters
+# 0.376 m behind the drive axle have to swivel and scrub through every turn,
+# and grippy drive tyres resist the lateral slip that lets them. That is real,
+# it is what a real castored robot does, and the real one loses about 4.7 % to
+# it where this loses 17 %. Closing that gap properly means matching tyre and
+# caster friction to a floor nobody has measured. Scaling the command is what
+# the robot's own team did with the same number in the other direction.
+#
+# Nothing downstream is made inconsistent by this. The stage's odometry is
+# computed by Isaac from the chassis prim's transform, not integrated from
+# wheel encoders, so /odom keeps reporting the truth whatever this is set to.
+# The only thing it changes is that a commanded yaw rate now arrives.
 #
 # It does not affect straight-line driving: wheelDistance drops out of the
 # formula when angular velocity is zero.
+#
+# To re-measure: yaw_isaac.py in the session scratchpad, or measure_rotation.py
+# for a version that runs on the robot too.
 WHEEL_RADIUS = 0.065
-WHEEL_DISTANCE = 0.387
+WHEEL_DISTANCE = 0.4658
 
 # --------------------------------------------------------------------------
 # Publish gating

@@ -22,6 +22,33 @@ carries 64 position and 16 velocity iterations, set in fixup_vica_usd_joints.py,
 which moves that floor to about 0.25. The figures below predate that change and
 are the shape of what is left, not of what was worst.
 
+[해결 2026-09-02] The tables below are history. They were taken on stages
+where the robot was settled 48 mm into the floor with its wheels not colliding
+with it at all, which is why one of them contains a rotation of -6.321 rad/s.
+Two faults caused that -- a camera_link with no mass, and a 50 m floor box
+PhysX would not collide small colliders against -- and both are fixed.
+
+Measured again the same evening, with the wheels driven directly and the yaw
+read off the articulation's own transform, the numbers are steady and monotonic
+for the first time:
+
+    wheelDistance 0.387     0.20 -> 0.157   0.30 -> 0.243
+                            0.40 -> 0.332   0.50 -> 0.426     mean 0.83
+    wheelDistance 0.4658    0.20 -> 0.187   0.30 -> 0.298
+                            0.40 -> 0.409   0.50 -> 0.522     mean 1.02
+
+So the deficit was real, it was about a sixth of every turn, and it is now
+compensated in build_vica_ros_graphs.py, which explains the choice at length.
+The reading below that survives is the last paragraph of the diagnosis: the
+wheels deliver their commanded rate exactly and the yaw is short, so it is the
+ground giving way, not the drive. Straight-line driving measures 100.0 to
+100.5 % of command at every speed from 0.039 to 0.500 m/s.
+
+The physical robot's figure in the same units is +1.5 %, from the 2026-08-07
+overshoot noted below.
+
+The old text is kept because the wrong turns in it are instructive.
+
 [미검증] ** The table below does not reproduce. Do not cite it. **
 
 Simulation, measured 2026-08-06 in open floor space, twice by different means
