@@ -44,6 +44,19 @@ WALL_MIN_TOP = 0.15
 # 0.1 seconds, and the run looks like a controller that cannot leave the start.
 ROBOT_SUBTREE = "/World/VICA"
 
+# The low obstacles are left out of the map on purpose.
+#
+# They are 0.25 m tall, which clears WALL_MIN_TOP, so without this they would
+# be baked in as walls and the planner would route around them before the run
+# even starts. The ultrasonic layer would then have nothing to contribute and
+# a run with the probes enabled would look exactly like a run without them.
+#
+# Leaving them out is also the more honest building: a box on the floor is not
+# part of the floor plan. The planner plans straight through, the local costmap
+# has to notice, and noticing is the probes' whole job -- the lidar sweeps
+# 0.382 above the ground and the depth band starts at 0.30, so neither sees it.
+LOW_OBSTACLE_NAME = "LowBox"
+
 
 def read_walls(stage_path):
     from pxr import Usd, UsdGeom
@@ -54,6 +67,8 @@ def read_walls(stage_path):
     walls = []
     for prim in stage.Traverse():
         if str(prim.GetPath()).startswith(ROBOT_SUBTREE):
+            continue
+        if prim.GetName() == LOW_OBSTACLE_NAME:
             continue
         if not prim.IsA(UsdGeom.Cube):
             continue

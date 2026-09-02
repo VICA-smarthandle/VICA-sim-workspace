@@ -117,6 +117,46 @@ def _course_extent():
     return x_min, x_max, -APPROACH_DEPTH, _lane_height() + EXIT_DEPTH
 
 
+# --------------------------------------------------------------------------
+# Low obstacle
+# --------------------------------------------------------------------------
+# A box too short for the lidar or the depth band to see. The lidar sweeps at
+# 0.382 above the ground and the costmap's depth_scan band starts at 0.30, so
+# at 0.25 this is invisible to both; the ultrasonic probes sit at 0.091 and it
+# is the only thing that sees it.
+#
+# Without one of these the probes are decoration. Every wall in these courses
+# is 1.5 m tall and the lidar reports all of it, so a run with the ultrasonic
+# layers enabled and a run without them would produce identical numbers, and
+# the layers would be untested rather than shown to work.
+#
+# Width is derived, not chosen. A fixed 0.30 m box in a 0.80 m lane leaves
+# 0.50, and the padded footprint is 0.505 wide -- the lane would be sealed and
+# the trial would measure a wall. This leaves at least LOW_MIN_GAP free.
+LOW_OBSTACLE = os.environ.get("VICA_LOW_OBSTACLE", "1") not in ("0", "false", "")
+LOW_HEIGHT = 0.25
+LOW_DEPTH = 0.30           # along the direction of travel
+LOW_MIN_GAP = 0.62         # padded width 0.505, plus a little
+LOW_MAX_WIDTH = 0.30
+
+
+def _low_width(lane_width):
+    """How far the box may intrude, leaving LOW_MIN_GAP to pass through."""
+    return max(0.0, min(LOW_MAX_WIDTH, lane_width - LOW_MIN_GAP))
+
+
+def _low_box(stage, path, x0, y0, x1, y1):
+    cube = UsdGeom.Cube.Define(stage, path)
+    cube.CreateSizeAttr(1.0)
+    prim = cube.GetPrim()
+    xf = UsdGeom.Xformable(prim)
+    xf.AddTranslateOp().Set(
+        Gf.Vec3d((x0 + x1) / 2.0, (y0 + y1) / 2.0, LOW_HEIGHT / 2.0))
+    xf.AddScaleOp().Set(Gf.Vec3f(abs(x1 - x0), abs(y1 - y0), LOW_HEIGHT))
+    UsdPhysics.CollisionAPI.Apply(prim)
+    return prim
+
+
 def _wall(stage, path, x0, y0, x1, y1):
     cube = UsdGeom.Cube.Define(stage, path)
     cube.CreateSizeAttr(1.0)
@@ -178,6 +218,22 @@ def _lane(stage, index, gap):
         bx0, bx1 = xc - w / 2 + gap, xc + w / 2
         gap_centre = xc - w / 2 + gap / 2
     _wall(stage, f"{root}/Block", bx0, y0, bx1, y1)
+
+    # A second obstacle in the gap itself, too short to be seen by anything but
+    # the probes. Placed against the wall the tall block does NOT come from, so
+    # the robot squeezing past the block on that side meets it there. The gap
+    # is what the lane measures, so narrowing the gap is where a low obstacle
+    # changes the answer rather than merely appearing in it.
+    lw = _low_width(gap)
+    if LOW_OBSTACLE and lw > 0:
+        y = y0 + BLOCK_DEPTH / 2.0
+        if index % 2 == 0:
+            lx0, lx1 = xc + w / 2 - lw, xc + w / 2
+        else:
+            lx0, lx1 = xc - w / 2, xc - w / 2 + lw
+        _low_box(stage, f"{root}/LowBox", lx0, y - LOW_DEPTH / 2,
+                 lx1, y + LOW_DEPTH / 2)
+
     return h, gap_centre
 
 

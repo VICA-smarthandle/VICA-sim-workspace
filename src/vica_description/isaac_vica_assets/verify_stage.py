@@ -218,30 +218,51 @@ if len(drive_prims) != len(DRIVE_JOINTS):
 elif not arts:
     check("구동 검사 가능", False, "articulation root 없음")
 else:
-    for prim in drive_prims:
-        a = prim.GetAttribute("drive:angular:physics:targetVelocity")
-        if not a:
-            a = prim.CreateAttribute("drive:angular:physics:targetVelocity",
-                                     Sdf.ValueTypeNames.Float)
-        # Isaac's angular drive targets are degrees per second.
-        a.Set(math.degrees(DRIVE_RAD_S))
+    # Isaac's angular drive targets are degrees per second.
+    # Settle, then measure, and allow one retry.
+    #
+    # This is the second play in the process: the drift check above already
+    # played and stopped, and a stop resets the articulation. The first frames
+    # after the second play are the solver picking the robot back up, and
+    # measuring across them read 0.002 m on a stage that does 0.596 m
+    # standalone. A gate that fails at random blocks builds for no reason and
+    # teaches everyone to rerun it until it passes, which is the same as not
+    # having one.
+    SETTLE_FRAMES = 60
 
-    timeline.play()
-    q0 = world_xyz(arts[0])
-    t0 = time.monotonic()
-    moved = 0.0
-    while time.monotonic() - t0 < DRIVE_SECONDS:
-        simulation_app.update()
-        q = world_xyz(arts[0])
-        if q is not None and q0 is not None:
-            moved = max(moved, math.hypot(q[0] - q0[0], q[1] - q0[1]))
-    timeline.stop()
-    for prim in drive_prims:
-        prim.GetAttribute("drive:angular:physics:targetVelocity").Set(0.0)
+    def _attempt():
+        for prim in drive_prims:
+            a = prim.GetAttribute("drive:angular:physics:targetVelocity")
+            if not a:
+                a = prim.CreateAttribute("drive:angular:physics:targetVelocity",
+                                         Sdf.ValueTypeNames.Float)
+            a.Set(math.degrees(DRIVE_RAD_S))
+        timeline.play()
+        for _ in range(SETTLE_FRAMES):
+            simulation_app.update()
+        start = world_xyz(arts[0])
+        t0 = time.monotonic()
+        travelled = 0.0
+        while time.monotonic() - t0 < DRIVE_SECONDS:
+            simulation_app.update()
+            q = world_xyz(arts[0])
+            if q is not None and start is not None:
+                travelled = max(travelled,
+                                math.hypot(q[0] - start[0], q[1] - start[1]))
+        timeline.stop()
+        for prim in drive_prims:
+            prim.GetAttribute("drive:angular:physics:targetVelocity").Set(0.0)
+        return travelled
+
+    moved = _attempt()
+    retried = False
+    if moved < MIN_TRAVEL:
+        retried = True
+        moved = _attempt()
 
     check("바퀴를 돌리면 실제로 나아감", moved >= MIN_TRAVEL,
           f"{DRIVE_SECONDS:.0f}초 {DRIVE_RAD_S:.1f} rad/s 로 {moved:.3f} m "
-          f"(최소 {MIN_TRAVEL} m)")
+          f"(최소 {MIN_TRAVEL} m)" + ("  [재시도함]" if retried else ""))
 
 print()
 if failures:
