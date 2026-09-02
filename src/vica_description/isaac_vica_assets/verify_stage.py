@@ -261,7 +261,10 @@ print(f"\n--- 구동 검사", flush=True)
 DRIVE_JOINTS = ["left_wheel_joint", "right_wheel_joint"]
 DRIVE_RAD_S = 4.0        # about 0.26 m/s at the 0.065 m wheel radius
 DRIVE_SECONDS = 3.0
-MIN_TRAVEL = 0.10        # 3 s at 0.26 m/s is 0.78; a tenth of that is generous
+# 3 s at 0.26 m/s is 0.78 m. 0.30 is well under that and well over the 0.19 m
+# the wall-clock version returned on stages that were working, so a regression
+# to that behaviour is caught rather than passed.
+MIN_TRAVEL = 0.30
 
 drive_prims = []
 for prim in stage.Traverse():
@@ -285,6 +288,21 @@ else:
     # teaches everyone to rerun it until it passes, which is the same as not
     # having one.
     SETTLE_FRAMES = 60
+    # Counted in frames, not seconds off a wall clock.
+    #
+    # The clock version failed a stage the robot drives perfectly on. That
+    # stage runs at 24 per cent of real time, so three wall seconds are 0.72
+    # simulated ones and 4 rad/s covers 0.19 m, which is exactly what every
+    # passing stage measured: 0.178, 0.182, 0.195. It was never measuring three
+    # seconds of driving. On a heavier stage the same window held almost no
+    # physics steps and the check read 0.000 m twice running, while driving the
+    # same stage directly gave 100 per cent of commanded speed at every speed
+    # from 0.13 to 0.52 m/s.
+    #
+    # A gate that fails on how busy the machine is teaches everyone to re-run
+    # it until it passes, which is the same as not having one.
+    SIM_DT = 1.0 / 60.0
+    DRIVE_FRAMES = int(DRIVE_SECONDS / SIM_DT)
 
     def _attempt():
         for prim in drive_prims:
@@ -297,9 +315,8 @@ else:
         for _ in range(SETTLE_FRAMES):
             simulation_app.update()
         start = world_xyz(arts[0])
-        t0 = time.monotonic()
         travelled = 0.0
-        while time.monotonic() - t0 < DRIVE_SECONDS:
+        for _ in range(DRIVE_FRAMES):
             simulation_app.update()
             q = world_xyz(arts[0])
             if q is not None and start is not None:
@@ -317,7 +334,7 @@ else:
         moved = _attempt()
 
     check("바퀴를 돌리면 실제로 나아감", moved >= MIN_TRAVEL,
-          f"{DRIVE_SECONDS:.0f}초 {DRIVE_RAD_S:.1f} rad/s 로 {moved:.3f} m "
+          f"시뮬 {DRIVE_SECONDS:.0f}초 {DRIVE_RAD_S:.1f} rad/s 로 {moved:.3f} m "
           f"(최소 {MIN_TRAVEL} m)" + ("  [재시도함]" if retried else ""))
 
 print()

@@ -41,3 +41,18 @@ obstacle_sweep.sh: line 65: /proc/3835347/cmdline: No such file or directory
 obstacle_sweep.sh: line 62: 3838087 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_obstacle_nav2.log 2>&1
 obstacle_sweep.sh: line 65: /proc/3839628/cmdline: No such file or directory
 obstacle_sweep.sh: line 65: /proc/3839674/cmdline: No such file or directory
+  timeout, 3601 표본 -> /home/sim/VICA-smarthandle/vica_ws/results/obstacle/trigger_2.0_r1.csv
+
+  --- 등장거리 1.5 m  #1
+obstacle_sweep.sh: line 62: 3842327 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_obstacle_nav2.log 2>&1
+obstacle_sweep.sh: line 65: /proc/3844089/cmdline: No such file or directory
+  timeout, 3601 표본 -> /home/sim/VICA-smarthandle/vica_ws/results/obstacle/trigger_1.5_r1.csv
+
+  --- 등장거리 1.0 m  #1
+obstacle_sweep.sh: line 62: 3846795 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_obstacle_nav2.log 2>&1
+obstacle_sweep.sh: line 65: /proc/3848373/cmdline: No such file or directory
+  timeout, 3601 표본 -> /home/sim/VICA-smarthandle/vica_ws/results/obstacle/trigger_1.0_r1.csv
+obstacle_sweep.sh: line 115: s: command not found
+  failed, 27 표본 -> /home/sim/VICA-smarthandle/vica_ws/results/obstacle/trigger_1.0_r1.csv
+obstacle_sweep.sh: line 122: syntax error near unexpected token `done'
+obstacle_sweep.sh: line 122: `    done'
