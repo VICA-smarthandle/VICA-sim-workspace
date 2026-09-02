@@ -36,6 +36,7 @@ and two more that decide whether the numbers were enough:
 """
 
 import argparse
+import bisect
 import csv
 import glob
 import json
@@ -58,13 +59,31 @@ def _read(path):
                  for k, v in row.items()} for row in csv.DictReader(fh)]
 
 
-def _nearest_by_x(walk, x):
-    best, bd = None, float("inf")
-    for w in walk:
-        d = abs(w["robot_x"] - x)
-        if d < bd:
-            best, bd = w, d
-    return best
+class _ByX:
+    """Walk rows, findable by the robot's x.
+
+    A linear scan per sample is 3600 trial rows against 10800 walk rows, which
+    is forty million comparisons and about half a minute of a report that
+    should be instant. Bisection over a sorted copy does the same job; the
+    robot's x is not monotonic once it stops and backs up, so this sorts rather
+    than assuming.
+    """
+
+    def __init__(self, walk):
+        self.rows = sorted(walk, key=lambda w: w["robot_x"])
+        self.keys = [w["robot_x"] for w in self.rows]
+
+    def at(self, x):
+        if not self.rows:
+            return None
+        i = bisect.bisect_left(self.keys, x)
+        best, bd = None, float("inf")
+        for j in (i - 1, i, i + 1):
+            if 0 <= j < len(self.rows):
+                d = abs(self.keys[j] - x)
+                if d < bd:
+                    best, bd = self.rows[j], d
+        return best
 
 
 def analyse(trial_csv, walk_csv, meta):
@@ -77,9 +96,10 @@ def analyse(trial_csv, walk_csv, meta):
     cross_x = float(meta.get("walker", {}).get("cross_x", 0.0))
     contact = ROBOT_R + wr
 
+    index = _ByX(walk)
     rows = []
     for s in trial:
-        w = _nearest_by_x(walk, s["x"])
+        w = index.at(s["x"])
         if w is None:
             continue
         gap = math.hypot(cross_x - s["x"], w["walker_y"] - s["y"]) - contact
@@ -105,9 +125,14 @@ def analyse(trial_csv, walk_csv, meta):
         return None
 
     us_max = 1.50
+    # The lidar sits near the robot's centre, so the distance it should read to
+    # the walker is the gap plus the robot's own half-diagonal: gap is measured
+    # surface to surface and already has both radii taken out of it. Reading
+    # shorter than that by CLEAR_MARGIN means something is there that was not
+    # there before.
     seen = first(
         lambda r: (r["us_left"] < us_max - 0.01 or r["us_right"] < us_max - 0.01
-                   or r["scan_ahead"] < r["gap"] + contact + CLEAR_MARGIN),
+                   or r["scan_ahead"] < r["gap"] + ROBOT_R + CLEAR_MARGIN),
         walking)
     decel = first(lambda r: r["cmd_vx"] < cruise * DECEL_FRAC, walking) \
         if cruise == cruise else None
