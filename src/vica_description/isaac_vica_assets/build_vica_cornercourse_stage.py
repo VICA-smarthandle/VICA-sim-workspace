@@ -13,22 +13,27 @@ stretch runs 5.4 m, 1.00 m when it runs 0.6 m.
 
 Neither asks the robot to turn while it is in there. That matters here more
 than it would on most robots, because turning is where this one's footprint
-stops being 0.555 m wide and starts being 1.3012 m across:
+stops being its width and starts being its circumscribed circle:
 
-    padded width, travelling straight      0.555 m
-    padded circumscribed diameter          1.3012 m
+    padded width, travelling straight      0.505 m
+    padded circumscribed diameter          0.945 m
 
-The 1.3012 comes from the handle, 0.645 m behind base_link once padded. Going
-straight the handle is 0.085 m off axis and irrelevant; pivoting, it sweeps the
-whole circle. A corridor the robot fits through can therefore be a corridor it
-cannot turn in, and nothing measured so far would have shown that.
+2026-09-02: both numbers moved. The robot's body was shortened on 2026-08-29
+(handle 19 -> 11 cm, body 80 -> 72 cm) and the footprint here followed, so the
+circumscribed diameter went 1.301 -> 0.945 and the padded width 0.555 -> 0.505.
+Every corner result recorded before that date was measured on the wider robot
+and is not comparable to one recorded after.
 
-The widths bracket that diameter deliberately: 1.80 and 1.60 above it, 1.30 on
-it, 1.20 and 1.10 below. If the corner limit sits near 1.30 the sweep is about
-the circumscribed circle. If it sits near 1.20, the same place the straight
-corridor failed, then cornering costs nothing extra and the circle is not the
-binding constraint. Either answer is worth having and the sweep cannot give
-both.
+The diameter still comes from the handle, now 0.465 m behind base_link once
+padded. Going straight the handle is 0.085 m off axis and irrelevant;
+pivoting, it sweeps the whole circle. A corridor the robot fits through can
+therefore be a corridor it cannot turn in, and nothing else measured here
+would have shown that.
+
+The default widths bracket the new diameter: 1.50 and 1.20 above it, 1.00 just
+above, 0.90 and 0.80 below. If the corner limit sits near 0.945 the sweep is
+about the circumscribed circle. If it sits higher, cornering costs something
+the circle does not explain. Either answer is worth having.
 
 Geometry
 --------
@@ -77,7 +82,7 @@ WALL_HEIGHT = 1.5
 FLOOR_MARGIN = 2.0
 FLOOR_THICKNESS = 0.5
 
-# Bracketing the padded circumscribed diameter, 1.3012 m.
+# Bracketing the padded circumscribed diameter, 0.9454 m.
 #
 # Overridable so a single width can be built and probed without editing the
 # sweep. That is not a convenience: the first build of this course failed its
@@ -88,7 +93,7 @@ FLOOR_THICKNESS = 0.5
 #     VICA_CORNER_WIDTHS=3.00 build_vica_cornercourse_stage.py
 CORNER_WIDTHS = [float(v) for v in
                  os.environ.get("VICA_CORNER_WIDTHS",
-                                "1.80,1.60,1.40,1.30,1.20,1.10").split(",")]
+                                "0.80,0.90,1.00,1.20,1.50").split(",")]
 
 ENTRY_LEN = 3.0          # northbound run before the corner
 EXIT_LEN = 3.0           # run along the turn after it
@@ -278,14 +283,14 @@ def main():
         ],
         "entry_len": ENTRY_LEN,
         "exit_len": EXIT_LEN,
-        "circumscribed_diameter": 1.3012,
+        "circumscribed_diameter": 0.9454,
     }
     with open(TARGETS, "w") as fh:
         json.dump(spec, fh, indent=2)
 
     print(f"wrote {OUTPUT}")
     print(f"wrote {TARGETS}")
-    print(f"  widths {CORNER_WIDTHS}  (circumscribed diameter 1.3012)")
+    print(f"  widths {CORNER_WIDTHS}  (circumscribed diameter 0.9454)")
     print(f"  entry {ENTRY_LEN} m, exit {EXIT_LEN} m, pitch {LANE_PITCH} m")
     print(f"  extent x {x_min:.2f}..{x_max:.2f}  y {y_min:.2f}..{y_max:.2f}")
     for i, w in enumerate(CORNER_WIDTHS):

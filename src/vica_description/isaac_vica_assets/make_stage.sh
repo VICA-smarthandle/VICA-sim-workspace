@@ -99,10 +99,21 @@ set +e
 rc=$?
 set -e
 grep -E "^---|^  (PASS|FAIL)|실패|전부 통과" /tmp/vica_verify.log || tail -20 /tmp/vica_verify.log
-if [ "$rc" -ne 0 ]; then
+# The exit code is read AND the log is read, for the same reason the prepare
+# step above does it. Isaac's SimulationApp.close() ends the process with
+# status 0 of its own accord, and verify_stage.py calls close() before its
+# sys.exit(1) -- so a stage that failed a check returned 0 here.
+#
+# That is not hypothetical. On 2026-09-02 the hospital stage failed "높이가
+# 변하지 않음" with the robot 66.8 m below the floor, this line read rc=0, and
+# stamp_verified.py below marked it verified. The trial harness accepts a
+# stamped stage, so the next run would have measured a robot in freefall and
+# produced a table of numbers about it.
+if [ "$rc" -ne 0 ] || grep -qE "^  FAIL|^  실패 [0-9]+건" /tmp/vica_verify.log; then
     echo
     echo "검증 실패 -- 이 스테이지로 측정하지 마십시오."
-    exit "$rc"
+    [ "$rc" -eq 0 ] && echo "(종료 코드는 0 이었습니다. 로그로 판정했습니다.)"
+    exit 1
 fi
 
 # Stamped by a process that never played the stage. See stamp_verified.py.

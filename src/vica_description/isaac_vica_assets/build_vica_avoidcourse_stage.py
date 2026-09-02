@@ -84,7 +84,7 @@ FLOOR_THICKNESS = 0.5
 # the failing range do not overlap, so the existing table cannot speak to the
 # failure at all.
 GAP_WIDTHS = [float(w) for w in os.environ["VICA_AVOID_WIDTHS"].split(",")] \
-    if os.environ.get("VICA_AVOID_WIDTHS") else [1.40, 1.20, 1.15, 1.10, 1.00, 0.90]
+    if os.environ.get("VICA_AVOID_WIDTHS") else [0.80, 0.90, 1.00, 1.20, 1.50]
 
 # Run each lane's side walls the full depth of the course, so a lane is a
 # closed tube rather than one branch of a ring. See _lane() for what this is

@@ -141,17 +141,76 @@ controller_server:
       yaw_goal_tolerance: 0.25
       trans_stopped_velocity: 0.03
       rot_stopped_velocity: 0.05
-    FollowPathAlt:
+    FollowPathRPP:
+      # Regulated Pure Pursuit. Values are the robot's second RPP run
+      # (2026-08-29 `run1215`), which is the configuration that arrived.
+      #
+      # The first run (lookahead_time 1.5, min_lookahead_dist 0.45) stopped
+      # 0.17 m short of goals and failed them 10 times. Close in, the path
+      # remaining is shorter than min_lookahead_dist and there is no point
+      # left to aim at. Raising both fixed it: goal failures 10 -> 0, action
+      # timeouts 47 -> 1, recovery waits 24 -> 0.
+      #
+      # max_lookahead_dist 0.75 is NOT free to raise. It is set by the
+      # corridor: aiming further cuts the corner by L/2 to L/1.41, and the
+      # clearance available is 0.375 m.
+      #
+      # Why the robot did not keep it: RPP computes steering straight from the
+      # current pose, so every tremor in localisation goes into the handle. A
+      # person walking behind felt 0.115 m/s of lateral motion against DWB's
+      # 0.047, with the turn direction reversing every 2.4 seconds. The user's
+      # verdict was that it would injure someone holding on. Robot-side it won
+      # everything -- keep-out entries 206 -> 4, recoveries 51 -> 0.
+      plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
+      desired_linear_vel: 0.5
+      lookahead_dist: 0.6
+      min_lookahead_dist: 0.50
+      max_lookahead_dist: 0.75
+      lookahead_time: 2.5
+      use_velocity_scaled_lookahead_dist: true
+      transform_tolerance: 0.1
+      min_approach_linear_velocity: 0.05
+      approach_velocity_scaling_dist: 0.6
+      # Regulation. Both heuristics slow the robot rather than steer it, which
+      # is why RPP needs no critics to stay off walls.
+      use_regulated_linear_velocity_scaling: true
+      use_cost_regulated_linear_velocity_scaling: false
+      regulated_linear_scaling_min_radius: 0.9
+      regulated_linear_scaling_min_speed: 0.25
+      # The point of RPP for this robot: an explicit conditional, not a score
+      # competition. Beyond 57 degrees it turns on the spot first. DWB has no
+      # such rule -- in-place rotation there can only win 56 of 112 points
+      # because it earns nothing on the two distance critics, so it loses
+      # structurally and the robot gets stuck at U-turns.
+      use_rotate_to_heading: true
+      rotate_to_heading_min_angle: 1.0
+      rotate_to_heading_angular_vel: 0.5
+      max_angular_accel: 2.0
+      # No reversing. A person walks behind holding the handle; the behaviour
+      # tree has BackUp removed for the same reason.
+      allow_reversing: false
+      use_collision_detection: true
+      max_robot_pose_search_dist: 10.0
+      cost_scaling_dist: 0.3
+      cost_scaling_gain: 1.0
+      inflation_cost_scaling_factor: 3.5
+
+    FollowPathMPPI:
       # Velocity and acceleration limits are the physical robot's measured
       # values (vica_nav2): 0.26 m/s and 0.4 rad/s, with acc_lim 2.0 after 2.5
       # was found to lurch on start. vx_min is 0 because the planner runs with
       # allow_reverse_expansion false, so nothing upstream asks for reverse.
       #
-      # NOTE the real robot runs DWB here, not MPPI. Keeping MPPI in sim is
-      # deliberate -- it considers the footprint over a horizon, which is what
-      # the narrow-corner work needs -- but it means controller behaviour is the
-      # one axis where sim and robot are not the same. Revisit before porting
-      # any controller tuning back.
+      # The robot runs DWB. MPPI was tried there on 2026-08-29 over four runs
+      # and NOT adopted: its quality numbers beat DWB nearly everywhere --
+      # handle sway 0.055 -> 0.029 m/s, rotation reversals 8.1 -> 1.6 per
+      # minute, path deviation 0.043 -> 0.031 m -- but it did not arrive. At
+      # the toilet goal (3.5, 5.4) DWB was 2/2 and MPPI 0/4, repeating
+      # "Starting point in lethal space" and "no valid path found". For a
+      # guide robot arrival is not negotiable.
+      #
+      # It is here so that judgement can be re-examined against a planner it
+      # was never paired with. On the robot MPPI ran only under Lattice.
       plugin: "nav2_mppi_controller::MPPIController"
       time_steps: 56
       model_dt: 0.05
@@ -162,9 +221,9 @@ controller_server:
       vx_std: 0.2
       vy_std: 0.2
       wz_std: 0.4
-      vx_max: 0.26
+      vx_max: 0.5
       vx_min: 0.0
-      wz_max: 0.4
+      wz_max: 0.5
       iteration_count: 1
       prune_distance: 1.7
       transform_tolerance: 0.1
@@ -317,20 +376,33 @@ controller_server:
     # dwb_critics: they match Humble's here, unlike the Smac planners whose
     # slash form aborts planner_server on configure.
     FollowPath:
+      # 2026-09-02: speeds raised to the robot's current values so the
+      # controller comparison runs the conditions the robot ran. It had been
+      # 0.26 / 0.4, which the robot left behind -- the note there says 0.26
+      # "너무 느렸다". decel_lim_x came with it: dev is -1.5, not the -2.5
+      # this file carried, and DWB choosing trajectories against a brake it
+      # does not have is exactly the mismatch that caused a bumper contact on
+      # the robot.
+      #
+      #     max_vel_x      0.26 -> 0.5
+      #     max_speed_xy   0.26 -> 0.5
+      #     max_vel_theta  0.4  -> 0.5
+      #     decel_lim_x   -2.5  -> -1.5
+      #     sim_time       2.5  -> 2.0   (below)
       plugin: "dwb_core::DWBLocalPlanner"
       debug_trajectory_details: True
       min_vel_x: 0.0
       min_vel_y: 0.0
-      max_vel_x: 0.26
+      max_vel_x: 0.5
       max_vel_y: 0.0
-      max_vel_theta: 0.4
+      max_vel_theta: 0.5
       min_speed_xy: 0.0
-      max_speed_xy: 0.26
+      max_speed_xy: 0.5
       min_speed_theta: 0.0
       acc_lim_x: 2.0
       acc_lim_y: 0.0
       acc_lim_theta: 2.0
-      decel_lim_x: -2.5
+      decel_lim_x: -1.5
       decel_lim_y: 0.0
       decel_lim_theta: -3.2
       vx_samples: 20
@@ -347,7 +419,12 @@ controller_server:
       # than either: "No valid trajectories" went 74 -> 168 and the narrow route
       # was never once completed. A shorter horizon cannot draw the curve that
       # goes around an obstacle, only see that the way ahead is blocked.
-      sim_time: 2.5
+      #
+      # 2026-09-02: 2.0, following dev. The paragraph above is the robot's
+      # reasoning from when max_vel_x was 0.26, where 2.5 s bought 1.01 m of
+      # lookahead. At 0.5 m/s, 2.0 s buys 1.30 m -- further than 2.5 s ever
+      # reached at the old speed. The horizon grew by raising the speed.
+      sim_time: 2.0
       linear_granularity: 0.05
       angular_granularity: 0.025
       transform_tolerance: 0.2
@@ -383,10 +460,25 @@ local_costmap:
       # physical robot's costmap; a finer grid here would not be reflected in
       # the motion primitives the planner actually has.
       resolution: 0.05
-      # Matches the physical robot's tuned footprint. The tail narrows to the
-      # mast width instead of staying full-width, which is what lets the robot
-      # into gaps a bounding rectangle refuses.
-      footprint: "[[0.305, 0.2275], [0.305, -0.2275], [-0.305, -0.2275], [-0.595, -0.035], [-0.595, 0.035], [-0.305, 0.2275]]"
+      # Matches the physical robot's tuned footprint (vica_ros2_ws@dev). The
+      # tail narrows to the mast width instead of staying full-width, which is
+      # what lets the robot into gaps a bounding rectangle refuses.
+      #
+      # 2026-09-02: the tail came in from -0.595 to -0.415 and the half-width
+      # from 0.2275 to 0.225, following the robot's 2026-08-29 tape measure
+      # (handle 19 -> 11 cm, body 80 -> 72 cm). Padded radii move with it:
+      #
+      #     inscribed      0.2775 -> 0.2750   barely moves: the nearest edge
+      #                                       is the side, and the sides did
+      #                                       not move
+      #     circumscribed  0.6506 -> 0.4727   turn-in-place 1.30 -> 0.95 m
+      #
+      # The circumscribed drop is what makes a controller comparison possible
+      # here at all. nav2 wants inflation_radius >= circumscribed to use the
+      # costmap potential field; at 0.6506 it could not, said so every planner
+      # cycle, and fell through to a full polygon check on every scored pose.
+      # At 0.4727 the 0.55 inflation clears it.
+      footprint: "[[0.305, 0.225], [0.305, -0.225], [-0.305, -0.225], [-0.415, -0.035], [-0.415, 0.035], [-0.305, 0.225]]"
       footprint_padding: 0.05
       plugins: ["voxel_layer", "inflation_layer"]
       inflation_layer:
@@ -490,7 +582,7 @@ global_costmap:
       publish_frequency: 1.0
       global_frame: map
       robot_base_frame: base_footprint
-      footprint: "[[0.305, 0.2275], [0.305, -0.2275], [-0.305, -0.2275], [-0.595, -0.035], [-0.595, 0.035], [-0.305, 0.2275]]"
+      footprint: "[[0.305, 0.225], [0.305, -0.225], [-0.305, -0.225], [-0.415, -0.035], [-0.415, 0.035], [-0.305, 0.225]]"
       footprint_padding: 0.05
       resolution: 0.05
       track_unknown_space: true
@@ -602,11 +694,21 @@ planner_server:
         w_data: 0.2
         tolerance: 1.0e-10
 
-    # Kept for A/B against Lattice; only the plugin named in planner_plugins is
-    # loaded, so this block is inert. Swap the two keys to switch. Values that
-    # both planners share must stay identical -- the real robot has a contract
-    # test enforcing that, because one variable at a time is the whole point.
-    GridBasedAlt:
+    # The three planners not currently loaded. Only the block named in
+    # planner_plugins is read, so these are inert until select_controller
+    # renames one of them to GridBased.
+    #
+    # Values every planner shares (tolerance, allow_unknown, the iteration and
+    # time caps) are kept identical across all four on purpose. The real robot
+    # has a contract test enforcing exactly that, and the reason is the same
+    # here: one variable at a time, or the comparison measures nothing.
+
+    GridBasedHybrid:
+      # Smac Hybrid-A*. Continuous headings, Dubin curves, no in-place
+      # rotation primitive at all -- it plans paths a car could drive.
+      # minimum_turning_radius 0.50 with the 0.4727 circumscribed radius means
+      # its tightest curve needs 1.705 m of corridor to U-turn, against
+      # 0.945 m for turning on the spot. That is the axis being tested.
       plugin: "nav2_smac_planner::SmacPlannerHybrid"
       motion_model_for_search: "DUBIN"
       minimum_turning_radius: 0.50
@@ -620,6 +722,39 @@ planner_server:
       max_iterations: 1000000
       max_on_approach_iterations: 1000
       max_planning_time: 1.0
+      smooth_path: true
+      smoother:
+        max_iterations: 1000
+        w_smooth: 0.3
+        w_data: 0.2
+        tolerance: 1.0e-10
+
+    GridBasedNavFn:
+      # NavFn. Dijkstra on the costmap, holonomic: it draws the shortest free
+      # path with no notion that the robot cannot slide sideways, and hands
+      # over a path with no headings in it. Feasibility is entirely the
+      # controller's problem, which is what makes it the useful baseline --
+      # it is the only one of the four that asks nothing of the robot's shape.
+      plugin: "nav2_navfn_planner::NavfnPlanner"
+      tolerance: 0.2
+      use_astar: false
+      allow_unknown: true
+
+    GridBased2D:
+      # Smac 2D. Also holonomic and also headingless, but A* on the same grid
+      # the other Smac planners use, with their cost_penalty and smoother. It
+      # separates "what the search algorithm costs" from "what kinematic
+      # feasibility costs" when read against NavFn and Lattice.
+      plugin: "nav2_smac_planner::SmacPlanner2D"
+      tolerance: 0.2
+      downsample_costmap: false
+      downsampling_factor: 1
+      allow_unknown: true
+      max_iterations: 1000000
+      max_on_approach_iterations: 1000
+      max_planning_time: 1.0
+      cost_penalty: 4.0
+      use_final_approach_orientation: false
       smooth_path: true
       smoother:
         max_iterations: 1000

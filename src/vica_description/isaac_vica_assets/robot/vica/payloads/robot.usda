@@ -4,13 +4,13 @@
         string creator = "URDF USD Converter v0.1.3"
     }
     defaultPrim = "VICA"
-    doc = """Generated from Composed Stage of root layer /tmp/tmpshfdn6r9/VICA.usdc
+    doc = """Generated from Composed Stage of root layer /tmp/tmpu0tfhysg/VICA.usdc
 
 
-Generated from Composed Stage of root layer /tmp/urdf_import_vica_jiqquxca/usdex_vica/VICA.usdc
+Generated from Composed Stage of root layer /tmp/urdf_import_vica_4wjsgtqb/usdex_vica/VICA.usdc
 
 
-Generated from Composed Stage of root layer /tmp/urdf_import_vica_jiqquxca/temp_vica/vica.usd
+Generated from Composed Stage of root layer /tmp/urdf_import_vica_4wjsgtqb/temp_vica/vica.usd
 """
     kilogramsPerUnit = 1
     metersPerUnit = 1
@@ -27,6 +27,8 @@ over "VICA" (
         </VICA/Physics/front_right_caster_steer_joint>,
         </VICA/Physics/front_left_caster_steer_joint>,
         </VICA/Physics/laser_joint>,
+        </VICA/Physics/usonic_front_left_joint>,
+        </VICA/Physics/usonic_front_right_joint>,
         </VICA/Physics/camera_joint>,
         </VICA/Physics/front_right_caster_wheel_joint>,
         </VICA/Physics/front_left_caster_wheel_joint>,
@@ -40,6 +42,8 @@ over "VICA" (
         </VICA/Geometry/base_footprint/base_link/front_left_caster_steer_1>,
         </VICA/Geometry/base_footprint/base_link/front_left_caster_steer_1/front_left_caster_wheel_1>,
         </VICA/Geometry/base_footprint/base_link/laser_frame>,
+        </VICA/Geometry/base_footprint/base_link/usonic_front_left>,
+        </VICA/Geometry/base_footprint/base_link/usonic_front_right>,
         </VICA/Geometry/base_footprint/base_link/camera_link>,
     ]
     token isaac:robotType = "Default"
@@ -87,6 +91,18 @@ over "VICA" (
                 }
 
                 over "laser_frame" (
+                    prepend apiSchemas = ["IsaacLinkAPI"]
+                )
+                {
+                }
+
+                over "usonic_front_left" (
+                    prepend apiSchemas = ["IsaacLinkAPI"]
+                )
+                {
+                }
+
+                over "usonic_front_right" (
                     prepend apiSchemas = ["IsaacLinkAPI"]
                 )
                 {
@@ -157,6 +173,18 @@ over "VICA" (
         }
 
         over "laser_joint" (
+            prepend apiSchemas = ["IsaacJointAPI"]
+        )
+        {
+        }
+
+        over "usonic_front_left_joint" (
+            prepend apiSchemas = ["IsaacJointAPI"]
+        )
+        {
+        }
+
+        over "usonic_front_right_joint" (
             prepend apiSchemas = ["IsaacJointAPI"]
         )
         {

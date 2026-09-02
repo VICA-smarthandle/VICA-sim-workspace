@@ -110,36 +110,62 @@
 <xacro:property name="laser_x" value="0.185" />
 <xacro:property name="laser_y" value="0.0" />
 <xacro:property name="laser_z" value="0.192" />
-<!-- Camera moved onto the handle post, following vica_ros2_ws@dev 6cb71a9.
-       camera_x  0.28683 -> -0.225   back 512 mm
-       camera_z  0.130   ->  0.810   absolute 1.000 m
-     x puts the 26 mm deep camera box's back face on -0.238, which is the
-     post's front face above. The two are flush, not guessed.
+<!-- Camera on the handle post. Tracks vica_ros2_ws@dev, which is the source
+     of truth for robot geometry. This file follows it, never the reverse.
 
-     The height is 1.000 m by decision, taken when nothing had been measured
-     and vica_ros2_ws@dev still carried the 2026-08-18 design value 0.885
-     (absolute 1.075).
+       camera_x  -0.225   the 26 mm camera box's back face lands on -0.238,
+                          the post's front face above. Flush, not guessed.
+       camera_z   0.855   absolute 1.045 m
 
-     [미검증] The real robot has been measured since, three times, and this
-     is not any of them. vica_ros2_ws@dev now reads:
+     2026-09-02: matched to the real robot, replacing the 1.000 m that was
+     chosen here on 2026-08-24 when nothing had been tape-measured yet. The
+     robot has been measured three times since and the last one stands:
 
          2026-08-24   ground 0.910   camera_z 0.720   first tape measure
          2026-08-29   ground 1.025   camera_z 0.835
          2026-08-30   ground 1.045   camera_z 0.855   after a remount
 
-     and it carries a camera_pitch of -0.0124 rad (0.7 degrees up, found by
-     fitting the floor plane in the depth cloud) that this file does not have
-     at all. So the sim robot sits 45 mm low and dead level while the real one
-     is 1.045 and tilted. That gap is a decision waiting to be made, not a
-     measurement waiting to be taken: matching it means rebuilding every stage
-     USD, and the courses in this repository were measured with the robot as
-     it stands here. Nothing downstream of this file has been re-run against
-     the real numbers. -->
-<!-- ** Anything measured on a stage built before that decision was measured
-     against a 1.000 m camera. Say so when the numbers are quoted. -->
+     Re-measure on the robot before trusting this; it moves whenever the
+     camera is detached. The real config's comment carries the full history.
+
+     ** Every stage USD and every result recorded before 2026-09-02 was made
+     with the camera at 1.000 m and dead level. They are not comparable to
+     anything measured after. -->
 <xacro:property name="camera_x" value="-0.225" />
 <xacro:property name="camera_y" value="0.0" />
-<xacro:property name="camera_z" value="0.810" />
+<xacro:property name="camera_z" value="0.855" />
+<!-- The mast sits 0.7 degrees nose-up, measured on the real robot by fitting
+     the floor plane in the depth cloud (RANSAC, 3 runs, -2.35/-2.31/-2.24
+     degrees residual against a URDF that then said -3.0). Sign convention:
+     URDF pitch is positive down, so nose-up is negative.
+
+     It matters here for the same reason it matters on the robot. Isaac's
+     depth camera hangs off camera_link, so a tilt the TF does not know about
+     puts every returned point at the wrong height: at 2 m, 0.7 degrees is
+     2.4 cm, and the floor lifts into the costmap's slice as an obstacle.
+     Modelling the tilt costs nothing and removes a whole class of "the
+     corridor filled in" confusion from the comparison runs. -->
+<xacro:property name="camera_pitch" value="-0.0124" />
+<!-- Two DYP-A22 ultrasonic rangers on the front bumper, fitted to the robot
+     2026-08-31. Mounted horizontally; the housing cannot be tilted.
+     vica_ros2_ws@dev and docs/handoff_jetson_ultrasonic_i2c.md are the source.
+
+       x  0.305    the bumper face itself
+       y  +-0.107  either side of centre
+       z -0.0987   ground 0.0913, minus base_link_height 0.190
+
+     Frame names have to match the driver's ultrasonic_frame_ids, so they are
+     copied rather than invented.
+
+     Why they exist: the depth camera at 1.045 m looks over anything low and
+     close. These sit at ankle height where the lidar plane (0.382) and the
+     camera both have nothing to say. [미검증] in sim. The frames are here so
+     a range sensor can be attached to them, but no Isaac sensor is publishing
+     into them yet and no costmap layer consumes them. The comparison runs
+     below do not use ultrasound. -->
+<xacro:property name="usonic_x" value="0.305" />
+<xacro:property name="usonic_y" value="0.107" />
+<xacro:property name="usonic_z" value="-0.0987" />
 
 <!-- Wheel placement. wheel_separation is the measured centre-to-centre distance.
      It is NOT the odometry constant. The real robot's encoder_feedback uses
@@ -474,8 +500,49 @@
   <child link="laser_frame"/>
 </joint>
 
+<!-- The probe bodies, drawn so the mounting point is visible in a render
+     instead of being an invisible frame nobody can check.
+
+     DYP-A22 is a sealed cylindrical probe, 20 mm across and about 15 mm of
+     barrel proud of its mount. Modelled as a cylinder on the x axis, which is
+     the direction it looks; a URDF cylinder stands on z, so it is laid down
+     by a 90 degree pitch.
+
+     Placed to end flush with x = 0.305, not to stick out past it. That is the
+     bumper face and the front edge of the footprint, and vica_ros2_ws@dev's
+     comment is explicit that a probe protruding beyond it means usonic_x AND
+     the footprint front must both grow. Neither has grown on the robot, so
+     flush is what the robot's own numbers describe. If a tape measure says
+     otherwise, this mesh is the thing that was wrong, not the footprint.
+
+     Visual only. A 20 mm bump on the bumper face changes nothing the planner
+     reasons about, and giving it a collider would put a second obstacle
+     inside the footprint the robot already plans against. -->
+<xacro:property name="usonic_radius" value="0.010" />
+<xacro:property name="usonic_len" value="0.015" />
+
+<xacro:macro name="usonic_probe" params="name y">
+  <link name="${name}">
+    <visual>
+      <origin xyz="${-usonic_len/2} 0 0" rpy="0 ${pi/2} 0"/>
+      <geometry>
+        <cylinder radius="${usonic_radius}" length="${usonic_len}"/>
+      </geometry>
+      <material name="camera_black"/>
+    </visual>
+  </link>
+  <joint name="${name}_joint" type="fixed">
+    <origin xyz="${usonic_x} ${y} ${usonic_z}" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="${name}"/>
+  </joint>
+</xacro:macro>
+
+<xacro:usonic_probe name="usonic_front_left"  y="${usonic_y}" />
+<xacro:usonic_probe name="usonic_front_right" y="${-usonic_y}" />
+
 <joint name="camera_joint" type="fixed">
-  <origin xyz="${camera_x} ${camera_y} ${camera_z}" rpy="0 0 0"/>
+  <origin xyz="${camera_x} ${camera_y} ${camera_z}" rpy="0 ${camera_pitch} 0"/>
   <parent link="base_link"/>
   <child link="camera_link"/>
 </joint>
