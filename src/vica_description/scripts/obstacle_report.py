@@ -42,6 +42,7 @@ import glob
 import json
 import math
 import os
+import re
 import sys
 
 # Robot and walker radii, for calling a contact. 0.31 is the robot's own
@@ -63,28 +64,49 @@ def _read(path):
                  for k, v in row.items()} for row in csv.DictReader(fh)]
 
 
-class _ByX:
-    """Walk rows, findable by the robot's x.
+class _ByTime:
+    """Walk rows, findable by the trial's clock.
 
-    A linear scan per sample is 3600 trial rows against 10800 walk rows, which
-    is forty million comparisons and about half a minute of a report that
-    should be instant. Bisection over a sorted copy does the same job; the
-    robot's x is not monotonic once it stops and backs up, so this sorts rather
-    than assuming.
+    Joined on time with one offset, not on the robot's x. Matching on x was the
+    first attempt and it is wrong in exactly the case the trial is about: a
+    robot that stops in front of the walker has hundreds of samples at the same
+    x, and the lookup returns whichever of them the sort happened to put first,
+    which is usually one from before the walker moved. That produced a closest
+    approach of 1.47 m in a 2.00 m corridor with the walker standing in the
+    middle of it -- a number that cannot happen.
+
+    The two logs count from different origins: one counts frames from the start
+    of the play loop, the other reads /odom header stamps. The offset between
+    them is constant, and recoverable from the one event both files agree on,
+    which is the robot first moving.
     """
 
-    def __init__(self, walk):
-        self.rows = sorted(walk, key=lambda w: w["robot_x"])
-        self.keys = [w["robot_x"] for w in self.rows]
+    def __init__(self, walk, trial):
+        self.rows = sorted(walk, key=lambda w: w["t"])
+        self.keys = [w["t"] for w in self.rows]
+        self.offset = self._align(walk, trial)
 
-    def at(self, x):
+    @staticmethod
+    def _align(walk, trial):
+        """Trial time minus walk time, from when each log first shows motion."""
+        def first_move(rows, key):
+            x0 = rows[0][key]
+            for r in rows:
+                if abs(r[key] - x0) > 0.20:
+                    return r["t"]
+            return None
+        a = first_move(trial, "x")
+        b = first_move(walk, "robot_x")
+        return (a - b) if (a is not None and b is not None) else 0.0
+
+    def at(self, t):
         if not self.rows:
             return None
-        i = bisect.bisect_left(self.keys, x)
+        i = bisect.bisect_left(self.keys, t - self.offset)
         best, bd = None, float("inf")
         for j in (i - 1, i, i + 1):
             if 0 <= j < len(self.rows):
-                d = abs(self.keys[j] - x)
+                d = abs(self.keys[j] - (t - self.offset))
                 if d < bd:
                     best, bd = self.rows[j], d
         return best
@@ -100,10 +122,10 @@ def analyse(trial_csv, walk_csv, meta):
     cross_x = float(meta.get("walker", {}).get("cross_x", 0.0))
     contact = ROBOT_R + wr
 
-    index = _ByX(walk)
+    index = _ByTime(walk, trial)
     rows = []
     for s in trial:
-        w = index.at(s["x"])
+        w = index.at(s["t"])
         if w is None:
             continue
         gap = math.hypot(cross_x - s["x"], w["walker_y"] - s["y"]) - contact
@@ -223,6 +245,14 @@ def main():
     for csv_path, walk_path, meta_path in jobs:
         with open(meta_path) as fh:
             meta = json.load(fh)
+        # The trigger in the metadata is wrong for every trial written before
+        # 2026-09-03: obstacle_sweep sets VICA_WALK_TRIGGER_M for the simulator
+        # and obstacle_trial reads it from its own environment, where it is not
+        # set, so it recorded the default. The filename is the sweep's own
+        # record of what it asked for, so it wins.
+        m = re.search(r"trigger_([0-9.]+)_", os.path.basename(csv_path))
+        if m:
+            meta["trigger_m"] = float(m.group(1))
         r = analyse(csv_path, walk_path, meta)
         if r is None or "note" in r:
             print(f"  {os.path.basename(csv_path)}: "

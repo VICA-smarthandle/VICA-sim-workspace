@@ -1,0 +1,23 @@
+==============================================================
+ 동적 장애물  코스 vica_dynamiccourse  보행자 1.2 m/s
+ 등장거리 6.0 5.0 4.0 3.0 2.5 2.0 1.5 1.0   각 1회
+ 결과 /home/sim/VICA-smarthandle/vica_ws/results/obstacle
+==============================================================
+
+  --- 등장거리 6.0 m  #1
+obstacle_sweep.sh: line 65: /proc/3817683/cmdline: No such file or directory
+obstacle_sweep.sh: line 65: /proc/3817839/cmdline: No such file or directory
+  timeout, 3601 표본 -> /home/sim/VICA-smarthandle/vica_ws/results/obstacle/trigger_6.0_r1.csv
+
+  --- 등장거리 5.0 m  #1
+obstacle_sweep.sh: line 65: /proc/3819985/cmdline: No such file or directory
+obstacle_sweep.sh: line 65: /proc/3820243/cmdline: No such file or directory
+obstacle_sweep.sh: line 62: 3820444 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_obstacle_nav2.log 2>&1
+obstacle_sweep.sh: line 65: /proc/3821999/cmdline: No such file or directory
+obstacle_sweep.sh: line 65: /proc/3822048/cmdline: No such file or directory
+  timeout, 3601 표본 -> /home/sim/VICA-smarthandle/vica_ws/results/obstacle/trigger_5.0_r1.csv
+
+  --- 등장거리 4.0 m  #1
+obstacle_sweep.sh: line 62: 3824810 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_obstacle_nav2.log 2>&1
+obstacle_sweep.sh: line 65: /proc/3824820/cmdline: No such file or directory
+obstacle_sweep.sh: line 65: /proc/3826462/cmdline: No such file or directory

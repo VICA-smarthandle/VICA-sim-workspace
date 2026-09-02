@@ -108,7 +108,13 @@ for T in "${TRIGGERS[@]}"; do
             continue
         fi
 
-        timeout $((LIMIT + 60)) ros2 run vica_description obstacle_trial \
+        # The trigger has to reach the recorder too, not only the simulator.
+        # It was set on the play_stage line alone, so obstacle_trial read its
+        # own environment, found nothing, and wrote the default into every
+        # trial's metadata. obstacle_report now prefers the filename, which is
+        # this loop's own record, but the metadata should be right as well.
+        VICA_WALK_TRIGGER_M="$T" VICA_WALK_SPEED="$WALK_SPEED" \
+            timeout $((LIMIT + 60)) ros2 run vica_description obstacle_trial \
             --spec "$SPEC" --out "${BASE}.csv" --limit "$LIMIT"
     done
 done
