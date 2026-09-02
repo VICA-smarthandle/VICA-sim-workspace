@@ -96,6 +96,18 @@ install(
 )
 
 install(
+  PROGRAMS scripts/controller_matrix.sh
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME controller_matrix
+)
+
+install(
+  PROGRAMS scripts/matrix_report.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME matrix_report
+)
+
+install(
   PROGRAMS scripts/inflation_ab.sh
   DESTINATION lib/${PROJECT_NAME}
   RENAME inflation_ab

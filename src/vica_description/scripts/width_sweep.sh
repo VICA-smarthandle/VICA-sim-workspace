@@ -39,8 +39,12 @@ INFLATION=${INFLATION:-}
 # column for column and the difference is what an obstacle costs.
 COURSE=${COURSE:-vica_widthcourse}
 
-CONTROLLER="${1:?usage: [INFLATION=x] width_sweep.sh <dwb|mppi> [widths...]}"
+CONTROLLER="${1:?usage: [INFLATION=x] [PLANNER=y] width_sweep.sh <dwb|rpp|mppi> [widths...]}"
 shift
+# Which global planner, when the sweep is one cell of a controller x planner
+# matrix. Unset leaves whatever the config carries, which is what every sweep
+# before the matrix existed did.
+PLANNER=${PLANNER:-}
 WIDTHS=("$@")
 [ ${#WIDTHS[@]} -eq 0 ] && WIDTHS=(1.40 1.20 1.00 0.90 0.80 0.70)
 
@@ -50,6 +54,7 @@ cd "$PKG" || exit 1
 SEL=(python3 src/vica_description/scripts/select_controller.py "$CONTROLLER"
      --config src/vica_description/config/vica_nav2_params.yaml)
 [ -n "$INFLATION" ] && SEL+=(--inflation "$INFLATION")
+[ -n "$PLANNER" ] && SEL+=(--planner "$PLANNER")
 "${SEL[@]}" || exit 1
 
 colcon build --packages-select vica_description >/dev/null 2>&1
@@ -72,7 +77,14 @@ done
 # build silently used a stale copy this is where it shows.
 INFL_USED=$(grep -m1 -oE "inflation_radius: [0-9.]+" \
     "$SHARE/config/vica_nav2_params.yaml" | grep -oE "[0-9.]+$")
-RES=${RESULTS_DIR:-/tmp/vica_width_results}/${CONTROLLER}_infl${INFL_USED}
+# The planner goes in the directory name for the same reason the controller
+# and the inflation already do: two cells of the matrix that land on the same
+# path are one cell measured twice and one cell never measured. The
+# "already exists, skipping" branch below makes that silent.
+PLANNER_USED=$(python3 src/vica_description/scripts/select_controller.py --show \
+    --config "$SHARE/config/vica_nav2_params.yaml" \
+    | awk '/^  planner/ {print $3}')
+RES=${RESULTS_DIR:-/tmp/vica_width_results}/${CONTROLLER}_${PLANNER_USED}_infl${INFL_USED}
 mkdir -p "$RES"
 
 stop_everything() {
@@ -88,7 +100,7 @@ stop_everything() {
 }
 
 echo "=============================================================="
-echo " $CONTROLLER   inflation ${INFL_USED}   레인 ${WIDTHS[*]}   각 ${REPEATS}회"
+echo " $CONTROLLER + $PLANNER_USED   inflation ${INFL_USED}   레인 ${WIDTHS[*]}   각 ${REPEATS}회"
 echo " 결과 $RES"
 echo "=============================================================="
 
