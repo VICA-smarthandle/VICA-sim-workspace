@@ -264,7 +264,27 @@ def main():
     fx.AddScaleOp().Set(Gf.Vec3f(x_max - x_min + 2 * FLOOR_MARGIN,
                                  y_max - y_min + 2 * FLOOR_MARGIN,
                                  FLOOR_THICKNESS))
-    UsdPhysics.CollisionAPI.Apply(floor.GetPrim())
+    # The floor box is drawn but does not collide. A ground plane collides
+    # instead, because PhysX drops contacts between a box this large and a
+    # collider as small as a 65 mm wheel, and drops them at some places and not
+    # others. Settling height of the robot along the corner course, same stage,
+    # one change between the rows:
+    #
+    #     floor box      -22 0.183  -8.65 0.190  -4.3 0.171  0 0.142
+    #                    +8.65 0.142  +13 0.142  +22 0.170
+    #     ground plane   all seven 0.190
+    #
+    # 0.190 is the wheels carrying the robot. 0.142 is the chassis box sitting
+    # on the floor with the wheels 48 mm underneath it, which is the tell: the
+    # large collider kept its contacts and the small one did not. At x=0 the
+    # wheels spun 5050 degrees in 14 s and the robot moved 0.000 m.
+    #
+    # Keep the box. It is what the depth camera and the renders see, and the
+    # plane is purpose=guide so it draws nothing.
+    plane = UsdGeom.Plane.Define(stage, "/World/GroundPlane")
+    plane.CreateAxisAttr("Z")
+    plane.CreatePurposeAttr(UsdGeom.Tokens.guide)
+    UsdPhysics.CollisionAPI.Apply(plane.GetPrim())
 
     light = UsdLux.DomeLight.Define(stage, "/World/Dome")
     light.CreateIntensityAttr(1200.0)

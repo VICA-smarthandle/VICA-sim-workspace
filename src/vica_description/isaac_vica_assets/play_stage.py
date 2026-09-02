@@ -46,7 +46,12 @@ import os  # noqa: E402
 # at or below the physics rate removes them by construction -- and halves the
 # GPU load while doing it.
 RATE = float(os.environ.get("FRAME_RATE_LIMIT", "0"))
-_cfg = {"headless": True}
+# Headless by default: rendering a window costs GPU that the physics needs,
+# and every measurement in this repository was taken without one. Set
+# VICA_HEADLESS=0 to watch instead -- worth it when the question is "what is
+# the robot actually doing", which numbers answer slowly.
+_HEADLESS = os.environ.get("VICA_HEADLESS", "1") not in ("0", "false", "")
+_cfg = {"headless": _HEADLESS}
 simulation_app = SimulationApp(_cfg)
 if RATE > 0:
     import carb  # noqa: E402
@@ -142,11 +147,24 @@ for _p in _stage.Traverse():
 
 
 def _world_xyz():
+    """Position, and how far off level the robot is.
+
+    The tilt is not decoration. A base_link that has dropped 48 mm reads the
+    same whether the wheels sank through the floor or the robot pitched onto
+    its nose, and those are different faults with different fixes. Roll and
+    pitch separate them: level means the wheels are not holding it up, tilted
+    means they are and something else is.
+    """
     if _root is None:
         return None
     m = _UsdGeom.Xformable(_root).ComputeLocalToWorldTransform(_Usd.TimeCode.Default())
     t = m.ExtractTranslation()
-    return (t[0], t[1], t[2])
+    r = m.ExtractRotationMatrix()
+    # Roll and pitch off the rotated z axis, in degrees.
+    up = (r[0][2], r[1][2], r[2][2])
+    roll = math.degrees(math.atan2(up[1], up[2]))
+    pitch = math.degrees(math.atan2(-up[0], math.hypot(up[1], up[2])))
+    return (t[0], t[1], t[2], roll, pitch)
 
 
 # Also written to a file, not only stdout.
@@ -173,7 +191,8 @@ started = time.time()
 frames = 0
 _p0 = _world_xyz()
 if _p0:
-    _say(f"=== robot at ({_p0[0]:+.3f},{_p0[1]:+.3f},{_p0[2]:+.3f})")
+    _say(f"=== robot at ({_p0[0]:+.3f},{_p0[1]:+.3f},{_p0[2]:+.3f}) "
+         f"roll {_p0[3]:+.1f} pitch {_p0[4]:+.1f} deg")
 while time.time() - started < SECONDS:
     simulation_app.update()
     frames += 1
@@ -181,7 +200,8 @@ while time.time() - started < SECONDS:
         _p = _world_xyz()
         _d = math.hypot(_p[0] - _p0[0], _p[1] - _p0[1]) if _p else float("nan")
         _say(f"    {frames} frames, {time.time() - started:.0f}s, "
-             f"robot ({_p[0]:+.3f},{_p[1]:+.3f},{_p[2]:+.3f}) moved {_d:.3f} m")
+             f"robot ({_p[0]:+.3f},{_p[1]:+.3f},{_p[2]:+.3f}) "
+             f"roll {_p[3]:+.1f} pitch {_p[4]:+.1f}  moved {_d:.3f} m")
 
 timeline.stop()
 print(f"=== done, {frames} frames", flush=True)

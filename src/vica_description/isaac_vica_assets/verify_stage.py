@@ -145,6 +145,54 @@ check("ROS 그래프 6개", not missing, f"없음: {missing}" if missing else ""
 colliders = [p for p in stage.Traverse() if p.HasAPI(UsdPhysics.CollisionAPI)]
 check("충돌체 존재", len(colliders) >= 2, f"{len(colliders)}개")
 
+# Every rigid body has a mass.
+#
+# camera_link had visual geometry, a fixed joint and no <inertial>. With
+# merge_fixed_joints off that is a rigid body with nothing to weigh, and PhysX
+# logged this on every single play:
+#
+#   The rigid body at .../base_link/camera_link has a possibly invalid inertia
+#   tensor of {1.0, 1.0, 1.0} and a negative mass
+#
+# A negative mass is not confined to the link that has it. The articulation
+# solves as one system, so the whole mass matrix goes, and the robot settled
+# 6 mm low and 2.4 degrees nose-up at places where it should have been level.
+# Nothing above catches it: the body count is right, it has a joint, the stage
+# opens, and every static check passes. It went a month.
+#
+# The warning is in the log and the log is not read. This reads the masses.
+massless = []
+for b in bodies:
+    if not b.HasAPI(UsdPhysics.MassAPI):
+        massless.append(f"{b.GetName()}(질량 속성 없음)")
+        continue
+    m = UsdPhysics.MassAPI(b).GetMassAttr().Get()
+    if m is None or m <= 0.0:
+        massless.append(f"{b.GetName()}({m})")
+check("rigid body 전부 질량 있음", not massless, ", ".join(massless[:4]))
+
+# The floor collides with a small collider, not just a large one.
+#
+# The courses used to floor themselves with one 50 m box. The chassis box
+# collided with it and the 65 mm wheel cylinders did not, at some places along
+# it and not others, so the robot sat 48 mm low on its belly with its wheels
+# underground and spun them 5050 degrees without moving. Settling height by x
+# on the corner course, box floor: -22 0.183, -8.65 0.190, -4.3 0.171,
+# 0 0.142, +8.65 0.142, +13 0.142, +22 0.170. With a ground plane instead,
+# all seven read 0.190.
+#
+# The play check below only ever stands the robot on one spot, so it cannot
+# see this. Requiring the plane is cheaper than sweeping for it.
+planes = [p for p in stage.Traverse()
+          if p.IsA(UsdGeom.Plane) and p.HasAPI(UsdPhysics.CollisionAPI)]
+floors = [p for p in stage.Traverse()
+          if p.GetName() == "Floor" and p.HasAPI(UsdPhysics.CollisionAPI)
+          and p.GetAttribute("physics:collisionEnabled").Get() is not False]
+check("바닥이 ground plane", bool(planes) and not floors,
+      ("plane 없음" if not planes else "")
+      + (f"  Floor 상자가 아직 충돌함: {[f.GetName() for f in floors]}"
+         if floors else ""))
+
 
 def world_xyz(path):
     prim = stage.GetPrimAtPath(path)

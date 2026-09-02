@@ -28,7 +28,7 @@ Run build_vica_ros_graphs.py after this one.
 import math
 import os
 
-from pxr import PhysxSchema, Sdf, Usd, UsdPhysics, UsdShade
+from pxr import PhysxSchema, Sdf, Usd, UsdGeom, UsdPhysics, UsdShade
 
 import omni.timeline
 import omni.usd
@@ -389,6 +389,36 @@ def main():
             f"Revolute joints in the stage: {sorted(joints)}"
         )
 
+    # Keep the articulation awake.
+    #
+    # PhysX stops integrating a body that has stopped moving. That is right for
+    # scenery and wrong for a robot that spends its first forty seconds waiting
+    # for nav2's lifecycle, because a drive target written to a sleeping
+    # articulation does not wake it.
+    #
+    # Written while chasing the 48 mm sink, and offered at the time as its
+    # cause. It was not. The sink was a floor box PhysX would not collide the
+    # wheels against, plus a camera_link with no mass; both are fixed where
+    # they belong, in the course builders and in the URDF. Setting this changed
+    # the settling height at no position. It stays because the reason in the
+    # first paragraph is its own reason, not because it fixed anything.
+    print("=== sleep")
+    root = None
+    for prim in stage.Traverse():
+        if prim.HasAPI(UsdPhysics.ArticulationRootAPI):
+            root = prim
+            break
+    if root is None:
+        print("    WARNING: no articulation root; sleep left at the default")
+    else:
+        api = PhysxSchema.PhysxArticulationAPI.Get(stage, root.GetPath())
+        if not api:
+            api = PhysxSchema.PhysxArticulationAPI.Apply(root)
+        api.CreateSleepThresholdAttr().Set(0.0)
+        api.CreateStabilizationThresholdAttr().Set(0.0)
+        print(f"    {str(root.GetPath()).split('/')[-1]:34s} sleepThreshold 0.0 "
+              f"(never sleeps)")
+
     print("=== passive caster joints")
     touched = 0
     for name in CASTER_JOINTS:
@@ -438,6 +468,35 @@ def main():
     print(f"    caster {caster_path}  "
           f"static={CASTER_STATIC_FRICTION} dynamic={CASTER_DYNAMIC_FRICTION}")
     print(f"           {', '.join(sorted(set(bound['caster']))) or 'NONE FOUND'}")
+
+    # Give cylinder colliders a convex hull.
+    #
+    # An earlier version of this comment said PhysX has no cylinder and that a
+    # bare Cylinder collider gets no shape at all. That is wrong. PhysX carries
+    # cylinders and cones as custom geometry, which is what a Cylinder prim
+    # gets by default, and this project drove on bare cylinder wheels for weeks.
+    #
+    # What is true is that the wheels went a whole day without colliding with
+    # the floor while the chassis box collided with it perfectly, and that the
+    # floor was a 50 m box. Replacing that box with a ground plane fixed it;
+    # applying these hulls, on its own, did not. They stay because a hull is
+    # the ordinary, fully supported representation and the wheels measure
+    # exactly right on it: commanded 2, 4, 6 and 8 rad/s all come back as
+    # 100 per cent of r*omega with no slip. If they ever need to come off,
+    # the thing to re-measure is that table.
+    print("\n=== cylinder colliders")
+    hulls = 0
+    for prim in stage.Traverse():
+        if not prim.IsA(UsdGeom.Cylinder):
+            continue
+        if not prim.HasAPI(UsdPhysics.CollisionAPI):
+            continue
+        if not prim.HasAPI(PhysxSchema.PhysxConvexHullCollisionAPI):
+            PhysxSchema.PhysxConvexHullCollisionAPI.Apply(prim)
+        hulls += 1
+        print(f"    {'/'.join(str(prim.GetPath()).split('/')[-2:]):44s} convex hull")
+    if hulls == 0:
+        print("    none found -- the wheels are not cylinders any more?")
 
     print("\n=== articulation solver")
     roots = _configure_articulation_solver(stage)

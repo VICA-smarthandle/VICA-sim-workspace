@@ -427,7 +427,98 @@ def _clock_graph(path):
     )
 
 
+# [진단] Write the wheel drive targets directly instead of going through
+# IsaacArticulationController.
+#
+# Not the way this should be done. ArticulationController is Isaac's own node,
+# every NVIDIA sample uses it, and it is what this file has always used; the
+# August driving results came out of it. Routing around it costs the unit
+# handling (a USD angular drive target is degrees per second, the differential
+# controller speaks radians), costs performance (a USD attribute write every
+# tick against a physics API call), and only covers velocity, so an arm would
+# need this written again.
+#
+# It exists to answer one question. verify_stage's drive check writes these
+# same attributes and moves the robot 0.52 m on every stage; the ROS path
+# through ArticulationController moves it 0.000 m while the wheels creep at
+# about 2 % of the commanded rate -- which is what a 10000-damping drive still
+# holding a target of zero looks like. If writing the attribute from the graph
+# drives the robot, ArticulationController is the broken link and the real fix
+# is upstream of it: most likely the articulation not being initialised when
+# the graph first ticks, or the articulation view failing to resolve a robot
+# that arrives as a payload.
+#
+#     VICA_DIRECT_DRIVE=1   use the direct writes
+DIRECT_DRIVE = os.environ.get("VICA_DIRECT_DRIVE", "0") not in ("0", "false", "")
+
+# USD angular drive targets are degrees per second; DifferentialController
+# outputs radians per second. verify_stage's drive check converts explicitly
+# and is the reason its numbers come out right.
+RAD_TO_DEG = 57.29577951308232
+
+
+def _drive_graph_direct(path, articulation_root):
+    """DiffController -> the two wheel drives, with no articulation node.
+
+    The radian-to-degree conversion is folded into wheelRadius rather than done
+    with a Multiply node. DifferentialController computes v / wheelRadius, so
+    dividing the radius by 57.296 makes its output degrees per second, which is
+    what a USD angular drive target wants. Two fewer nodes, and OmniGraph's
+    Multiply resolves its operand type from what is connected -- setting a
+    constant on it before anything is connected fails outright.
+    """
+    keys = og.Controller.Keys
+    left = f"{articulation_root}/{LEFT_WHEEL_JOINT}"
+    right = f"{articulation_root}/{RIGHT_WHEEL_JOINT}"
+    og.Controller.edit(
+        {"graph_path": path, "evaluator_name": "execution"},
+        {
+            keys.CREATE_NODES: [
+                ("OnPlaybackTick", "omni.graph.action.OnPlaybackTick"),
+                ("SubscribeTwist", "isaacsim.ros2.bridge.ROS2SubscribeTwist"),
+                ("BreakLinear", "omni.graph.nodes.BreakVector3"),
+                ("BreakAngular", "omni.graph.nodes.BreakVector3"),
+                ("DiffController", "isaacsim.robot.wheeled_robots.DifferentialController"),
+                ("PickL", "omni.graph.nodes.ArrayIndex"),
+                ("PickR", "omni.graph.nodes.ArrayIndex"),
+                ("WriteL", "omni.graph.nodes.WritePrimAttribute"),
+                ("WriteR", "omni.graph.nodes.WritePrimAttribute"),
+            ],
+            keys.CONNECT: [
+                ("OnPlaybackTick.outputs:tick", "SubscribeTwist.inputs:execIn"),
+                ("OnPlaybackTick.outputs:tick", "WriteL.inputs:execIn"),
+                ("WriteL.outputs:execOut", "WriteR.inputs:execIn"),
+                ("SubscribeTwist.outputs:execOut", "DiffController.inputs:execIn"),
+                ("SubscribeTwist.outputs:linearVelocity", "BreakLinear.inputs:tuple"),
+                ("BreakLinear.outputs:x", "DiffController.inputs:linearVelocity"),
+                ("SubscribeTwist.outputs:angularVelocity", "BreakAngular.inputs:tuple"),
+                ("BreakAngular.outputs:z", "DiffController.inputs:angularVelocity"),
+                ("DiffController.outputs:velocityCommand", "PickL.inputs:array"),
+                ("DiffController.outputs:velocityCommand", "PickR.inputs:array"),
+                ("PickL.outputs:value", "WriteL.inputs:value"),
+                ("PickR.outputs:value", "WriteR.inputs:value"),
+            ],
+            keys.SET_VALUES: [
+                ("SubscribeTwist.inputs:topicName", CMD_VEL_TOPIC),
+                ("DiffController.inputs:wheelRadius", WHEEL_RADIUS / RAD_TO_DEG),
+                ("DiffController.inputs:wheelDistance", WHEEL_DISTANCE),
+                ("PickL.inputs:index", 0),
+                ("PickR.inputs:index", 1),
+                ("WriteL.inputs:primPath", left),
+                ("WriteL.inputs:name", "drive:angular:physics:targetVelocity"),
+                ("WriteL.inputs:usePath", True),
+                ("WriteR.inputs:primPath", right),
+                ("WriteR.inputs:name", "drive:angular:physics:targetVelocity"),
+                ("WriteR.inputs:usePath", True),
+            ],
+        },
+    )
+    print(f"built             : {path.split('/')[-1]} [DIRECT DRIVE, 진단용]")
+
+
 def _drive_graph(path, articulation_root):
+    if DIRECT_DRIVE:
+        return _drive_graph_direct(path, articulation_root)
     keys = og.Controller.Keys
     og.Controller.edit(
         {"graph_path": path, "evaluator_name": "execution"},

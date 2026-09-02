@@ -28,6 +28,22 @@ def Xform "VICA" (
     append variantSets = "Physics"
 )
 {
+    over "Geometry"
+    {
+        over "base_footprint"
+        {
+            over "base_link"
+            {
+                over "camera_link" (
+                    prepend apiSchemas = ["PhysicsMassAPI"]
+                )
+                {
+                    float3 physics:diagonalInertia = (0.000153, 0.0000143, 0.000151)
+                    float physics:mass = 0.113
+                }
+            }
+        }
+    }
     variantSet "Physics" = {
         "mujoco" (
             prepend payload = @./payloads/Physics/mujoco.usda@

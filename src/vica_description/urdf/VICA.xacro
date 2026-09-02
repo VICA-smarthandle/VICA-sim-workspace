@@ -422,6 +422,23 @@
 
 <link name="camera_link">
   <!-- RViz placeholder; Isaac Sim uses its own D455 USD sensor asset. -->
+  <!-- 113 g, the D455's datasheet mass.
+       Not optional, for the same reason the ultrasonic links say so: with
+       merge_fixed_joints off, a link carrying geometry becomes its own rigid
+       body, and a rigid body with no inertial gets no mass. PhysX then reports
+       "possibly invalid inertia tensor of {1.0, 1.0, 1.0} and a negative mass"
+       on every play, and the articulation's mass matrix goes with it. The
+       symptom is position dependent and looks like anything but a mass bug:
+       at x=-22 the wheels would not turn and the body slid 0.38 m and stopped,
+       at x=0 the wheels spun 5050 degrees while the body never moved and sat
+       48 mm low with its chassis on the floor. An earlier comment here claimed
+       camera_link could get away with having no inertial. It could not. -->
+  <inertial>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <mass value="0.113"/>
+    <inertia ixx="1.53e-4" iyy="1.43e-5" izz="1.51e-4"
+             ixy="0.0" iyz="0.0" ixz="0.0"/>
+  </inertial>
   <visual>
     <origin xyz="0 0 0" rpy="0 0 0"/>
     <geometry>
@@ -530,7 +547,7 @@
          Two of those on fixed joints took the articulation's mass matrix with
          them: the wheels turned, the body did not move, and it sank 21 mm into
          the floor. Body count went 9 to 11 and the robot stopped driving.
-         camera_link gets away with it as the only one; two more did not. -->
+         camera_link had the same defect and the same excuse; see its link. -->
     <inertial>
       <origin xyz="${-usonic_len/2} 0 0" rpy="0 0 0"/>
       <mass value="0.03"/>
