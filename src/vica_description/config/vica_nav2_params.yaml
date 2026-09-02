@@ -203,7 +203,7 @@ controller_server:
       cost_scaling_gain: 1.0
       inflation_cost_scaling_factor: 3.5
 
-    FollowPath:
+    FollowPathMPPI:
       # Velocity and acceleration limits are the physical robot's measured
       # values (vica_nav2): 0.26 m/s and 0.4 rad/s, with acc_lim 2.0 after 2.5
       # was found to lurch on start. vx_min is 0 because the planner runs with
@@ -383,7 +383,7 @@ controller_server:
     # Plugin and critic names are Jazzy's, checked against the installed
     # dwb_critics: they match Humble's here, unlike the Smac planners whose
     # slash form aborts planner_server on configure.
-    FollowPathDWB:
+    FollowPath:
       # 2026-09-02: speeds raised to the robot's current values so the
       # controller comparison runs the conditions the robot ran. It had been
       # 0.26 / 0.4, which the robot left behind -- the note there says 0.26
@@ -923,8 +923,8 @@ velocity_smoother:
     # the smoother sat below it. Measured on /cmd_vel: a flat 0.26.
     max_velocity: [0.5, 0.0, 1.0]
     min_velocity: [-0.5, 0.0, -1.0]
-    max_accel: [2.0, 0.0, 2.0]
-    max_decel: [-2.0, 0.0, -2.0]
+    max_accel: [2.5, 0.0, 3.2]
+    max_decel: [-1.25, 0.0, -3.2]
     odom_topic: "odom"
     odom_duration: 0.1
     deadband_velocity: [0.0, 0.0, 0.0]
