@@ -44,6 +44,7 @@ dropped.
 """
 
 import math
+import os
 
 import rclpy
 from rclpy.node import Node
@@ -81,6 +82,55 @@ MAX_RANGE = 1.50
 # that were tried first: both stop the probe publishing, one immediately and
 # one after a handful of messages, neither with an error.
 BEAM_HALF_RAD = math.radians(50.0) / 2.0
+
+# How far off perpendicular a surface can be and still send an echo back.
+#
+# This is the difference between an ultrasonic and the ray tracer standing in
+# for one, and leaving it out stops the robot driving. Sound reflects off a
+# smooth surface the way light reflects off a mirror: hit a wall at a glancing
+# angle and the pulse leaves sideways and never comes home. A ray tracer
+# reports a hit at any angle, so the simulated probe painted both corridor
+# walls into the costmap continuously and nav2 crawled. Six screening passes
+# averaged 0.06 m/s and each stood completely still for about eighteen seconds
+# in the middle, against 0.40 m/s for the physical robot in the same 1.20 m
+# corridor.
+#
+# The robot's own config already says this happens, in the note explaining why
+# a 60 degree mount was worth trying at all: "계산상 60도 수평 장착은 바닥
+# 에코가 0.13~0.16m 부터지만, 이 바닥(매끈한 재질)이 정반사로 에코를 안
+# 돌려주는 것이 실측돼 시험한다".
+#
+# The angle is recoverable from the scan without knowing any surface normals.
+# For a flat surface, how fast the range changes with beam angle is exactly the
+# tangent of the incidence angle:
+#
+#     wall beside the robot, lateral distance d:  r = d / sin(theta)
+#                                                 dr/dtheta = -r / tan(theta)
+#                                                 incidence  = 90 - theta
+#     face ahead, distance L:                     r = L / cos(theta)
+#                                                 dr/dtheta = r * tan(theta)
+#                                                 incidence  = theta
+#
+# so incidence = atan(|dr/dtheta| / r) either way. Inside a 50 degree beam a
+# wall can only be hit at 65 degrees or more, and a face the robot is driving
+# at is hit at 25 degrees or less. 60 separates them with margin at both ends
+# and is not a tuned number.
+GRAZING_MAX_RAD = math.radians(
+    float(os.environ.get("VICA_USONIC_GRAZING_DEG", "60.0")))
+
+# How far apart the two beams used to measure that slope are.
+#
+# Not adjacent ones. Isaac's probe returns 7200 beams over the circle, 0.05
+# degrees apart, and across a gap that small the range difference between
+# neighbours is smaller than the sensor's own noise. Measured on a flat face
+# 0.56 m dead ahead, adjacent beams gave incidence angles scattered from 2 to
+# 51 degrees on the same surface -- the slope being estimated was the noise.
+#
+# Two degrees is wide enough that a real slope dominates and narrow enough that
+# a 0.30 m box at 1 m, which subtends 17 degrees, is still measured across its
+# own face rather than across its edge.
+SLOPE_BASELINE_RAD = math.radians(
+    float(os.environ.get("VICA_USONIC_SLOPE_BASELINE_DEG", "2.0")))
 
 PROBES = (
     ("/ultrasonic/front_left_scan", "/ultrasonic/front_left"),
@@ -122,8 +172,36 @@ class UltrasonicRange(Node):
                 lambda msg, t=scan_topic: self._on_scan(msg, t), sub_qos)
             self.get_logger().info(f"{scan_topic} -> {range_topic}")
 
+    @staticmethod
+    def _incidence(ranges, i, dtheta, r):
+        """Angle between the beam and the surface normal, from the scan alone.
+
+        Estimated from how fast the range changes over SLOPE_BASELINE_RAD of
+        beam angle. One-sided where the far side returned nothing, and unknown
+        where neither did: a lone return has no slope to measure, and the
+        honest thing is to keep it rather than invent a reason to drop it.
+        """
+        n = len(ranges)
+        k = max(1, int(round(SLOPE_BASELINE_RAD / dtheta)))
+        left, right = ranges[(i - k) % n], ranges[(i + k) % n]
+        span = k * dtheta
+
+        def ok(v):
+            return v == v and not math.isinf(v) and v > 0.0
+
+        if ok(left) and ok(right):
+            slope = (right - left) / (2.0 * span)
+        elif ok(right):
+            slope = (right - r) / span
+        elif ok(left):
+            slope = (r - left) / span
+        else:
+            return 0.0
+        return math.atan2(abs(slope), r)
+
     def _on_scan(self, msg, scan_topic):
         hits = []
+        dtheta = msg.angle_increment or 1e-6
         for i, r in enumerate(msg.ranges):
             if r != r or math.isinf(r):
                 continue
@@ -133,8 +211,11 @@ class UltrasonicRange(Node):
             # Wrap into (-pi, pi] before comparing, so a scan that runs 0..2pi
             # and one that runs -pi..pi are treated the same.
             angle = (angle + math.pi) % (2 * math.pi) - math.pi
-            if abs(angle) <= BEAM_HALF_RAD:
-                hits.append(r)
+            if abs(angle) > BEAM_HALF_RAD:
+                continue
+            if self._incidence(msg.ranges, i, dtheta, r) > GRAZING_MAX_RAD:
+                continue
+            hits.append(r)
         out = Range()
         out.header = msg.header
         out.radiation_type = Range.ULTRASOUND
