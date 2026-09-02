@@ -34,9 +34,37 @@ source install/setup.bash >/dev/null 2>&1
 SHARE=$(ros2 pkg prefix vica_description)/share/vica_description
 mkdir -p "$OUT"
 
-# course : wide window : closeup centre x,y : closeup window
-declare -A WIDE=( [vica_cornercourse]=9 [vica_avoidcourse]=9 [vica_uturncourse]=9 )
-declare -A NEAR=( [vica_cornercourse]=5 [vica_avoidcourse]=5 [vica_uturncourse]=6 )
+declare -A WIDE=( [vica_cornercourse]=9 [vica_avoidcourse]=9 [vica_uturncourse]=10 )
+declare -A NEAR=( [vica_cornercourse]=5 [vica_avoidcourse]=4 [vica_uturncourse]=7 )
+
+# What the closeup is centred on, per course, read out of the course's own
+# spec rather than guessed.
+#
+# The goal is the right centre for the corner course and the wrong one for the
+# other two. On the avoid course the goal is 1.2 m past the block, so framing
+# on it left the obstacle out of shot entirely -- a picture of a robot arriving
+# somewhere, with the thing it had to get past off the edge. On the U-turn
+# course the goal is back at the mouth and the turn happens at the dead end.
+focus_xy() {   # $1 course
+    python3 - "$SHARE/isaac_vica_assets/$1.json" "$WIDTH" <<'PY2'
+import json, sys
+spec = json.load(open(sys.argv[1]))
+w = float(sys.argv[2])
+lane = next((l for l in spec.get("lanes", [])
+             if abs(float(l.get("width", -1)) - w) < 1e-6), None)
+if lane is None:
+    print("")
+    raise SystemExit
+if "gap_centre_x" in lane:                       # avoid: beside the block
+    y = spec["block"]["y"]
+    print(f'{lane["gap_centre_x"]},{(y[0] + y[1]) / 2.0}')
+elif lane.get("turn") == "uturn":                # uturn: at the dead end
+    x, y = lane["entry"]
+    print(f'{x},{y + float(spec.get("deadend_len", 4.0)) / 2.0}')
+else:                                            # corner: at the corner
+    print(",".join(str(v) for v in lane["exit"]))
+PY2
+}
 
 COURSES=${1:-"vica_cornercourse vica_avoidcourse vica_uturncourse"}
 
@@ -82,11 +110,15 @@ for course in $COURSES; do
             --out "$OUT/${short}_${WIDTH}_compare" 2>&1 | grep -E "wrote|프레임"
     fi
 
-    # Closeup centre: the goal is where the difficulty is on every course
-    # built here, so it doubles as the thing to frame.
+    xy=$(focus_xy "$course")
+    if [ -n "$xy" ]; then
+        focus=(--focus point --focus-xy "$xy")
+    else
+        focus=(--focus goal)
+    fi
     ros2 run vica_description animate_run --width "$WIDTH" \
         --left "$ROOT/$course/$best" \
-        --stage "$stage" --focus goal --window "${NEAR[$course]:-5}" \
+        --stage "$stage" "${focus[@]}" --window "${NEAR[$course]:-5}" \
         --out "$OUT/${short}_${WIDTH}_closeup" 2>&1 | grep -E "wrote|프레임"
 done
 

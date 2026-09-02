@@ -334,3 +334,495 @@
  결과 /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_avoidcourse/dwb_navfn_infl0.55
 ==============================================================
 /home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3597329/cmdline: No such file or directory
+  --- 1.20 m  #1
+  스테이지 검증 통과: 2026-09-02 22:09:33
+  출발 위치 확인: AMCL 오차 0.02 m
+                               진단 driving           plan 31건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 0.0s -
+    통과 위로 #1                   reached   이동  8.82 m  남은거리  0.12 m  최소여유 0.44 m   22.1s
+                               진단 driving           plan 94건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 0.0s -
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 91: 3599773 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_sweep_nav2.log 2>&1
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3601276/cmdline: No such file or directory
+
+=== 완료. dwb inflation 0.55 -> /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_avoidcourse/dwb_navfn_infl0.55
+
+##############################################################
+ dwb + smac2d   vica_avoidcourse   폭 1.20
+##############################################################
+  controller 는 이미 dwb 입니다.
+  planner    navfn -> smac2d
+  colcon build 후 nav2 를 다시 띄워야 반영됩니다.
+==============================================================
+ dwb + smac2d   inflation 0.55   레인 1.20   각 1회
+ 결과 /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_avoidcourse/dwb_smac2d_infl0.55
+==============================================================
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3603365/cmdline: No such file or directory
+  --- 1.20 m  #1
+  스테이지 검증 통과: 2026-09-02 22:09:33
+  출발 위치 확인: AMCL 오차 0.01 m
+                               진단 driving           plan 33건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 0.0s -
+    통과 위로 #1                   reached   이동  8.64 m  남은거리  0.29 m  최소여유 0.40 m   20.2s
+                               진단 driving           plan 87건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 0.0s -
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 91: 3605747 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_sweep_nav2.log 2>&1
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3607258/cmdline: No such file or directory
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3607297/cmdline: No such file or directory
+
+=== 완료. dwb inflation 0.55 -> /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_avoidcourse/dwb_smac2d_infl0.55
+
+##############################################################
+ rpp + lattice   vica_avoidcourse   폭 1.20
+##############################################################
+  controller dwb -> rpp   smoother accel [2.5, 0.0, 3.2] decel [-1.25, 0.0, -3.2]
+  planner    smac2d -> lattice
+  colcon build 후 nav2 를 다시 띄워야 반영됩니다.
+==============================================================
+ rpp + lattice   inflation 0.55   레인 1.20   각 1회
+ 결과 /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_avoidcourse/rpp_lattice_infl0.55
+==============================================================
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3609509/cmdline: No such file or directory
+  --- 1.20 m  #1
+  스테이지 검증 통과: 2026-09-02 22:09:33
+  출발 위치 확인: AMCL 오차 0.03 m
+                               진단 driving           plan 43건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 0.0s -
+    통과 위로 #1                   timeout   이동  3.56 m  남은거리  5.33 m  최소여유 0.53 m   34.8s
+                               진단 driving           plan 147건(0 빈것)  cmd 0 비율 56%  경로끝-목표 0.0 m  복구 0.0s -
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3611553/cmdline: No such file or directory
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3611822/cmdline: No such file or directory
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 91: 3611890 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_sweep_nav2.log 2>&1
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3613596/cmdline: No such file or directory
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3613645/cmdline: No such file or directory
+
+=== 완료. rpp inflation 0.55 -> /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_avoidcourse/rpp_lattice_infl0.55
+
+##############################################################
+ rpp + hybrid   vica_avoidcourse   폭 1.20
+##############################################################
+  controller 는 이미 rpp 입니다.
+  planner    lattice -> hybrid
+  colcon build 후 nav2 를 다시 띄워야 반영됩니다.
+==============================================================
+ rpp + hybrid   inflation 0.55   레인 1.20   각 1회
+ 결과 /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_avoidcourse/rpp_hybrid_infl0.55
+==============================================================
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3613614/cmdline: No such file or directory
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3615821/cmdline: No such file or directory
+  --- 1.20 m  #1
+  스테이지 검증 통과: 2026-09-02 22:09:33
+  출발 위치 확인: AMCL 오차 0.03 m
+                               진단 driving           plan 147건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 0.0s -
+    통과 위로 #1                   reached   이동  9.71 m  남은거리  0.24 m  최소여유 0.49 m   20.5s
+                               진단 driving           plan 87건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 0.0s -
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 91: 3618215 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_sweep_nav2.log 2>&1
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3620243/cmdline: No such file or directory
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3620270/cmdline: No such file or directory
+
+=== 완료. rpp inflation 0.55 -> /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_avoidcourse/rpp_hybrid_infl0.55
+
+##############################################################
+ rpp + navfn   vica_avoidcourse   폭 1.20
+##############################################################
+  controller 는 이미 rpp 입니다.
+  planner    hybrid -> navfn
+  colcon build 후 nav2 를 다시 띄워야 반영됩니다.
+==============================================================
+ rpp + navfn   inflation 0.55   레인 1.20   각 1회
+ 결과 /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_avoidcourse/rpp_navfn_infl0.55
+==============================================================
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3622388/cmdline: No such file or directory
+  --- 1.20 m  #1
+  스테이지 검증 통과: 2026-09-02 22:09:33
+  출발 위치 확인: AMCL 오차 0.01 m
+                               진단 driving           plan 31건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 0.0s -
+    통과 위로 #1                   timeout   이동  4.14 m  남은거리  4.93 m  최소여유 0.44 m   34.5s
+                               진단 driving           plan 148건(0 빈것)  cmd 0 비율 74%  경로끝-목표 0.0 m  복구 0.0s -
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 91: 3624830 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_sweep_nav2.log 2>&1
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3626534/cmdline: No such file or directory
+
+=== 완료. rpp inflation 0.55 -> /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_avoidcourse/rpp_navfn_infl0.55
+
+##############################################################
+ rpp + smac2d   vica_avoidcourse   폭 1.20
+##############################################################
+  controller 는 이미 rpp 입니다.
+  planner    navfn -> smac2d
+  colcon build 후 nav2 를 다시 띄워야 반영됩니다.
+==============================================================
+ rpp + smac2d   inflation 0.55   레인 1.20   각 1회
+ 결과 /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_avoidcourse/rpp_smac2d_infl0.55
+==============================================================
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3628649/cmdline: No such file or directory
+  --- 1.20 m  #1
+  스테이지 검증 통과: 2026-09-02 22:09:33
+  출발 위치 확인: AMCL 오차 0.00 m
+                               진단 driving           plan 79건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 0.0s -
+    통과 위로 #1                   timeout   이동  3.80 m  남은거리  5.19 m  최소여유 0.47 m   34.3s
+                               진단 driving           plan 148건(0 빈것)  cmd 0 비율 73%  경로끝-목표 0.0 m  복구 0.0s -
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 91: 3631173 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_sweep_nav2.log 2>&1
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3633117/cmdline: No such file or directory
+
+=== 완료. rpp inflation 0.55 -> /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_avoidcourse/rpp_smac2d_infl0.55
+
+##############################################################
+ mppi + lattice   vica_avoidcourse   폭 1.20
+##############################################################
+  controller rpp -> mppi   smoother accel [2.0, 0.0, 2.0] decel [-2.0, 0.0, -2.0]
+  planner    smac2d -> lattice
+  colcon build 후 nav2 를 다시 띄워야 반영됩니다.
+==============================================================
+ mppi + lattice   inflation 0.55   레인 1.20   각 1회
+ 결과 /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_avoidcourse/mppi_lattice_infl0.55
+==============================================================
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3635279/cmdline: No such file or directory
+  --- 1.20 m  #1
+  스테이지 검증 통과: 2026-09-02 22:09:33
+  출발 위치 확인: AMCL 오차 0.03 m
+                               진단 driving           plan 147건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 0.0s -
+    통과 위로 #1                   timeout   이동  0.00 m  남은거리  9.57 m  최소여유 1.94 m   34.5s
+                               진단 driving           plan 147건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 0.0s -
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 91: 3637684 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_sweep_nav2.log 2>&1
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3640070/cmdline: No such file or directory
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3640095/cmdline: No such file or directory
+
+=== 완료. mppi inflation 0.55 -> /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_avoidcourse/mppi_lattice_infl0.55
+
+##############################################################
+ mppi + hybrid   vica_avoidcourse   폭 1.20
+##############################################################
+  controller 는 이미 mppi 입니다.
+  planner    lattice -> hybrid
+  colcon build 후 nav2 를 다시 띄워야 반영됩니다.
+==============================================================
+ mppi + hybrid   inflation 0.55   레인 1.20   각 1회
+ 결과 /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_avoidcourse/mppi_hybrid_infl0.55
+==============================================================
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3640089/cmdline: No such file or directory
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3642222/cmdline: No such file or directory
+  --- 1.20 m  #1
+  스테이지 검증 통과: 2026-09-02 22:09:33
+  출발 위치 확인: AMCL 오차 0.02 m
+                               진단 driving           plan 147건(0 빈것)  cmd 0 비율 2%  경로끝-목표 0.0 m  복구 0.0s -
+    통과 위로 #1                   timeout   이동  1.10 m  남은거리  8.51 m  최소여유 1.00 m   34.3s
+                               진단 driving           plan 147건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 0.0s -
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 91: 3644663 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_sweep_nav2.log 2>&1
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3647058/cmdline: No such file or directory
+
+=== 완료. mppi inflation 0.55 -> /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_avoidcourse/mppi_hybrid_infl0.55
+
+##############################################################
+ mppi + navfn   vica_avoidcourse   폭 1.20
+##############################################################
+  controller 는 이미 mppi 입니다.
+  planner    hybrid -> navfn
+  colcon build 후 nav2 를 다시 띄워야 반영됩니다.
+==============================================================
+ mppi + navfn   inflation 0.55   레인 1.20   각 1회
+ 결과 /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_avoidcourse/mppi_navfn_infl0.55
+==============================================================
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3649202/cmdline: No such file or directory
+  --- 1.20 m  #1
+  스테이지 검증 통과: 2026-09-02 22:09:33
+  출발 위치 확인: AMCL 오차 0.03 m
+                               진단 driving           plan 147건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 0.0s -
+    통과 위로 #1                   timeout   이동  0.00 m  남은거리  9.57 m  최소여유 1.94 m   34.0s
+                               진단 driving           plan 147건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 0.0s -
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 91: 3651644 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_sweep_nav2.log 2>&1
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3654037/cmdline: No such file or directory
+
+=== 완료. mppi inflation 0.55 -> /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_avoidcourse/mppi_navfn_infl0.55
+
+##############################################################
+ mppi + smac2d   vica_avoidcourse   폭 1.20
+##############################################################
+  controller 는 이미 mppi 입니다.
+  planner    navfn -> smac2d
+  colcon build 후 nav2 를 다시 띄워야 반영됩니다.
+==============================================================
+ mppi + smac2d   inflation 0.55   레인 1.20   각 1회
+ 결과 /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_avoidcourse/mppi_smac2d_infl0.55
+==============================================================
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3654031/cmdline: No such file or directory
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3656185/cmdline: No such file or directory
+  --- 1.20 m  #1
+  스테이지 검증 통과: 2026-09-02 22:09:33
+  출발 위치 확인: AMCL 오차 0.02 m
+                               진단 driving           plan 147건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 0.0s -
+    통과 위로 #1                   timeout   이동  0.00 m  남은거리  9.59 m  최소여유 1.94 m   34.3s
+                               진단 driving           plan 147건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 0.0s -
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3658508/cmdline: No such file or directory
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 91: 3658651 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_sweep_nav2.log 2>&1
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3660934/cmdline: No such file or directory
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3660973/cmdline: No such file or directory
+
+=== 완료. mppi inflation 0.55 -> /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_avoidcourse/mppi_smac2d_infl0.55
+
+##############################################################
+ dwb + lattice   vica_uturncourse   폭 1.20
+##############################################################
+  controller mppi -> dwb   smoother accel [2.5, 0.0, 3.2] decel [-1.25, 0.0, -3.2]
+  planner    smac2d -> lattice
+  colcon build 후 nav2 를 다시 띄워야 반영됩니다.
+==============================================================
+ dwb + lattice   inflation 0.55   레인 1.20   각 1회
+ 결과 /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_uturncourse/dwb_lattice_infl0.55
+==============================================================
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3660954/cmdline: No such file or directory
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3663122/cmdline: No such file or directory
+  --- 1.20 m  #1
+  스테이지 검증 통과: 2026-09-02 22:10:22
+  출발 위치 확인: AMCL 오차 0.02 m
+                               진단 driving           plan 15건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 0.0s -
+    통과 위로 #1                   timeout   이동  0.00 m  남은거리  3.99 m  최소여유 0.57 m   34.1s
+                               진단 driving           plan 147건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 0.0s -
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 91: 3665600 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_sweep_nav2.log 2>&1
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3667274/cmdline: No such file or directory
+
+=== 완료. dwb inflation 0.55 -> /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_uturncourse/dwb_lattice_infl0.55
+
+##############################################################
+ dwb + hybrid   vica_uturncourse   폭 1.20
+##############################################################
+  controller 는 이미 dwb 입니다.
+  planner    lattice -> hybrid
+  colcon build 후 nav2 를 다시 띄워야 반영됩니다.
+==============================================================
+ dwb + hybrid   inflation 0.55   레인 1.20   각 1회
+ 결과 /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_uturncourse/dwb_hybrid_infl0.55
+==============================================================
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3669494/cmdline: No such file or directory
+  --- 1.20 m  #1
+  스테이지 검증 통과: 2026-09-02 22:10:22
+  출발 위치 확인: AMCL 오차 0.02 m
+                               진단 bt-recovery       plan 13건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 135.0s Spin
+    통과 위로 #1                   timeout   이동  0.53 m  남은거리  3.72 m  최소여유 0.40 m   34.1s
+                               진단 driving           plan 147건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 0.0s -
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 91: 3672016 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_sweep_nav2.log 2>&1
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3674247/cmdline: No such file or directory
+
+=== 완료. dwb inflation 0.55 -> /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_uturncourse/dwb_hybrid_infl0.55
+
+##############################################################
+ dwb + navfn   vica_uturncourse   폭 1.20
+##############################################################
+  controller 는 이미 dwb 입니다.
+  planner    hybrid -> navfn
+  colcon build 후 nav2 를 다시 띄워야 반영됩니다.
+==============================================================
+ dwb + navfn   inflation 0.55   레인 1.20   각 1회
+ 결과 /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_uturncourse/dwb_navfn_infl0.55
+==============================================================
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3674151/cmdline: No such file or directory
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3676368/cmdline: No such file or directory
+  --- 1.20 m  #1
+  스테이지 검증 통과: 2026-09-02 22:10:22
+  출발 위치 확인: AMCL 오차 0.02 m
+                               진단 driving           plan 15건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 0.0s -
+    통과 위로 #1                   timeout   이동  0.00 m  남은거리  3.95 m  최소여유 0.57 m   34.2s
+                               진단 driving           plan 147건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 0.0s -
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 91: 3678779 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_sweep_nav2.log 2>&1
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3680428/cmdline: No such file or directory
+
+=== 완료. dwb inflation 0.55 -> /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_uturncourse/dwb_navfn_infl0.55
+
+##############################################################
+ dwb + smac2d   vica_uturncourse   폭 1.20
+##############################################################
+  controller 는 이미 dwb 입니다.
+  planner    navfn -> smac2d
+  colcon build 후 nav2 를 다시 띄워야 반영됩니다.
+==============================================================
+ dwb + smac2d   inflation 0.55   레인 1.20   각 1회
+ 결과 /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_uturncourse/dwb_smac2d_infl0.55
+==============================================================
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3680349/cmdline: No such file or directory
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3680418/cmdline: No such file or directory
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3682555/cmdline: No such file or directory
+  --- 1.20 m  #1
+  스테이지 검증 통과: 2026-09-02 22:10:22
+  출발 위치 확인: AMCL 오차 0.01 m
+                               진단 driving           plan 15건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 0.0s -
+    통과 위로 #1                   timeout   이동  0.00 m  남은거리  3.95 m  최소여유 0.57 m   33.8s
+                               진단 driving           plan 147건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 0.0s -
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 91: 3685107 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_sweep_nav2.log 2>&1
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3686680/cmdline: No such file or directory
+
+=== 완료. dwb inflation 0.55 -> /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_uturncourse/dwb_smac2d_infl0.55
+
+##############################################################
+ rpp + lattice   vica_uturncourse   폭 1.20
+##############################################################
+  controller dwb -> rpp   smoother accel [2.5, 0.0, 3.2] decel [-1.25, 0.0, -3.2]
+  planner    smac2d -> lattice
+  colcon build 후 nav2 를 다시 띄워야 반영됩니다.
+==============================================================
+ rpp + lattice   inflation 0.55   레인 1.20   각 1회
+ 결과 /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_uturncourse/rpp_lattice_infl0.55
+==============================================================
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3688869/cmdline: No such file or directory
+  --- 1.20 m  #1
+  스테이지 검증 통과: 2026-09-02 22:10:22
+  출발 위치 확인: AMCL 오차 0.02 m
+                               진단 driving           plan 8건(0 빈것)  cmd 0 비율 1%  경로끝-목표 0.0 m  복구 0.0s -
+    통과 위로 #1                   timeout   이동  0.35 m  남은거리  3.69 m  최소여유 0.43 m   34.2s
+                               진단 driving           plan 147건(0 빈것)  cmd 0 비율 29%  경로끝-목표 0.0 m  복구 0.0s -
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 91: 3691298 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_sweep_nav2.log 2>&1
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3692804/cmdline: No such file or directory
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3692847/cmdline: No such file or directory
+
+=== 완료. rpp inflation 0.55 -> /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_uturncourse/rpp_lattice_infl0.55
+
+##############################################################
+ rpp + hybrid   vica_uturncourse   폭 1.20
+##############################################################
+  controller 는 이미 rpp 입니다.
+  planner    lattice -> hybrid
+  colcon build 후 nav2 를 다시 띄워야 반영됩니다.
+==============================================================
+ rpp + hybrid   inflation 0.55   레인 1.20   각 1회
+ 결과 /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_uturncourse/rpp_hybrid_infl0.55
+==============================================================
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3695067/cmdline: No such file or directory
+  1.20 #1  nav2 가 뜨지 않음 -- 기록하고 넘어감
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 91: 3697515 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_sweep_nav2.log 2>&1
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3699224/cmdline: No such file or directory
+
+=== 완료. rpp inflation 0.55 -> /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_uturncourse/rpp_hybrid_infl0.55
+
+##############################################################
+ rpp + navfn   vica_uturncourse   폭 1.20
+##############################################################
+  controller 는 이미 rpp 입니다.
+  planner    hybrid -> navfn
+  colcon build 후 nav2 를 다시 띄워야 반영됩니다.
+==============================================================
+ rpp + navfn   inflation 0.55   레인 1.20   각 1회
+ 결과 /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_uturncourse/rpp_navfn_infl0.55
+==============================================================
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3701429/cmdline: No such file or directory
+  --- 1.20 m  #1
+  스테이지 검증 통과: 2026-09-02 22:10:22
+  출발 위치 확인: AMCL 오차 0.01 m
+                               진단 driving           plan 8건(0 빈것)  cmd 0 비율 1%  경로끝-목표 0.0 m  복구 0.0s -
+    통과 위로 #1                   timeout   이동  0.49 m  남은거리  3.50 m  최소여유 0.45 m   33.9s
+                               진단 driving           plan 147건(0 빈것)  cmd 0 비율 21%  경로끝-목표 0.0 m  복구 0.0s -
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 91: 3704000 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_sweep_nav2.log 2>&1
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3705513/cmdline: No such file or directory
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3705516/cmdline: No such file or directory
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3705542/cmdline: No such file or directory
+
+=== 완료. rpp inflation 0.55 -> /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_uturncourse/rpp_navfn_infl0.55
+
+##############################################################
+ rpp + smac2d   vica_uturncourse   폭 1.20
+##############################################################
+  controller 는 이미 rpp 입니다.
+  planner    navfn -> smac2d
+  colcon build 후 nav2 를 다시 띄워야 반영됩니다.
+==============================================================
+ rpp + smac2d   inflation 0.55   레인 1.20   각 1회
+ 결과 /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_uturncourse/rpp_smac2d_infl0.55
+==============================================================
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3707700/cmdline: No such file or directory
+  --- 1.20 m  #1
+  스테이지 검증 통과: 2026-09-02 22:10:22
+  출발 위치 확인: AMCL 오차 0.02 m
+                               진단 driving           plan 8건(0 빈것)  cmd 0 비율 1%  경로끝-목표 0.0 m  복구 0.0s -
+    통과 위로 #1                   timeout   이동  0.10 m  남은거리  3.94 m  최소여유 0.56 m   33.5s
+                               진단 driving           plan 147건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 0.0s -
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 91: 3710190 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_sweep_nav2.log 2>&1
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3711733/cmdline: No such file or directory
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3711761/cmdline: No such file or directory
+
+=== 완료. rpp inflation 0.55 -> /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_uturncourse/rpp_smac2d_infl0.55
+
+##############################################################
+ mppi + lattice   vica_uturncourse   폭 1.20
+##############################################################
+  controller rpp -> mppi   smoother accel [2.0, 0.0, 2.0] decel [-2.0, 0.0, -2.0]
+  planner    smac2d -> lattice
+  colcon build 후 nav2 를 다시 띄워야 반영됩니다.
+==============================================================
+ mppi + lattice   inflation 0.55   레인 1.20   각 1회
+ 결과 /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_uturncourse/mppi_lattice_infl0.55
+==============================================================
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3713910/cmdline: No such file or directory
+  --- 1.20 m  #1
+  스테이지 검증 통과: 2026-09-02 22:10:22
+  출발 위치 확인: AMCL 오차 0.02 m
+                               진단 driving           plan 17건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 0.0s -
+    통과 위로 #1                   timeout   이동  0.00 m  남은거리  4.21 m  최소여유 0.58 m   34.1s
+                               진단 driving           plan 147건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 0.0s -
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3716042/cmdline: No such file or directory
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3716337/cmdline: No such file or directory
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 91: 3716491 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_sweep_nav2.log 2>&1
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3718124/cmdline: No such file or directory
+
+=== 완료. mppi inflation 0.55 -> /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_uturncourse/mppi_lattice_infl0.55
+
+##############################################################
+ mppi + hybrid   vica_uturncourse   폭 1.20
+##############################################################
+  controller 는 이미 mppi 입니다.
+  planner    lattice -> hybrid
+  colcon build 후 nav2 를 다시 띄워야 반영됩니다.
+==============================================================
+ mppi + hybrid   inflation 0.55   레인 1.20   각 1회
+ 결과 /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_uturncourse/mppi_hybrid_infl0.55
+==============================================================
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3720268/cmdline: No such file or directory
+  1.20 #1  nav2 가 뜨지 않음 -- 기록하고 넘어감
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 91: 3722688 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_sweep_nav2.log 2>&1
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3724404/cmdline: No such file or directory
+
+=== 완료. mppi inflation 0.55 -> /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_uturncourse/mppi_hybrid_infl0.55
+
+##############################################################
+ mppi + navfn   vica_uturncourse   폭 1.20
+##############################################################
+  controller 는 이미 mppi 입니다.
+  planner    hybrid -> navfn
+  colcon build 후 nav2 를 다시 띄워야 반영됩니다.
+==============================================================
+ mppi + navfn   inflation 0.55   레인 1.20   각 1회
+ 결과 /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_uturncourse/mppi_navfn_infl0.55
+==============================================================
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3726606/cmdline: No such file or directory
+  --- 1.20 m  #1
+  스테이지 검증 통과: 2026-09-02 22:10:22
+  출발 위치 확인: AMCL 오차 0.02 m
+                               진단 driving           plan 17건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 0.0s -
+    통과 위로 #1                   timeout   이동  0.09 m  남은거리  4.28 m  최소여유 0.57 m   33.7s
+                               진단 driving           plan 147건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 0.0s -
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3728998/cmdline: No such file or directory
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 91: 3729049 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_sweep_nav2.log 2>&1
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3730724/cmdline: No such file or directory
+
+=== 완료. mppi inflation 0.55 -> /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_uturncourse/mppi_navfn_infl0.55
+
+##############################################################
+ mppi + smac2d   vica_uturncourse   폭 1.20
+##############################################################
+  controller 는 이미 mppi 입니다.
+  planner    navfn -> smac2d
+  colcon build 후 nav2 를 다시 띄워야 반영됩니다.
+==============================================================
+ mppi + smac2d   inflation 0.55   레인 1.20   각 1회
+ 결과 /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_uturncourse/mppi_smac2d_infl0.55
+==============================================================
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3730714/cmdline: No such file or directory
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3732912/cmdline: No such file or directory
+  --- 1.20 m  #1
+  스테이지 검증 통과: 2026-09-02 22:10:22
+  출발 위치 확인: AMCL 오차 0.01 m
+                               진단 driving           plan 17건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 0.0s -
+    통과 위로 #1                   timeout   이동  0.00 m  남은거리  4.18 m  최소여유 0.58 m   33.9s
+                               진단 driving           plan 147건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 0.0s -
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3735000/cmdline: No such file or directory
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3735261/cmdline: No such file or directory
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 91: 3735390 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_sweep_nav2.log 2>&1
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3736987/cmdline: No such file or directory
+
+=== 완료. mppi inflation 0.55 -> /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_uturncourse/mppi_smac2d_infl0.55
+
+==============================================================
+ 끝. 결과 /home/sim/VICA-smarthandle/vica_ws/results/matrix
+ 요약:  python3 /home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/matrix_report.py /home/sim/VICA-smarthandle/vica_ws/results/matrix
+==============================================================
