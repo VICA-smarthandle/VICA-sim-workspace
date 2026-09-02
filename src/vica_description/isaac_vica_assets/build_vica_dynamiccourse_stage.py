@@ -88,11 +88,12 @@ WALKER_RADIUS = 0.175
 WALKER_HEIGHT = 1.70
 WALKER_MASS = 62.0
 WALKER_PARK_Y = CORRIDOR_WIDTH / 2.0 + 0.9      # behind the wall, in the doorway
-# Mirrored, not chosen. play_stage moves the walker to -park_y because it
-# reads the prim rather than this file, and two files disagreeing about where
-# the walker ends is a discrepancy waiting to be debugged rather than a
-# feature. Either value clears the corridor.
-WALKER_END_Y = -WALKER_PARK_Y
+# The corridor centre, which is where play_stage stops the walker unless told
+# otherwise. A person who steps out and stays there is the case worth
+# measuring: one who walks straight through is gone before a robot at 0.5 m/s
+# arrives unless the walk starts within about a metre, and then every trial
+# reports that nothing was owed. play_stage's walker hook says this at length.
+WALKER_END_Y = 0.0
 
 # The ultrasonic-only obstacle, past the crossing, against the south wall.
 LOW_X = 18.0

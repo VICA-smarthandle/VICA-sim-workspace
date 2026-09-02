@@ -222,8 +222,23 @@ if _walker is not None:
         _t = _walk_op.Get()
         _walk_cross_x, _walk_park_y = float(_t[0]), float(_t[1])
         _walk_y = _walk_park_y
-        # Far enough past the far wall that the corridor is clear behind it.
-        _walk_end_y = -abs(_walk_park_y)
+        # Where the walker stops. The corridor centre by default, which is a
+        # person stepping out and staying there.
+        #
+        # Walking straight through was the first version and it measures the
+        # wrong thing. Crossing a 2 m corridor at 1.2 m/s takes about three
+        # seconds, in which a robot at 0.5 m/s covers 1.6 m, so unless the walk
+        # begins within about a metre of the crossing the walker is gone before
+        # the robot arrives and every trial reports that nothing was owed. The
+        # question being asked is how late an obstacle can appear and still be
+        # got around, and that needs one that is still there.
+        #
+        # A 0.35 m walker in the middle of a 2.0 m corridor leaves about 0.8 m
+        # either side against a 0.505 m padded footprint, so going round is
+        # possible and the trial is about whether it is possible in the
+        # distance available. VICA_WALK_STOP_Y crosses fully again when that is
+        # what is wanted.
+        _walk_end_y = float(os.environ.get("VICA_WALK_STOP_Y", "0.0"))
         try:
             _walk_fh = open(_walk_log_path, "w")
             _walk_fh.write("t,robot_x,robot_y,robot_speed,walker_y,gap,walking\n")

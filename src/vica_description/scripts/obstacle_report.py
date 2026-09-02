@@ -51,6 +51,10 @@ ROBOT_R = 0.31
 STOPPED = 0.03          # m/s, below which it is stopped rather than crawling
 DECEL_FRAC = 0.90       # of cruise speed
 CLEAR_MARGIN = 0.25     # m the forward scan must shorten by to count as a sight
+# Closest approach above which driving straight past was the right answer.
+# 0.6 m is roughly the robot's own length: at that separation the walker was
+# never on the robot's line and nothing was owed.
+CLEAR_PASS = 0.60
 
 
 def _read(path):
@@ -146,12 +150,19 @@ def analyse(trial_csv, walk_csv, meta):
     else:
         slowest = None
 
+    # "It did not react" is two different results and they must not share a
+    # row. A walker who has finished crossing before the robot arrives needs no
+    # reaction, and the robot driving past at full speed is correct; a walker
+    # still in the way and no reaction is the failure the trial exists to
+    # catch. The closest approach separates them.
     if closest["gap"] <= 0.0:
         verdict = "접촉"
     elif stop is not None:
         verdict = "정지"
     elif decel is not None:
         verdict = "감속"
+    elif closest["gap"] >= CLEAR_PASS:
+        verdict = "여유통과"
     else:
         verdict = "반응없음"
 
@@ -227,6 +238,12 @@ def main():
     print("  출발거리 = 보행자가 걷기 시작한 순간 로봇이 교차점에서 떨어져 있던 거리.")
 
     ok = [r for r in rows if r["verdict"] in ("정지", "감속") and r["closest"] > 0]
+    passed = [r for r in rows if r["verdict"] == "여유통과"]
+    if passed:
+        latest = min(passed, key=lambda r: r["trigger_m"])
+        print()
+        print(f"  반응이 필요 없던 가장 늦은 등장: 출발거리 {latest['trigger_m']:.2f} m "
+              f"(최근접 {latest['closest']:.3f} m) — 보행자가 먼저 지나갔다")
     if ok:
         worst = min(ok, key=lambda r: r["trigger_m"])
         print()
