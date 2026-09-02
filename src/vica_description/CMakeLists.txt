@@ -132,6 +132,12 @@ install(
 )
 
 install(
+  PROGRAMS scripts/matrix_media.sh
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME matrix_media
+)
+
+install(
   PROGRAMS scripts/inflation_ab.sh
   DESTINATION lib/${PROJECT_NAME}
   RENAME inflation_ab
