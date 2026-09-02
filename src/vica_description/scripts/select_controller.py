@@ -47,7 +47,7 @@ three move together more often than not:
     MPPI   ax_max 2.0, az_max 2.0                ->  accel [2.0, 0, 2.0]
                                                      decel [-2.0, 0, -2.0]
     DWB    acc_lim 2.0/2.0, decel_lim -1.5/-3.2  ->  dev's [2.5, 0, 3.2]
-                                                     dev's [-1.0, 0, -3.2]
+                                                     dev's [-1.25, 0, -3.2]
     RPP    max_angular_accel 2.0, no linear      ->  DWB's, as the looser net
 
 On inflation_radius
@@ -80,14 +80,14 @@ CONTROLLERS = {
         "block": "FollowPathDWB",
         "plugin": "dwb_core::DWBLocalPlanner",
         "max_accel": "[2.5, 0.0, 3.2]",
-        "max_decel": "[-1.0, 0.0, -3.2]",
+        "max_decel": "[-1.25, 0.0, -3.2]",
     },
     "rpp": {
         "block": "FollowPathRPP",
         "plugin": "nav2_regulated_pure_pursuit_controller::"
                   "RegulatedPurePursuitController",
         "max_accel": "[2.5, 0.0, 3.2]",
-        "max_decel": "[-1.0, 0.0, -3.2]",
+        "max_decel": "[-1.25, 0.0, -3.2]",
     },
     "mppi": {
         "block": "FollowPathMPPI",

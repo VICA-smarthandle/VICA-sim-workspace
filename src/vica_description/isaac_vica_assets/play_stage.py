@@ -100,6 +100,95 @@ if SPAWN is not None:
           + (f" yaw {SPAWN_YAW:.1f} deg" if SPAWN_YAW is not None else ""),
           flush=True)
 
+# --------------------------------------------------------------------------
+# Ultrasonic probes -> sensor_msgs/Range
+# --------------------------------------------------------------------------
+# Published from here rather than from an OmniGraph, which is where every other
+# ROS interface in this stage comes from. Two reasons, both practical:
+#
+#   - The bridge has no ROS2PublishRange node. It publishes LaserScan,
+#     PointCloud, Image, Odometry, JointState, TF and a few more, and Range is
+#     not among them.
+#   - The generic ROS2Publisher can name any message type, but it resolves that
+#     type into dynamic input attributes only after the node has been
+#     evaluated, so the fields cannot be set in the same edit that creates it.
+#
+# nav2's RangeSensorLayer wants sensor_msgs/Range on /ultrasonic/front_left and
+# /ultrasonic/front_right, which is what the robot's driver publishes. Matching
+# that interface is the whole reason for modelling the probes, so the simplest
+# thing that produces it exactly is the right one.
+#
+# The cost is that the probes only exist while a stage is driven through this
+# script. Every trial goes through it, and replay_render never plays the
+# timeline at all, so nothing that needs them loses them.
+USONIC = [
+    ("usonic_front_left", "/ultrasonic/front_left"),
+    ("usonic_front_right", "/ultrasonic/front_right"),
+]
+USONIC_FOV = 0.5236        # 30 deg, the cone the raycast fan covers
+USONIC_MIN = 0.02
+USONIC_MAX = 4.0
+USONIC_HZ = 10.0           # DYP-A22 is specified around 10 Hz
+
+_usonic = None
+try:
+    import rclpy  # noqa: E402
+    from rclpy.node import Node as _RclNode  # noqa: E402
+    from sensor_msgs.msg import Range  # noqa: E402
+    from isaacsim.sensors.physics import _sensor as _isaac_sensor  # noqa: E402
+
+    stage_now = omni.usd.get_context().get_stage()
+    found = []
+    for prim in stage_now.Traverse():
+        n = prim.GetName()
+        for link, topic in USONIC:
+            if n == f"{link}_ray":
+                found.append((str(prim.GetPath()), link, topic))
+    if found:
+        if not rclpy.ok():
+            rclpy.init(args=None)
+        _node = _RclNode("vica_usonic")
+        _iface = _isaac_sensor.acquire_lidar_sensor_interface()
+        pubs = [(path, link, _node.create_publisher(Range, topic, 1))
+                for path, link, topic in found]
+        _usonic = (_node, _iface, pubs)
+        print(f"=== ultrasonic: {len(pubs)} probe(s) -> "
+              f"{', '.join(t for _, _, t in found)}", flush=True)
+    else:
+        print("=== ultrasonic: no *_ray prims in this stage, not publishing",
+              flush=True)
+except Exception as exc:                      # noqa: BLE001
+    # Never fatal. A stage without probes, or a build without the sensor
+    # extension, still has to drive: the probes are one costmap layer, and
+    # taking the whole run down for them would trade a measurement for nothing.
+    print(f"=== ultrasonic: disabled ({exc})", flush=True)
+    _usonic = None
+
+
+def _publish_usonic():
+    """Nearest hit in each probe's fan, as a Range message."""
+    node, iface, pubs = _usonic
+    now = node.get_clock().now().to_msg()
+    for path, link, pub in pubs:
+        try:
+            depths = iface.get_linear_depth_data(path)
+        except Exception:                     # noqa: BLE001
+            continue
+        vals = [float(d) for d in (depths if depths is not None else [])
+                if d == d and d > 0.0]
+        m = Range()
+        m.header.stamp = now
+        m.header.frame_id = link
+        m.radiation_type = Range.ULTRASOUND
+        m.field_of_view = USONIC_FOV
+        m.min_range = USONIC_MIN
+        m.max_range = USONIC_MAX
+        # No hit reads as max range, which is what an ultrasonic reports and
+        # what clear_on_max_reading in the costmap layer is waiting for.
+        m.range = min(vals) if vals else USONIC_MAX
+        pub.publish(m)
+
+
 timeline = omni.timeline.get_timeline_interface()
 timeline.play()
 print(f"=== playing for ~{SECONDS:.0f}s via app.update()", flush=True)
@@ -108,12 +197,23 @@ import time  # noqa: E402
 
 started = time.time()
 frames = 0
+_next_usonic = 0.0
 while time.time() - started < SECONDS:
     simulation_app.update()
     frames += 1
+    if _usonic is not None:
+        now = time.time()
+        if now >= _next_usonic:
+            _publish_usonic()
+            _next_usonic = now + 1.0 / USONIC_HZ
     if frames % 600 == 0:
         print(f"    {frames} frames, {time.time() - started:.0f}s wall", flush=True)
 
 timeline.stop()
+if _usonic is not None:
+    try:
+        _usonic[0].destroy_node()
+    except Exception:                         # noqa: BLE001
+        pass
 print(f"=== done, {frames} frames", flush=True)
 simulation_app.close()

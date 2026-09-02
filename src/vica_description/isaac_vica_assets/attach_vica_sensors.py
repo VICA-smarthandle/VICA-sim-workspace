@@ -402,6 +402,90 @@ def _set_lidar_range(stage, lidar_root):
     print("    WARNING: no OmniLidar under the reference, left as shipped")
 
 
+# --------------------------------------------------------------------------
+# Ultrasonic probes
+# --------------------------------------------------------------------------
+# Two DYP-A22 on the front bumper, fitted to the robot 2026-08-31, at ankle
+# height where neither the lidar plane (0.382) nor the costmap's depth band
+# (0.30 to 1.05) has anything to say.
+#
+# Modelled as IsaacRaycastSensor rather than an RTX lidar. An ultrasonic
+# returns one distance, not a scan, and the RTX path needs a config from a
+# hardcoded table this sensor is not in. The raycast reads the same PhysX
+# scene the wheels roll on, which is what a range reading should agree with.
+#
+# The cone is approximated by a small fan rather than one ray. A single ray
+# through the middle misses an obstacle its own width off axis, which is the
+# case the probes exist to catch; DYP-A22 opens about 60 degrees and the fan
+# below covers the middle 30 of it. nav2's RangeSensorLayer takes the minimum
+# anyway, so more rays only sharpen the same number.
+USONIC_NAMES = ("usonic_front_left", "usonic_front_right")
+USONIC_MIN_RANGE_M = 0.02
+USONIC_MAX_RANGE_M = 4.0
+USONIC_FAN_DEG = 30.0
+USONIC_FAN_RAYS = 7
+
+
+def _attach_usonic(stage, base_link):
+    """Mount a raycast sensor at each ultrasonic frame's joint offset.
+
+    On base_link, not under the usonic_* prims, for the reason _attach_lidar
+    records at length: the importer marks link prims carrying a mesh as
+    instanceable, and a sensor parented there is advertised and never fires.
+    Both probes now carry a visual cylinder, so both would hit it.
+    """
+    made = []
+    for name in USONIC_NAMES:
+        frame = f"{base_link}/{name}"
+        if not stage.GetPrimAtPath(frame):
+            print(f"    SKIPPED {name}: no such link")
+            continue
+
+        offset = None
+        for prim in stage.Traverse():
+            if not prim.IsA(UsdPhysics.Joint):
+                continue
+            joint = UsdPhysics.Joint(prim)
+            if name in [t.name for t in joint.GetBody1Rel().GetTargets()]:
+                offset = joint.GetLocalPos0Attr().Get()
+                break
+        if offset is None:
+            print(f"    SKIPPED {name}: no joint places it")
+            continue
+
+        mount = f"{base_link}/{name}_mount"
+        xf = UsdGeom.Xform.Define(stage, mount)
+        xf.ClearXformOpOrder()
+        xf.AddTranslateOp().Set(Gf.Vec3d(*offset))
+
+        path = f"{mount}/{name}_ray"
+        prim = stage.GetPrimAtPath(path)
+        if not prim:
+            prim = stage.DefinePrim(path, "IsaacRaycastSensor")
+        # Written every run, not only on create: these are settings, and a
+        # re-run has to be able to correct a probe configured by an older
+        # version of this file.
+        for attr, kind, value in (
+            ("minRange", Sdf.ValueTypeNames.Float, USONIC_MIN_RANGE_M),
+            ("maxRange", Sdf.ValueTypeNames.Float, USONIC_MAX_RANGE_M),
+            ("drawPoints", Sdf.ValueTypeNames.Bool, False),
+            ("drawLines", Sdf.ValueTypeNames.Bool, False),
+        ):
+            a = prim.GetAttribute(attr) or prim.CreateAttribute(attr, kind)
+            a.Set(value)
+        # The fan, as yaw offsets about the mount's z.
+        half = USONIC_FAN_DEG / 2.0
+        step = USONIC_FAN_DEG / max(1, USONIC_FAN_RAYS - 1)
+        angles = [(-half + i * step) for i in range(USONIC_FAN_RAYS)]
+        a = (prim.GetAttribute("beamAngles")
+             or prim.CreateAttribute("beamAngles", Sdf.ValueTypeNames.FloatArray))
+        a.Set([float(v) for v in angles])
+        print(f"    usonic  -> {path}  at {tuple(round(v, 4) for v in offset)}  "
+              f"{USONIC_FAN_RAYS} rays over {USONIC_FAN_DEG:.0f} deg")
+        made.append(path)
+    return made
+
+
 def main():
     _require_stopped_timeline()
 
@@ -414,6 +498,7 @@ def main():
     print("=== attaching sensors")
     camera_path = _attach_camera(stage, base_link)
     lidar_path = _attach_lidar(stage, base_link)
+    usonic_paths = _attach_usonic(stage, base_link)
 
     if SAVE_STAGE:
         stage.GetRootLayer().Save()
@@ -421,6 +506,7 @@ def main():
     print(f"\nbase link     : {base_link}")
     print(f"camera        : {camera_path}")
     print(f"lidar         : {lidar_path}")
+    print(f"ultrasonic    : {usonic_paths or 'none'}")
     if SAVE_STAGE:
         print("Stage saved.")
     else:

@@ -46,9 +46,14 @@ amcl:
     save_pose_rate: 0.5
     sigma_hit: 0.2
     tf_broadcast: true
-    # 1.0 s accepts transforms old enough to hide timing problems.
-    transform_tolerance: 0.3
-    update_min_a: 0.15
+    # 1.0, dev's, from 2026-09-02. This file had 0.3 on purpose, with the note
+    # that 1.0 accepts transforms old enough to hide timing problems, and that
+    # is still true. It is matched anyway: a tolerance the robot does not have
+    # can drop transforms here that it would keep, and a controller comparison
+    # is only worth reading if the localisation underneath it behaves the same.
+    # Put 0.3 back when diagnosing timing rather than comparing controllers.
+    transform_tolerance: 1.0
+    update_min_a: 0.1
     update_min_d: 0.10
     z_hit: 0.5
     z_max: 0.05
@@ -94,7 +99,10 @@ controller_server:
     min_x_velocity_threshold: 0.001
     min_y_velocity_threshold: 0.5
     min_theta_velocity_threshold: 0.001
-    failure_tolerance: 0.3
+    # 10.0, dev's. 0.3 declares FollowPath failed after 0.3 s of the
+    # controller producing nothing, which a robot easing through a tight
+    # turn does routinely.
+    failure_tolerance: 10.0
     progress_checker_plugins: ["progress_checker"]
     goal_checker_plugins: ["general_goal_checker"] # "precise_goal_checker"
     controller_plugins: ["FollowPath"]
@@ -480,7 +488,29 @@ local_costmap:
       # At 0.4727 the 0.55 inflation clears it.
       footprint: "[[0.305, 0.225], [0.305, -0.225], [-0.305, -0.225], [-0.415, -0.035], [-0.415, 0.035], [-0.305, 0.225]]"
       footprint_padding: 0.05
-      plugins: ["voxel_layer", "inflation_layer"]
+      plugins: ["voxel_layer", "range_sensor_front_left", "range_sensor_front_right", "inflation_layer"]
+      # The two DYP-A22 probes, values from dev. They sit at ground 0.091,
+      # where the lidar plane (0.382) and the depth band (0.30 to 1.05) both
+      # see nothing, so anything shorter than about 30 cm is theirs alone.
+      #
+      # play_stage.py publishes these, not an OmniGraph; the bridge has no
+      # Range publisher. See the note there.
+      range_sensor_front_left:
+        plugin: "nav2_costmap_2d::RangeSensorLayer"
+        enabled: True
+        topics: ["/ultrasonic/front_left"]
+        clear_on_max_reading: True
+        no_readings_timeout: 0.0
+        clear_threshold: 0.2
+        mark_threshold: 0.8
+      range_sensor_front_right:
+        plugin: "nav2_costmap_2d::RangeSensorLayer"
+        enabled: True
+        topics: ["/ultrasonic/front_right"]
+        clear_on_max_reading: True
+        no_readings_timeout: 0.0
+        clear_threshold: 0.2
+        mark_threshold: 0.8
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         # Both values come from the physical robot. cost_scaling_factor 2.5 was
@@ -496,7 +526,7 @@ local_costmap:
         publish_voxel_map: True
         origin_z: 0.0
         z_resolution: 0.05
-        z_voxels: 40
+        z_voxels: 16
         max_obstacle_height: 2.0
         # 0 here, against the robot's 1, and the difference is not a drift.
         #
@@ -514,7 +544,7 @@ local_costmap:
         #
         # Raise it only once the depth cloud is the primary source, since dense
         # points do fill a column and would then benefit from the filtering.
-        mark_threshold: 0
+        mark_threshold: 1
         # Two sources, which is the point of a VoxelLayer. Fed only the 2D scan
         # it returns the same answer as an ObstacleLayer for more work, and the
         # robot stays blind to anything the lidar plane at 0.382 m passes over:
@@ -526,99 +556,32 @@ local_costmap:
         # raw points does, so this is the same intent by a simpler route, not
         # the same mechanism. Worth remembering when a dynamic-obstacle result
         # here is read as saying something about the robot.
-        observation_sources: scan depth
-        depth:
-          topic: /camera/camera/depth/color/points
-          data_type: "PointCloud2"
-          clearing: True
-          marking: True
-          # The D455 sits at 0.320 m and looks level, so it sees the floor a
-          # short way ahead. min_obstacle_height keeps the floor itself from
-          # marking; max matches the layer's ceiling.
-          min_obstacle_height: 0.05
-          max_obstacle_height: 2.0
-          # Depth is dense and short-ranged next to a lidar. 3.0 m is where the
-          # D455's stereo error starts to matter more than the reading does.
-          obstacle_max_range: 3.0
-          obstacle_min_range: 0.3
-          raytrace_max_range: 3.5
-          raytrace_min_range: 0.3
-          observation_persistence: 0.5
-          expected_update_rate: 0.5
-        scan:
-          topic: /scan
-          max_obstacle_height: 2.0
-          clearing: True
-          marking: True
+        observation_sources: scan depth_scan
+        # 2026-09-02: the raw point cloud is replaced by a 2D slice of it,
+        # matching dev. pointcloud_to_laserscan flattens the depth band into a
+        # LaserScan on /camera/depth_scan and this consumes that instead.
+        #
+        # The robot's reason, from its own config: a camera 1.045 m up cannot
+        # clear a cell below it, because the ray that grazes that cell has to
+        # reach far-off floor to do it (6.7 m for a cell 1.8 m out), and indoors
+        # a wall 3 to 4 m ahead stops it. A lidar clears well precisely because
+        # it looks at its own height. Pressing the depth into one plane gives it
+        # the same property. Without this, marked cells never clear and the
+        # costmap keeps an afterimage -- which in a 1 m corridor is a wall.
+        depth_scan:
+          topic: /camera/depth_scan
           data_type: "LaserScan"
-          # Isaac's RTX lidar returns inf for beams that hit nothing. Without
-          # this the observation buffer discards them, no raytrace clearing
-          # happens along those bearings, and stale obstacles never get erased.
-          inf_is_valid: true
-          # Ranges and persistence are the robot's. They gate which returns are
-          # believed at all, so a simulation that gates differently is not
-          # seeing the same world even when the sensor matches.
-          #
-          # obstacle_min_range 0.12 is the one that changes behaviour here: at
-          # 0.0, /scan's returns off the robot's own chassis 0.447 m astern are
-          # marked as obstacles. 0.12 does not reach them either -- that needs
-          # its own fix -- but it removes the class of near-field marks the
-          # robot has already decided not to trust.
-          raytrace_max_range: 3.5
-          raytrace_min_range: 0.05
-          obstacle_max_range: 3.0
-          obstacle_min_range: 0.12
-          observation_persistence: 0.5
-          expected_update_rate: 0.2
-      static_layer:
-        plugin: "nav2_costmap_2d::StaticLayer"
-        map_subscribe_transient_local: True
-      always_send_full_costmap: True
-
-global_costmap:
-  global_costmap:
-    ros__parameters:
-      update_frequency: 1.0
-      publish_frequency: 1.0
-      global_frame: map
-      robot_base_frame: base_footprint
-      footprint: "[[0.305, 0.225], [0.305, -0.225], [-0.305, -0.225], [-0.415, -0.035], [-0.415, 0.035], [-0.305, 0.225]]"
-      footprint_padding: 0.05
-      resolution: 0.05
-      track_unknown_space: true
-      plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
-      obstacle_layer:
-        plugin: "nav2_costmap_2d::ObstacleLayer"
-        enabled: True
-        observation_sources: scan
-        scan:
-          topic: /scan
-          max_obstacle_height: 2.0
-          clearing: True
           marking: True
-          data_type: "LaserScan"
-          # Isaac's RTX lidar returns inf for beams that hit nothing. Without
-          # this the observation buffer discards them, no raytrace clearing
-          # happens along those bearings, and stale obstacles never get erased.
-          inf_is_valid: true
-          # Ranges and persistence are the robot's. They gate which returns are
-          # believed at all, so a simulation that gates differently is not
-          # seeing the same world even when the sensor matches.
-          #
-          # obstacle_min_range 0.12 is the one that changes behaviour here: at
-          # 0.0, /scan's returns off the robot's own chassis 0.447 m astern are
-          # marked as obstacles. 0.12 does not reach them either -- that needs
-          # its own fix -- but it removes the class of near-field marks the
-          # robot has already decided not to trust.
-          raytrace_max_range: 3.5
-          raytrace_min_range: 0.05
+          clearing: True
+          min_obstacle_height: -0.05
+          max_obstacle_height: 0.15
           obstacle_max_range: 3.0
-          obstacle_min_range: 0.12
-          observation_persistence: 0.5
-          expected_update_rate: 0.2
-      static_layer:
-        plugin: "nav2_costmap_2d::StaticLayer"
-        map_subscribe_transient_local: True
+          obstacle_min_range: 0.30
+          raytrace_max_range: 3.5
+          raytrace_min_range: 0.30
+          observation_persistence: 0.0
+          expected_update_rate: 0.0
+          inf_is_valid: true
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         # Both values come from the physical robot. cost_scaling_factor 2.5 was
@@ -671,7 +634,7 @@ planner_server:
     #
     # Kept under the same "GridBased" key so swapping is a one-line change and
     # the behaviour tree does not care.
-    GridBasedLattice:
+    GridBased:
       # Jazzy declares these with :: ; the physical robot's config uses the
 # Humble-era slash form, and copying it verbatim gives
 #   "the class nav2_smac_planner/SmacPlannerLattice ... does not exist"
@@ -724,7 +687,7 @@ planner_server:
     # has a contract test enforcing exactly that, and the reason is the same
     # here: one variable at a time, or the comparison measures nothing.
 
-    GridBased:
+    GridBasedHybrid:
       # Smac Hybrid-A*. Continuous headings, Dubin curves, no in-place
       # rotation primitive at all -- it plans paths a car could drive.
       # minimum_turning_radius 0.50 with the 0.4727 circumscribed radius means
@@ -877,10 +840,13 @@ velocity_smoother:
     # by the planner's allow_reverse_expansion false and the controller's
     # vx_min 0.0, so nothing plans it -- but BackUp is a recovery, not a plan,
     # and clamping it to zero silently removes a recovery rather than a motion.
-    max_velocity: [0.26, 0.0, 1.0]
-    min_velocity: [-0.26, 0.0, -1.0]
+    # [0.5, 0, 1.0], dev's. This is the cap that actually governs: DWB was
+    # raised to 0.5 on 2026-09-02 and the robot still ran at 0.26 because
+    # the smoother sat below it. Measured on /cmd_vel: a flat 0.26.
+    max_velocity: [0.5, 0.0, 1.0]
+    min_velocity: [-0.5, 0.0, -1.0]
     max_accel: [2.5, 0.0, 3.2]
-    max_decel: [-1.0, 0.0, -3.2]
+    max_decel: [-1.25, 0.0, -3.2]
     odom_topic: "odom"
     odom_duration: 0.1
     deadband_velocity: [0.0, 0.0, 0.0]

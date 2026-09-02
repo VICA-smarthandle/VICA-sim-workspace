@@ -226,6 +226,13 @@ GRAPHS = [
     "ROS_Camera",
 ]
 
+# The ultrasonic probes are NOT published from a graph. There is no
+# ROS2PublishRange node, and the generic ROS2Publisher resolves its message
+# fields into dynamic attributes only after the node has been evaluated, so
+# they cannot be set in the same edit that creates it. play_stage.py reads the
+# raycast sensors and publishes sensor_msgs/Range with rclpy instead, which is
+# a plainer thing to verify. See the note there.
+
 
 # --------------------------------------------------------------------------
 # Validation
