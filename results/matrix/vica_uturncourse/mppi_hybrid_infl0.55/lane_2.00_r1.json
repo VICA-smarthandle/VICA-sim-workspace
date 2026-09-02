@@ -1,0 +1,93 @@
+{
+ "controller": "mppi",
+ "phase": "lane",
+ "width": 2.0,
+ "spec": "vica_uturncourse.json",
+ "course_stamp": "2026-09-02 22:10:22",
+ "spawn": [
+  6.4,
+  2.2
+ ],
+ "inflation_radius": 0.55,
+ "records": [
+  {
+   "label": "\ud1b5\uacfc \uc704\ub85c #1",
+   "result": "no-start",
+   "goal": [
+    6.3999999999999995,
+    -1.2
+   ],
+   "from": [
+    5.176293506497668,
+    2.994931706764198
+   ],
+   "to": [
+    5.176293506497668,
+    2.994931706764198
+   ],
+   "moved_m": 0.0,
+   "remaining_m": 4.37,
+   "sim_seconds": 0.07,
+   "clearance_start": 0.677,
+   "clearance_min": 0.677,
+   "pose_source": "amcl",
+   "start_offset_m": 1.459,
+   "diag": {
+    "verdict": "planner-fail",
+    "span_s": 0.03,
+    "plan_msgs": 0,
+    "plan_empty": 0,
+    "plan_short_m": null,
+    "plan_short_last_m": null,
+    "plan_gap_s": null,
+    "cmd_msgs": 0,
+    "cmd_zero_frac": 1.0,
+    "recovery_s": 0,
+    "recovery_top": null,
+    "bt_seconds": {
+     "NavigateRecovery": 0.0,
+     "RateController": 0.0,
+     "ComputePathToPose": 0.0,
+     "Sequence": 0.0,
+     "Fallback": 0.0,
+     "NavigateWithReplanning": 0.0
+    },
+    "bt_ticks": {
+     "Sequence": 2,
+     "Fallback": 1,
+     "NavigateRecovery": 1,
+     "RateController": 1,
+     "ComputePathToPose": 1,
+     "NavigateWithReplanning": 1
+    }
+   },
+   "track": [
+    [
+     45.233333333,
+     6.694056198943873,
+     3.483029496633705,
+     -1.4466792312243721
+    ],
+    [
+     45.25,
+     6.6926643112157915,
+     3.4826856973227898,
+     -1.4374756774045618
+    ],
+    [
+     45.283333333,
+     6.689914391167395,
+     3.4819229968467553,
+     -1.4191049400306617
+    ],
+    [
+     45.3,
+     6.688588783806877,
+     3.48159016477692,
+     -1.4102480632874421
+    ]
+   ],
+   "width": 2.0
+  }
+ ]
+}

@@ -149,7 +149,7 @@ controller_server:
       yaw_goal_tolerance: 0.25
       trans_stopped_velocity: 0.03
       rot_stopped_velocity: 0.05
-    FollowPath:
+    FollowPathRPP:
       # Regulated Pure Pursuit. Values are the robot's second RPP run
       # (2026-08-29 `run1215`), which is the configuration that arrived.
       #
@@ -203,7 +203,7 @@ controller_server:
       cost_scaling_gain: 1.0
       inflation_cost_scaling_factor: 3.5
 
-    FollowPathMPPI:
+    FollowPath:
       # Velocity and acceleration limits are the physical robot's measured
       # values (vica_nav2): 0.26 m/s and 0.4 rad/s, with acc_lim 2.0 after 2.5
       # was found to lurch on start. vx_min is 0 because the planner runs with
@@ -861,8 +861,8 @@ velocity_smoother:
     # the smoother sat below it. Measured on /cmd_vel: a flat 0.26.
     max_velocity: [0.5, 0.0, 1.0]
     min_velocity: [-0.5, 0.0, -1.0]
-    max_accel: [2.5, 0.0, 3.2]
-    max_decel: [-1.25, 0.0, -3.2]
+    max_accel: [2.0, 0.0, 2.0]
+    max_decel: [-2.0, 0.0, -2.0]
     odom_topic: "odom"
     odom_duration: 0.1
     deadband_velocity: [0.0, 0.0, 0.0]
