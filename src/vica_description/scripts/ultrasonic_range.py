@@ -3,8 +3,9 @@
 
     ros2 run vica_description ultrasonic_range
 
-Isaac publishes each probe as a seven-beam LaserScan on
-/ultrasonic/front_left_scan and /ultrasonic/front_right_scan. nav2's
+Isaac publishes each probe as a LaserScan on /ultrasonic/front_left_scan and
+/ultrasonic/front_right_scan, from an RTX lidar restricted to the probe's 50
+degree beam. nav2's
 RangeSensorLayer wants sensor_msgs/Range on /ultrasonic/front_left and
 /ultrasonic/front_right, which is what the robot's own driver publishes. This
 is the whole difference between the two.
@@ -49,10 +50,37 @@ from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import LaserScan, Range
 
-# DYP-A22, from its datasheet and the URDF comment on the robot.
-FIELD_OF_VIEW = 0.5236     # 30 degrees, the fan Isaac casts
+# DYP-A22, copied from the robot's own user_guidance.yaml rather than guessed.
+# Every value below has to stay equal to the one there, because the whole point
+# of the simulated probe is that nav2 cannot tell which one it is reading.
+#
+# field_of_view is NOT the angle the probe listens over. The probe hears about
+# 50 degrees, firmware US_ANGLE_LEVEL 3, and Isaac's sensor is built that wide.
+# This number is the arc the costmap draws, and the robot deliberately draws
+# narrower than it hears: RangeSensorLayer computes its arc from the message's
+# fov, and a 50 degree arc at 1.5 m is 1.31 m wide, which put marks well past
+# the real silhouette and closed a 10 cm corner gap in the map. The A/B on
+# 2026-09-02, same detection criterion, was 1.6 partial stops a minute at 50
+# degrees against 0.2 at 30, with average speed unchanged at 0.40 and 0.39.
+# Detection is unaffected because the physical beam decides that.
+#
+# max_range 1.50 rather than the sensor's own reach: past that the robot does
+# not act on the reading, and a longer horizon only marks things the lidar has
+# already accounted for.
+FIELD_OF_VIEW = 0.524      # 30 degrees of marking arc; the beam is 50
 MIN_RANGE = 0.02
-MAX_RANGE = 4.0
+MAX_RANGE = 1.50
+
+# The listening beam, radians, half-width about the probe's forward axis.
+# 50 degrees total, firmware US_ANGLE_LEVEL 3.
+#
+# Cut here rather than on the sensor. Isaac's probe sweeps the full circle, so
+# without this the reported range would be the nearest thing in any direction
+# at all -- including the corridor wall beside the robot and its own chassis
+# behind. attach_vica_sensors records the two ways of cutting it at the sensor
+# that were tried first: both stop the probe publishing, one immediately and
+# one after a handful of messages, neither with an error.
+BEAM_HALF_RAD = math.radians(50.0) / 2.0
 
 PROBES = (
     ("/ultrasonic/front_left_scan", "/ultrasonic/front_left"),
@@ -78,8 +106,18 @@ class UltrasonicRange(Node):
             self.get_logger().info(f"{scan_topic} -> {range_topic}")
 
     def _on_scan(self, msg, scan_topic):
-        hits = [r for r in msg.ranges
-                if r == r and not math.isinf(r) and MIN_RANGE <= r <= MAX_RANGE]
+        hits = []
+        for i, r in enumerate(msg.ranges):
+            if r != r or math.isinf(r):
+                continue
+            if not (MIN_RANGE <= r <= MAX_RANGE):
+                continue
+            angle = msg.angle_min + i * msg.angle_increment
+            # Wrap into (-pi, pi] before comparing, so a scan that runs 0..2pi
+            # and one that runs -pi..pi are treated the same.
+            angle = (angle + math.pi) % (2 * math.pi) - math.pi
+            if abs(angle) <= BEAM_HALF_RAD:
+                hits.append(r)
         out = Range()
         out.header = msg.header
         out.radiation_type = Range.ULTRASOUND

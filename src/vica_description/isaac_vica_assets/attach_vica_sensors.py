@@ -45,11 +45,6 @@ import omni.usd
 
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdPhysics
 
-# The ultrasonic probes. Imported at the top rather than inside the helper so a
-# build without the extension fails on load with the name in the message,
-# rather than halfway through authoring a stage.
-from isaacsim.sensors.experimental.physics import Raycast
-
 
 # --------------------------------------------------------------------------
 # Assets
@@ -417,44 +412,58 @@ def _set_lidar_range(stage, lidar_root):
 # height where neither the lidar plane (0.382) nor the costmap's depth band
 # (0.30 to 1.05) has anything to say.
 #
-# Modelled as IsaacRaycastSensor rather than an RTX lidar. An ultrasonic
-# returns one distance, not a scan, and the RTX path needs a config from a
-# hardcoded table this sensor is not in. The raycast reads the same PhysX
-# scene the wheels roll on, which is what a range reading should agree with.
+# Modelled as an RTX lidar with a narrow window, not as an IsaacRaycastSensor.
 #
-# The cone is approximated by a small fan rather than one ray. A single ray
-# through the middle misses an obstacle its own width off axis, which is the
-# case the probes exist to catch; DYP-A22 opens about 60 degrees and the fan
-# below covers the middle 30 of it. nav2's RangeSensorLayer takes the minimum
-# anyway, so more rays only sharpen the same number.
-# [미검증] Off by default. An IsaacRaycastSensor prim under the robot crashes
-# the process during play: verify_stage segfaults a few seconds after the
-# timeline starts, with the ultrasonic ROS graphs built and with them disabled
-# alike, so it is the prims and not the publishing. The crash names nothing.
+# The raycast version is what this file used to do, and it takes the process
+# down: verify_stage segfaults a few seconds after the timeline starts, with
+# the ultrasonic ROS graphs built and with them disabled alike, so it is the
+# prims and not the publishing. The crash names nothing. An RTX lidar is the
+# sensor the robot's own /scan already comes from on this same stage, and two
+# more of them survived 25 s of play with base_link steady at 0.190.
 #
-# Set VICA_USONIC_SENSORS=1 to attach them anyway when someone picks this back
-# up. Everything downstream is already in place and waiting: the URDF frames
-# and meshes, the costmap RangeSensorLayers, and scripts/ultrasonic_range.py.
-# What is missing is a way to read a range at 0.091 m that this build survives.
-USONIC_SENSORS = os.environ.get("VICA_USONIC_SENSORS", "0") not in ("0", "false", "")
+# Where the DYP-A22's numbers live
+# -------------------------------
+# Split deliberately, because the robot splits them:
+#
+#   here                   the geometry -- where the probe is and how wide it
+#                          listens. 50 degrees, the firmware's US_ANGLE_LEVEL
+#                          3, which is what decides whether an echo comes back
+#                          at all.
+#
+#   ultrasonic_range.py    the reported numbers -- min 0.02 m, max 1.50 m, and
+#                          a field_of_view of 0.524 rad. That last one is 30
+#                          degrees, NOT the 50 it listens over. The robot marks
+#                          a deliberately narrower arc than it hears, settled by
+#                          an A/B on 2026-09-02: marking at 50 degrees gave 1.6
+#                          stutters a minute, at 30 it gave 0.2, at the same
+#                          average speed. See user_guidance.yaml, which is the
+#                          source for every number in this paragraph.
+#
+# So the sensor listens wide and the costmap draws narrow, in sim as on the
+# robot. Range limits are enforced in the bridge rather than on the prim: the
+# prim's range attributes are an array pair whose semantics are not documented
+# in this build, and the bridge has to clamp anyway to report max on no echo,
+# which is what clear_on_max_reading waits for.
 USONIC_NAMES = ("usonic_front_left", "usonic_front_right")
-USONIC_MIN_RANGE_M = 0.02
-USONIC_MAX_RANGE_M = 4.0
-USONIC_FAN_DEG = 30.0
-USONIC_FAN_RAYS = 7
+USONIC_RTX_CONFIG = "Example_Rotary"
+# The listening cone, degrees, centred on the probe's forward axis. Physical
+# beam, firmware level 3. Not the marking arc.
+USONIC_BEAM_DEG = 50.0
+# 4.8 Hz is the rate the robot's own frames arrive at over I2C, and reaction
+# time is measured against it: the 2026-08-31 bag has first detection at 0.28 m
+# and a stop command 0.5 s later. A sim that reports at 60 Hz would be a
+# different sensor.
+USONIC_RATE_HZ = 5
 
 
 def _attach_usonic(stage, base_link):
-    """Mount a raycast sensor at each ultrasonic frame's joint offset.
+    """Mount an RTX lidar at each ultrasonic frame's joint offset.
 
     On base_link, not under the usonic_* prims, for the reason _attach_lidar
     records at length: the importer marks link prims carrying a mesh as
     instanceable, and a sensor parented there is advertised and never fires.
-    Both probes now carry a visual cylinder, so both would hit it.
+    Both probes carry a visual cylinder, so both would hit it.
     """
-    if not USONIC_SENSORS:
-        print("    usonic  -> SKIPPED (VICA_USONIC_SENSORS unset; see the note)")
-        return []
     made = []
     for name in USONIC_NAMES:
         frame = f"{base_link}/{name}"
@@ -474,34 +483,67 @@ def _attach_usonic(stage, base_link):
             print(f"    SKIPPED {name}: no joint places it")
             continue
 
+        # The sensor sweeps the full circle and the beam is cut out of it in
+        # ultrasonic_range.py, rather than being cut here.
+        #
+        # Two attempts at cutting it here both failed, quietly, which is why
+        # this is spelled out. A window authored as -25 to +25 is accepted and
+        # reads back correctly, and the sensor then publishes nothing at all:
+        # the topic is advertised, a publisher sits on it, no message ever
+        # arrives, and /scan from the same stage is fine throughout. Turning
+        # the mount and authoring 0 to 50 does publish -- for a few messages,
+        # and then stops. The helper accumulates a full revolution before it
+        # emits, and a sensor that only ever sees a seventh of one does not
+        # finish enough of them.
+        #
+        # So the geometry is enforced downstream, where it is our own arithmetic
+        # over the message's own angle_min and angle_increment, and can be
+        # checked. The cost is a full sweep per probe rather than a seventh of
+        # one; the channels are all on a single elevation line, so it is 128
+        # rays either way.
         mount = f"{base_link}/{name}_mount"
         xf = UsdGeom.Xform.Define(stage, mount)
         xf.ClearXformOpOrder()
         xf.AddTranslateOp().Set(Gf.Vec3d(*offset))
 
-        path = f"{mount}/{name}_ray"
-        # Removed and rebuilt rather than updated in place. Raycast.create
+        path = f"{mount}/{name}_rtx"
+        # Removed and rebuilt rather than updated in place. The create command
         # auto-numbers a path that already exists, so a re-run over a stage
-        # that has probes would leave usonic_front_left_ray_01 beside the
-        # original and publish from neither.
+        # that has probes would leave name_rtx_01 beside the original and
+        # publish from neither.
         if stage.GetPrimAtPath(path):
             stage.RemovePrim(path)
 
-        # Rays as explicit origins and directions, which is what the authoring
-        # class takes. The fan opens in the mount's xy plane about its forward
-        # (+x) axis. DYP-A22 is about 60 degrees wide; this covers the middle
-        # 30, which is where an echo strong enough to report comes from.
-        half = math.radians(USONIC_FAN_DEG) / 2.0
-        n = USONIC_FAN_RAYS
-        step = (2 * half) / max(1, n - 1)
-        origins, dirs = [], []
-        for k in range(n):
-            a = -half + k * step
-            origins.append([0.0, 0.0, 0.0])
-            dirs.append([math.cos(a), math.sin(a), 0.0])
-        Raycast.create(path, ray_origins=origins, ray_directions=dirs)
+        ok, prim = omni.kit.commands.execute(
+            "IsaacSensorCreateRtxLidar", path=f"{name}_rtx", parent=mount,
+            config=USONIC_RTX_CONFIG)
+        if not ok or not prim:
+            print(f"    SKIPPED {name}: IsaacSensorCreateRtxLidar refused")
+            continue
+
+        settings = [
+            ("omni:sensor:Core:nearRangeM", 0.02),
+            ("omni:sensor:Core:scanRateBaseHz", USONIC_RATE_HZ),
+            ("omni:sensor:tickRate", float(USONIC_RATE_HZ)),
+        ]
+        for attr_name, value in settings:
+            attr = prim.GetAttribute(attr_name)
+            if not attr:
+                print(f"    WARNING: {name}: {attr_name} absent, left as shipped")
+                continue
+            attr.Set(value)
+
+        # Flatten the elevation fan. The stock rotary config spreads its
+        # channels over elevation to make a 3D cloud; an ultrasonic reports one
+        # distance and the laser_scan publisher takes the line nearest zero, so
+        # every channel is put on that line instead of one in a hundred.
+        elev = prim.GetAttribute("omni:sensor:Core:emitterState:s001:elevationDeg")
+        if elev and elev.Get() is not None:
+            elev.Set([0.0] * len(elev.Get()))
+
         print(f"    usonic  -> {path}  at {tuple(round(v, 4) for v in offset)}  "
-              f"{n} rays over {USONIC_FAN_DEG:.0f} deg")
+              f"{USONIC_BEAM_DEG:.0f} deg beam (cut downstream), "
+              f"{USONIC_RATE_HZ} Hz")
         made.append(path)
     return made
 

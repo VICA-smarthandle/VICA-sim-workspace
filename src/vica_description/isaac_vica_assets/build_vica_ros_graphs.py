@@ -239,33 +239,33 @@ GRAPHS = [
     "ROS_JointStates",
     "ROS_Lidar",
     "ROS_Camera",
+    "ROS_UltrasonicLeft",
+    "ROS_UltrasonicRight",
 ]
 
-# The two ultrasonic probes. Isaac publishes them as LaserScan, because the
-# bridge has no Range publisher; scripts/ultrasonic_range.py converts each one
-# to the sensor_msgs/Range that nav2's RangeSensorLayer wants, on the topic
-# dev's driver uses. The conversion runs outside Isaac on purpose: publishing
-# from inside with rclpy takes the process down, because Isaac's bridge has
-# already loaded its own rcl and the second load breaks the dynamic linker
-#   "Inconsistency detected by ld.so: dl-close.c: _dl_close_worker"
-# [미검증] Off by default. IsaacReadRaycastSensor feeding ROS2PublishLaserScan
-# segfaults the process during play, with numRows/numCols set and without, in
-# verify_stage and in play_stage alike. The crash carries no message naming the
-# graph; the stage simply dies a few seconds after the timeline starts.
+# The two ultrasonic probes.
 #
-# Set VICA_USONIC_GRAPHS=1 to build them anyway when someone picks the problem
-# back up. The sensors themselves attach fine and the costmap layers and the
-# LaserScan-to-Range converter are all in place -- the missing piece is a way
-# to get the depths out of the process.
-USONIC_GRAPHS = os.environ.get("VICA_USONIC_GRAPHS", "0") not in ("0", "false", "")
+# Isaac publishes each as a LaserScan and scripts/ultrasonic_range.py turns it
+# into the sensor_msgs/Range that nav2's RangeSensorLayer wants, on the topic
+# the robot's own driver uses. The conversion runs outside Isaac on purpose:
+# publishing from inside with rclpy takes the process down, because Isaac's
+# bridge has already loaded its own rcl and the second load breaks the dynamic
+# linker with "Inconsistency detected by ld.so: dl-close.c: _dl_close_worker".
+#
+# These used to be off by default and marked [미검증]. The reason was a
+# segfault a few seconds into play, and it was blamed on this graph for a
+# while: IsaacReadRaycastSensor feeding ROS2PublishLaserScan, with numRows and
+# numCols set and without. It was never the graph. It was the raycast prim, and
+# attach_vica_sensors now mounts an RTX lidar instead -- the same sensor type
+# /scan already comes from on this stage. Two extra of them played for 25 s
+# with base_link steady at 0.190 and the process exited normally.
 USONIC = (
     ("ROS_UltrasonicLeft", "usonic_front_left", "/ultrasonic/front_left_scan"),
     ("ROS_UltrasonicRight", "usonic_front_right", "/ultrasonic/front_right_scan"),
 )
-USONIC_FOV_DEG = 30.0
-USONIC_RAYS = 7
-USONIC_MIN_RANGE = 0.02
-USONIC_MAX_RANGE = 4.0
+# What attach_vica_sensors names the probe prims. Used to keep them out of the
+# search for the robot's own lidar, which is now one OmniLidar among three.
+USONIC_PRIM_SUFFIX = ("_rtx",)
 
 # The ultrasonic probes are NOT published from a graph. There is no
 # ROS2PublishRange node, and the generic ROS2Publisher resolves its message
@@ -340,11 +340,18 @@ def _require_single_physics_scene(stage):
         raise RuntimeError(f"Expected exactly one PhysicsScene, found {len(scenes)}: {scenes}")
 
 
-def _find_sensor(stage, robot_root, hint, type_names, label):
+def _find_sensor(stage, robot_root, hint, type_names, label, exclude_suffixes=()):
     """Locate a sensor prim under the robot subtree, or return None.
 
     Restricting the search to the robot keeps environment and viewport cameras
     out of the way -- the working stage carries eight Camera prims in total.
+
+    exclude_suffixes drops prims by name. The robot now carries three OmniLidar
+    prims and only one of them is the lidar: the ultrasonic probes are RTX
+    lidars too, because that is the sensor type this build survives. They are
+    named by attach_vica_sensors, which is this repository, so matching on the
+    name is stable in a way that matching on the vendor asset's internal prim
+    name would not be.
     """
     if hint:
         prim = stage.GetPrimAtPath(hint)
@@ -356,6 +363,7 @@ def _find_sensor(stage, robot_root, hint, type_names, label):
         str(p.GetPath())
         for p in stage.Traverse()
         if str(p.GetPath()).startswith(f"{robot_root}/") and p.GetTypeName() in type_names
+        and not any(p.GetName().endswith(x) for x in exclude_suffixes)
     ]
     if not found:
         print(f"    no {label} prim under {robot_root}")
@@ -770,56 +778,39 @@ def _camera_graph(path, color_prim, depth_prim):
 # Entry point
 # --------------------------------------------------------------------------
 def _usonic_graph(path, sensor_prim, frame_id, topic):
-    """Raycast probe -> LaserScan.
+    """Ultrasonic RTX lidar -> LaserScan.
 
-    ROS2PublishLaserScan takes linearDepthData as a plain array input, so the
-    raycast's per-ray depths feed it directly; nothing here needs an RTX lidar.
-    The remaining inputs describe the fan, and are written rather than derived
-    so the message says what the probe actually is.
-
-    LaserScan rather than Range because the bridge publishes no Range, and
-    rather than rclpy inside this process because that crashes it. The shape
-    that nav2 consumes is produced by ultrasonic_range.py outside.
+    The same five nodes as _lidar_graph, against the probe's own prim. The
+    probe listens over 50 degrees and reports at about 5 Hz because that is
+    what the hardware does; the numbers nav2 actually reads -- 0.02 to 1.50 m,
+    and a 0.524 rad field_of_view that is deliberately narrower than the beam
+    -- are applied in ultrasonic_range.py, where the robot's own driver applies
+    them. attach_vica_sensors says why the split is there.
     """
     keys = og.Controller.Keys
-    fov = math.radians(USONIC_FOV_DEG)
     og.Controller.edit(
         {"graph_path": path, "evaluator_name": "execution"},
         {
             keys.CREATE_NODES: [
                 ("OnPlaybackTick", "omni.graph.action.OnPlaybackTick"),
+                ("RunOnce", "isaacsim.core.nodes.OgnIsaacRunOneSimulationFrame"),
+                ("RenderProduct", "isaacsim.core.nodes.IsaacCreateRenderProduct"),
                 ("Context", "isaacsim.ros2.bridge.ROS2Context"),
-                ("ReadTime", "isaacsim.core.nodes.IsaacReadSimulationTime"),
-                ("ReadRay", "isaacsim.sensors.physics.IsaacReadRaycastSensor"),
-                ("PublishScan", "isaacsim.ros2.bridge.ROS2PublishLaserScan"),
+                ("ScanHelper", "isaacsim.ros2.bridge.ROS2RtxLidarHelper"),
             ],
             keys.CONNECT: [
-                ("OnPlaybackTick.outputs:tick", "ReadRay.inputs:execIn"),
-                ("ReadRay.outputs:execOut", "PublishScan.inputs:execIn"),
-                ("Context.outputs:context", "PublishScan.inputs:context"),
-                ("ReadTime.outputs:simulationTime", "PublishScan.inputs:timeStamp"),
-                ("ReadRay.outputs:depths", "PublishScan.inputs:linearDepthData"),
+                ("OnPlaybackTick.outputs:tick", "RunOnce.inputs:execIn"),
+                ("RunOnce.outputs:step", "RenderProduct.inputs:execIn"),
+                ("RenderProduct.outputs:execOut", "ScanHelper.inputs:execIn"),
+                ("RenderProduct.outputs:renderProductPath",
+                 "ScanHelper.inputs:renderProductPath"),
+                ("Context.outputs:context", "ScanHelper.inputs:context"),
             ],
             keys.SET_VALUES: [
-                ("ReadRay.inputs:raycastSensorPrim", [Sdf.Path(sensor_prim)]),
-                ("PublishScan.inputs:topicName", topic),
-                ("PublishScan.inputs:frameId", frame_id),
-                ("PublishScan.inputs:horizontalFov", USONIC_FOV_DEG),
-                ("PublishScan.inputs:horizontalResolution",
-                 USONIC_FOV_DEG / max(1, USONIC_RAYS - 1)),
-                ("PublishScan.inputs:depthRange",
-                 [USONIC_MIN_RANGE, USONIC_MAX_RANGE]),
-                ("PublishScan.inputs:rotationRate", 0.0),
-                # numRows and numCols are not optional. The node is written for
-                # an RTX lidar and indexes linearDepthData by them; left at
-                # their defaults against a seven element array it reads off the
-                # end, and the process dies with a segmentation fault during
-                # play with nothing in the log naming this graph.
-                ("PublishScan.inputs:numRows", 1),
-                ("PublishScan.inputs:numCols", USONIC_RAYS),
-                ("PublishScan.inputs:azimuthRange",
-                 [-USONIC_FOV_DEG / 2.0, USONIC_FOV_DEG / 2.0]),
-                ("PublishScan.inputs:queueSize", 1),
+                ("RenderProduct.inputs:cameraPrim", [Sdf.Path(sensor_prim)]),
+                ("ScanHelper.inputs:type", "laser_scan"),
+                ("ScanHelper.inputs:topicName", topic),
+                ("ScanHelper.inputs:frameId", frame_id),
             ],
         },
     )
@@ -839,7 +830,8 @@ def main():
     _require_single_physics_scene(stage)
     _require_ros2_nodes()
 
-    lidar_prim = _find_sensor(stage, robot_root, LIDAR_PRIM_HINT, {"OmniLidar"}, "lidar")
+    lidar_prim = _find_sensor(stage, robot_root, LIDAR_PRIM_HINT, {"OmniLidar"},
+                              "lidar", exclude_suffixes=USONIC_PRIM_SUFFIX)
     color_prim = _resolve_suffix(stage, robot_root, CAMERA_COLOR_SUFFIX, "camera colour")
     depth_prim = _resolve_suffix(stage, robot_root, CAMERA_DEPTH_SUFFIX, "camera depth")
 
@@ -874,17 +866,17 @@ def main():
     else:
         skipped.append("ROS_Camera (RSD455 colour/depth prims not found)")
 
-    for graph_name, link, topic in (USONIC if USONIC_GRAPHS else ()):
-        ray = None
+    for graph_name, link, topic in USONIC:
+        probe = None
         for prim in stage.Traverse():
-            if prim.GetName() == f"{link}_ray":
-                ray = str(prim.GetPath())
+            if prim.GetName() == f"{link}_rtx":
+                probe = str(prim.GetPath())
                 break
-        if ray:
-            _usonic_graph(f"{graph_root}/{graph_name}", ray, link, topic)
+        if probe:
+            _usonic_graph(f"{graph_root}/{graph_name}", probe, link, topic)
             built.append(graph_name)
         else:
-            skipped.append(f"{graph_name} (no {link}_ray prim)")
+            skipped.append(f"{graph_name} (no {link}_rtx prim)")
 
     if SAVE_STAGE:
         stage.GetRootLayer().Save()

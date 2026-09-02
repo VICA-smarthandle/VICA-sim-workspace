@@ -493,20 +493,24 @@ local_costmap:
       # where the lidar plane (0.382) and the depth band (0.30 to 1.05) both
       # see nothing, so anything shorter than about 30 cm is theirs alone.
       #
-      # [미검증] Nothing publishes into these topics yet. An IsaacRaycastSensor
-      # prim under the robot segfaults the process a few seconds into play --
-      # with the ultrasonic ROS graphs built and with them disabled alike, so
-      # it is the prim and not the publishing. Both are behind env switches
-      # (VICA_USONIC_SENSORS, VICA_USONIC_GRAPHS), off by default.
+      # Live since 2026-09-02. The probes are RTX lidars, cut down to the
+      # DYP-A22's 50 degree beam by scripts/ultrasonic_range.py, which also
+      # supplies the numbers nav2 reads: 0.02 to 1.50 m and a 0.524 rad
+      # field_of_view, all three copied from the robot's own
+      # user_guidance.yaml so nav2 cannot tell the two apart.
       #
-      # The layers stay enabled on purpose. RangeSensorLayer with no publisher
-      # contributes nothing and costs nothing, and leaving them wired means the
-      # day a range source works, it is one switch rather than an archaeology
-      # exercise. scripts/ultrasonic_range.py is already written for it.
+      # They were dead for a month behind env switches because the first
+      # implementation used IsaacRaycastSensor, which segfaults the process a
+      # few seconds into play. It was never the graphs.
       #
-      # What this costs the comparison: the 0.25 m boxes in the courses are
-      # invisible to the robot. That is not a hole in the measurement so much
-      # as a measurement of its own -- it is exactly why the robot has probes.
+      # Checked against the geometry rather than just for a heartbeat, with the
+      # robot parked in the 1.00 m corner cell facing its low box:
+      #   right probe 0.547 m, box corner computed at 0.548
+      #   left  probe 0.400 m, the corridor wall at the edge of the beam,
+      #                        0.143 m sideways seen at about 21 degrees
+      # The left reading is the real sensor behaving, not a fault: a 50 degree
+      # beam in a 1.00 m corridor sees the wall, which is why the arc the
+      # costmap draws is deliberately narrower than the one it hears.
       range_sensor_front_left:
         plugin: "nav2_costmap_2d::RangeSensorLayer"
         enabled: True

@@ -3,7 +3,9 @@
     $ISAAC_SIM/python.sh replay_render.py <result.json> [options]
 
       --stage PATH     course USD (default: read from the run's spec)
-      --view top|iso|chase        camera framing (default iso)
+      --view top|iso|chase|follow camera framing (default iso)
+                                  follow frames the robot itself, and is the
+                                  one to use when the robot has to be seen
       --out DIR        where frames and video land (default media/replay/<name>)
       --fps N          output frame rate (default 20)
       --stride N       use every Nth track sample (default 1)
@@ -173,6 +175,16 @@ cam_xf = UsdGeom.Xformable(camera.GetPrim())
 cam_xf.SetXformOpOrder([])
 cam_op = cam_xf.AddTransformOp()
 
+# A sphere around base_link that holds the whole robot, mast included, and the
+# height of its centre. The mast tops out at 1.045 m and the body is 0.83 m
+# long, so a centre at 0.52 m and a radius of 0.86 m contains both.
+ROBOT_RADIUS = 0.86
+ROBOT_CENTRE_Z = 0.52
+# Room around it. 1.55 keeps the robot about two thirds of the frame height,
+# which leaves the obstacle it is reacting to in shot without the robot itself
+# touching an edge.
+FOLLOW_MARGIN = 1.55
+
 HFOV = 2 * math.atan(20.955 / 2 / 24.0)
 VFOV = 2 * math.atan(20.955 * HEIGHT / WIDTH / 2 / 24.0)
 
@@ -224,6 +236,29 @@ def camera_for(sample):
         back, up = 3.5, 2.2
         eye = (x - back * math.cos(a), y - back * math.sin(a), up)
         return look_at(eye, (x + 1.5 * math.cos(a), y + 1.5 * math.sin(a), 0.3))
+    if VIEW == "follow":
+        # The robot filling the frame, kept there for the whole run.
+        #
+        # top and iso both frame the course, which is the right choice for
+        # seeing a path and the wrong one for seeing the robot: over a 27 m
+        # approach it shrinks to a smear, and at the ends of the run it sits
+        # against the edge of the frame with part of it outside. This view
+        # ignores the course and frames the machine.
+        #
+        # Distance is solved rather than picked, from the vertical field of
+        # view because it is the narrower one, so the margin holds at any
+        # output size. ROBOT_RADIUS is a sphere around base_link that contains
+        # the whole robot including the mast: half of the 0.83 m body length,
+        # and 1.045 m to the top of the mast from the ground, is 0.86 m from a
+        # centre at half that height.
+        r = ROBOT_RADIUS * FOLLOW_MARGIN
+        d = r / math.tan(VFOV / 2)
+        # Behind and to one side, low enough that the mast reads as a mast
+        # rather than as a line pointing at the camera.
+        eye = (x - d * 0.82 * math.cos(a) - d * 0.42 * math.sin(a),
+               y - d * 0.82 * math.sin(a) + d * 0.42 * math.cos(a),
+               ROBOT_CENTRE_Z + d * 0.38)
+        return look_at(eye, (x, y, ROBOT_CENTRE_Z))
     d = (span / 2) / math.tan(HFOV / 2)
     return look_at((cx + 0.55 * d, cy - 0.75 * d, 0.75 * d), (cx, cy, 0.0))
 

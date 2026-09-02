@@ -50,6 +50,7 @@ ROBOT_PATH = "/World/VICA"
 EXPECTED_GRAPHS = [
     "ROS_Clock", "ROS_DifferentialDrive", "ROS_Odometry",
     "ROS_JointStates", "ROS_Lidar", "ROS_Camera",
+    "ROS_UltrasonicLeft", "ROS_UltrasonicRight",
 ]
 
 from isaacsim import SimulationApp  # noqa: E402
@@ -140,7 +141,7 @@ check("조인트 없는 rigid body 0개", not loose, f"{loose[:3]}")
 
 graphs = {p.GetName() for p in stage.Traverse()}
 missing = [g for g in EXPECTED_GRAPHS if g not in graphs]
-check("ROS 그래프 6개", not missing, f"없음: {missing}" if missing else "")
+check(f"ROS 그래프 {len(EXPECTED_GRAPHS)}개", not missing, f"없음: {missing}" if missing else "")
 
 colliders = [p for p in stage.Traverse() if p.HasAPI(UsdPhysics.CollisionAPI)]
 check("충돌체 존재", len(colliders) >= 2, f"{len(colliders)}개")
