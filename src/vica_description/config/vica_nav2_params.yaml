@@ -149,7 +149,7 @@ controller_server:
       yaw_goal_tolerance: 0.25
       trans_stopped_velocity: 0.03
       rot_stopped_velocity: 0.05
-    FollowPath:
+    FollowPathRPP:
       # Regulated Pure Pursuit. Values are the robot's second RPP run
       # (2026-08-29 `run1215`), which is the configuration that arrived.
       #
@@ -383,7 +383,7 @@ controller_server:
     # Plugin and critic names are Jazzy's, checked against the installed
     # dwb_critics: they match Humble's here, unlike the Smac planners whose
     # slash form aborts planner_server on configure.
-    FollowPathDWB:
+    FollowPath:
       # 2026-09-02: speeds raised to the robot's current values so the
       # controller comparison runs the conditions the robot ran. It had been
       # 0.26 / 0.4, which the robot left behind -- the note there says 0.26
@@ -650,7 +650,7 @@ planner_server:
     #
     # Kept under the same "GridBased" key so swapping is a one-line change and
     # the behaviour tree does not care.
-    GridBasedLattice:
+    GridBased:
       # Jazzy declares these with :: ; the physical robot's config uses the
 # Humble-era slash form, and copying it verbatim gives
 #   "the class nav2_smac_planner/SmacPlannerLattice ... does not exist"
@@ -729,7 +729,7 @@ planner_server:
         w_data: 0.2
         tolerance: 1.0e-10
 
-    GridBased:
+    GridBasedNavFn:
       # NavFn. Dijkstra on the costmap, holonomic: it draws the shortest free
       # path with no notion that the robot cannot slide sideways, and hands
       # over a path with no headings in it. Feasibility is entirely the
