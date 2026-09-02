@@ -28,12 +28,10 @@
          export_isaac_urdf.sh          -> urdf/vica.urdf
          export_isaac_urdf.sh (arm)    -> urdf/vica_arm.urdf
 
-     The arm is a Kinova Gen3 lite on a riser. [미검증] What is
-     modelled here is its mass and its stowed envelope, not its
-     kinematics: the six joints need kortex_description, which is
-     not in this workspace and whose installation is an approval
-     item. So use_arm:=true today gives a robot that weighs and
-     balances like the real thing and cannot move an elbow.
+     arm_model:=omx is the default and is the direction the
+     project is going: an OpenMANIPULATOR~X with real joints and
+     lengths we can change. arm_model:=gen3_lite still gives the
+     Kinova the riser numbers below were chosen against.
 
      That split is deliberate rather than a shortcut. Everything the
      driving stack cares about is the stowed case: the footprint it
@@ -64,6 +62,52 @@
      standoff 0.15 does and carries the mass 11 mm lower. -->
 <xacro:arg name="arm_riser_h" default="0.10" />
 <xacro:property name="arm_riser_h" value="$(arg arm_riser_h)" />
+
+<!-- Which arm. omx is the OpenMANIPULATOR-X the project is moving to;
+     gen3_lite is the Kinova the riser numbers above were worked out against,
+     kept because those numbers are still the record of how the riser was
+     chosen and because kortex_description is installed.
+
+     They are not interchangeable in reach. The Gen3 lite goes 0.76 m and the
+     OMX 0.38, so an OMX on a 0.449 m deck with a 0.10 m riser tops out near
+     0.93 m and a lift button at 1.10 is out of the question as bought. The
+     three lengths below exist for that: the plan is to lengthen the arm in
+     our own design, and this is where the design gets tried before it is
+     built. urdf/omx_arm.xacro says what scales with them. -->
+<xacro:arg name="arm_model" default="omx" />
+<xacro:property name="arm_model" value="$(arg arm_model)" />
+<!-- Stock OMX: 0.128 upper arm, 0.124 forearm, 0.126 wrist to tip.
+
+     Left at stock so that arm_model:=omx describes the arm as bought. What it
+     costs is measured rather than guessed: sampling the four joints over their
+     own limits from the expanded URDF, with the deck at 0.449 m and the riser
+     at 0.10, the tip tops out at 0.915 m. A lift button at 1.10 is not
+     reachable at all, in any pose.
+
+     What lengthening buys, same sampling, forward reach taken at 1.10 m and
+     the robot's own front edge at x = +0.305:
+
+         l3 / l4       riser   최고높이   1.10 m 전방   코 끝 기준
+         0.128 / 0.124  0.10    0.915     닿지 않음        -
+         0.20  / 0.20   0.10    1.061     닿지 않음        -
+         0.25  / 0.25   0.10    1.161      +0.311        +6 mm
+         0.30  / 0.28   0.10    1.241      +0.456       +151 mm
+         0.30  / 0.28   0.20    1.341      +0.548       +243 mm
+
+     0.25/0.25 reaches the button and the gripper is 6 mm past the robot's own
+     nose, so the robot would have to be touching the wall. 0.30/0.28 on the
+     same 0.10 riser stands 151 mm off it, which is the first row that is
+     actually usable, and it buys that without raising the centre of mass.
+     Raising the riser instead is the more expensive way to the same place:
+     mass at the top of the robot is what the forward tipping margin pays for,
+     and scripts/mass_properties.py prints that.
+
+     So the design number to try is arm_link3_len:=0.30 arm_link4_len:=0.28,
+     and it is a flag rather than an edit because it is not what ROBOTIS
+     sells. -->
+<xacro:arg name="arm_link3_len" default="0.128" />
+<xacro:arg name="arm_link4_len" default="0.124" />
+<xacro:arg name="arm_link5_len" default="0.126" />
 
 <!-- Geometry exported from CAD is expressed in metres through a 0.001 mesh scale.
      Coordinates below match vica_ros2_ws@dev (commit 621e181), which is the
@@ -736,20 +780,54 @@
        robot_ip and the gripper name are required parameters of a macro
        written for a real arm on a network. Nothing in simulation reads them.
        0.0.0.0 is there to be obviously not an address. -->
-  <xacro:include filename="$(find kortex_description)/arms/gen3_lite/6dof/urdf/gen3_lite_macro.xacro" />
+  <xacro:if value="${arm_model == 'omx'}">
+    <!-- Transcribed rather than included, for the three reasons omx_arm.xacro
+         gives at length. The short one: the package is not installed here and
+         the lengths have to be ours to change. -->
+    <!-- Relative, not $(find vica_description). The find form needs the
+         workspace on AMENT_PREFIX_PATH, and export_isaac_urdf.sh is supposed
+         to run on a machine that has only sourced ROS, and it broke there the
+         moment this include was added. Relative resolves against this file. -->
+    <xacro:include filename="omx_arm.xacro" />
+    <xacro:omx_arm parent="arm_mount_link" prefix="omx_"
+                   link3_len="$(arg arm_link3_len)"
+                   link4_len="$(arg arm_link4_len)"
+                   link5_len="$(arg arm_link5_len)">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </xacro:omx_arm>
+  </xacro:if>
 
-  <xacro:load_arm
-      parent="arm_mount_link"
-      prefix="gen3_"
-      dof="6"
-      vision="false"
-      robot_ip="0.0.0.0"
-      gripper_joint_name="gen3_gripper"
-      use_fake_hardware="true"
-      sim_isaac="false"
-      sim_gazebo="false">
-    <origin xyz="0 0 0" rpy="0 0 0"/>
-  </xacro:load_arm>
+  <xacro:if value="${arm_model == 'gen3_lite'}">
+    <!-- ros-jazzy-kortex-description 0.2.6.
+
+         The include lives inside these guards on purpose. VICA.xacro has to
+         expand on a machine that has never heard of kortex_description, which
+         is every machine that only drives, including the physical robot's. At
+         the top of the file the include would run unconditionally and
+         use_arm:=false would stop working there.
+
+         prefix is not decoration. The macro names its own root
+         "${prefix}base_link", and this robot already has a base_link; without
+         a prefix the two collide and the arm silently reparents the chassis.
+
+         robot_ip and the gripper name are required parameters of a macro
+         written for a real arm on a network. Nothing in simulation reads them.
+         0.0.0.0 is there to be obviously not an address. -->
+    <xacro:include filename="$(find kortex_description)/arms/gen3_lite/6dof/urdf/gen3_lite_macro.xacro" />
+
+    <xacro:load_arm
+        parent="arm_mount_link"
+        prefix="gen3_"
+        dof="6"
+        vision="false"
+        robot_ip="0.0.0.0"
+        gripper_joint_name="gen3_gripper"
+        use_fake_hardware="true"
+        sim_isaac="false"
+        sim_gazebo="false">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </xacro:load_arm>
+  </xacro:if>
 
 </xacro:if>
 

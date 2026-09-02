@@ -4,6 +4,17 @@
 #
 #   export_isaac_urdf.sh              -> urdf/vica.urdf        (driving robot)
 #   export_isaac_urdf.sh --arm        -> urdf/vica_arm.urdf    (use_arm:=true)
+#
+# VICA_ARM_ARGS passes extra xacro arguments into the arm variant only. The
+# arm defaults to an OpenMANIPULATOR-X at the lengths ROBOTIS sells, which
+# cannot reach a lift button from this deck -- 0.915 m against 1.10. The
+# lengths we intend to build are a flag rather than a new default, because the
+# file should keep describing the real product:
+#
+#   VICA_ARM_ARGS="arm_link3_len:=0.30 arm_link4_len:=0.28" \
+#       export_isaac_urdf.sh --arm
+#
+# VICA.xacro carries the sampled reach table that those two numbers come from.
 #   export_isaac_urdf.sh --all        -> both
 #   export_isaac_urdf.sh --check      -> verify both are current, write nothing
 #
@@ -131,7 +142,7 @@ fi
 
 case "${mode}" in
     base) write_variant base ;;
-    arm)  write_variant arm use_arm:=true ;;
+    arm)  write_variant arm use_arm:=true ${VICA_ARM_ARGS} ;;
     all)  write_variant base
-          write_variant arm use_arm:=true ;;
+          write_variant arm use_arm:=true ${VICA_ARM_ARGS} ;;
 esac

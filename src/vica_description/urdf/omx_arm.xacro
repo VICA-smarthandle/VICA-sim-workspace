@@ -1,0 +1,210 @@
+<?xml version="1.0"?>
+<!--
+  OpenMANIPULATOR-X (ROBOTIS RM-X52-TNM), with its lengths left adjustable.
+
+  Geometry, joint limits and link masses are transcribed from ROBOTIS's own
+  open_manipulator_x_description/urdf/open_manipulator_x.urdf.xacro on the
+  humble branch of ROBOTIS-GIT/open_manipulator. The catalogue figures that
+  frame them are 4 DOF plus a gripper, 0.70 kg, 380 mm reach, 500 g payload,
+  DYNAMIXEL XM430-W350-T throughout.
+
+  Why this is transcribed rather than included
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  Three reasons, in order of how much they cost to find out the hard way.
+
+  The stock arm does not reach what this robot has to press. 380 mm from a
+  deck 0.449 m above the floor, plus a 0.10 m riser, tops out around 0.93 m,
+  and a lift button is at 1.10. The plan is to lengthen the two long links in
+  our own design, so the lengths have to be parameters and not constants
+  inside somebody else's package.
+
+  open_manipulator_x_description is not installed here and is not a dependency
+  anyone has approved. VICA.xacro has to expand on every machine that only
+  drives, including the robot's own, and an include that is missing there
+  breaks a file that has nothing to do with arms.
+
+  The meshes are not in this workspace either. What is drawn below are boxes
+  and cylinders sized from the joint offsets. That is honest about what is
+  known: the kinematics and the masses are ROBOTIS's numbers, the shape is an
+  approximation, and nothing downstream reads the shape except the renderer.
+  Real meshes can be dropped in later without moving a joint.
+
+  Lengthening
+  ~~~~~~~~~~~
+  Three parameters, defaulting to the stock values:
+
+      link3_len   0.128   joint2 to joint3, the upper arm, vertical when stowed
+      link4_len   0.124   joint3 to joint4, the forearm
+      link5_len   0.126   joint4 to the gripper tip
+
+  Masses scale with length for the links that change, because a longer link of
+  the same section weighs more and pretending otherwise would flatter the
+  tipping margin — which is the number a taller arm actually spends.
+  scripts/mass_properties.py prints that margin.
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:macro name="omx_arm" params="parent prefix:=omx_
+                                      link3_len:=0.128
+                                      link4_len:=0.124
+                                      link5_len:=0.126
+                                      *origin">
+
+    <!-- Stock lengths, so the mass scaling below has something to scale from. -->
+    <xacro:property name="l3_stock" value="0.128" />
+    <xacro:property name="l4_stock" value="0.124" />
+    <xacro:property name="l5_stock" value="0.126" />
+
+    <!-- ROBOTIS's masses. link1 to link5 sum to 0.592 kg; the catalogue's
+         0.70 kg includes the base plate and cabling this does not model. -->
+    <xacro:property name="m1" value="0.079119962" />
+    <xacro:property name="m2" value="0.098406837" />
+    <xacro:property name="m3_stock" value="0.138509170" />
+    <xacro:property name="m4_stock" value="0.132745620" />
+    <xacro:property name="m5_stock" value="0.143275730" />
+    <xacro:property name="m3" value="${m3_stock * link3_len / l3_stock}" />
+    <xacro:property name="m4" value="${m4_stock * link4_len / l4_stock}" />
+    <xacro:property name="m5" value="${m5_stock * link5_len / l5_stock}" />
+
+    <!-- XM430-W350-T: 1.5 N.m stall at 12 V, 46 RPM no-load. Effort is given
+         as the stall figure and velocity as 46 RPM in rad/s. Neither is read
+         by the driving stack; they are here so a motion planner cannot ask
+         for something the servo could not do. -->
+    <xacro:property name="joint_effort" value="1.5" />
+    <xacro:property name="joint_velocity" value="4.82" />
+
+    <!-- The arm's own section, for the box stand-ins. -->
+    <xacro:property name="w" value="0.045" />
+
+    <xacro:macro name="omx_link" params="name mass seg axis:=z">
+      <link name="${name}">
+        <visual>
+          <origin xyz="${axis == 'x' and seg/2 or 0} 0 ${axis == 'z' and seg/2 or 0}"
+                  rpy="0 0 0"/>
+          <geometry>
+            <box size="${axis == 'x' and seg or w} ${w} ${axis == 'z' and seg or w}"/>
+          </geometry>
+          <material name="silver"/>
+        </visual>
+        <inertial>
+          <origin xyz="${axis == 'x' and seg/2 or 0} 0 ${axis == 'z' and seg/2 or 0}"
+                  rpy="0 0 0"/>
+          <mass value="${mass}"/>
+          <!-- Solid box about its own centre. The real inertia tensors are in
+               ROBOTIS's file and are not transcribed: they belong to meshes
+               this does not have, and a tensor that does not match the shape
+               drawn beside it is worse than an honest approximation. -->
+          <inertia ixx="${mass * (w*w + (axis == 'z' and seg or w)**2) / 12}"
+                   iyy="${mass * ((axis == 'x' and seg or w)**2 + (axis == 'z' and seg or w)**2) / 12}"
+                   izz="${mass * ((axis == 'x' and seg or w)**2 + w*w) / 12}"
+                   ixy="0" iyz="0" ixz="0"/>
+        </inertial>
+      </link>
+    </xacro:macro>
+
+    <!-- link1 is the base. Fixed to whatever it is mounted on. -->
+    <xacro:omx_link name="${prefix}link1" mass="${m1}" seg="0.034" axis="z"/>
+    <joint name="${prefix}base_joint" type="fixed">
+      <xacro:insert_block name="origin"/>
+      <parent link="${parent}"/>
+      <child link="${prefix}link1"/>
+    </joint>
+
+    <xacro:omx_link name="${prefix}link2" mass="${m2}" seg="0.0595" axis="z"/>
+    <joint name="${prefix}joint1" type="revolute">
+      <origin xyz="0.012 0.0 0.017" rpy="0 0 0"/>
+      <parent link="${prefix}link1"/>
+      <child link="${prefix}link2"/>
+      <axis xyz="0 0 1"/>
+      <limit lower="${-pi}" upper="${pi}"
+             effort="${joint_effort}" velocity="${joint_velocity}"/>
+    </joint>
+
+    <xacro:omx_link name="${prefix}link3" mass="${m3}" seg="${link3_len}" axis="z"/>
+    <joint name="${prefix}joint2" type="revolute">
+      <origin xyz="0.0 0.0 0.0595" rpy="0 0 0"/>
+      <parent link="${prefix}link2"/>
+      <child link="${prefix}link3"/>
+      <axis xyz="0 1 0"/>
+      <limit lower="-1.5" upper="1.5"
+             effort="${joint_effort}" velocity="${joint_velocity}"/>
+    </joint>
+
+    <xacro:omx_link name="${prefix}link4" mass="${m4}" seg="${link4_len}" axis="x"/>
+    <joint name="${prefix}joint3" type="revolute">
+      <!-- 0.024 of forward offset is ROBOTIS's; the vertical part is the
+           length being adjusted. -->
+      <origin xyz="0.024 0 ${link3_len}" rpy="0 0 0"/>
+      <parent link="${prefix}link3"/>
+      <child link="${prefix}link4"/>
+      <axis xyz="0 1 0"/>
+      <limit lower="-1.5" upper="1.4"
+             effort="${joint_effort}" velocity="${joint_velocity}"/>
+    </joint>
+
+    <xacro:omx_link name="${prefix}link5" mass="${m5}" seg="${link5_len}" axis="x"/>
+    <joint name="${prefix}joint4" type="revolute">
+      <origin xyz="${link4_len} 0.0 0.0" rpy="0 0 0"/>
+      <parent link="${prefix}link4"/>
+      <child link="${prefix}link5"/>
+      <axis xyz="0 1 0"/>
+      <limit lower="-1.7" upper="1.97"
+             effort="${joint_effort}" velocity="${joint_velocity}"/>
+    </joint>
+
+    <!-- Two prismatic fingers. ROBOTIS drives the right one as a mimic of the
+         left; mimic is expressed here so a controller that honours it gets one
+         degree of freedom and one that does not still gets a closing gripper.
+         Stroke is 20 to 75 mm at the jaws, which is the -0.010 to 0.019 of
+         travel per finger below. -->
+    <link name="${prefix}gripper_left_link">
+      <visual>
+        <origin xyz="0.02 0 0" rpy="0 0 0"/>
+        <geometry><box size="0.04 0.008 0.02"/></geometry>
+        <material name="silver"/>
+      </visual>
+      <inertial>
+        <origin xyz="0.02 0 0" rpy="0 0 0"/>
+        <mass value="0.012"/>
+        <inertia ixx="1e-6" iyy="2e-6" izz="2e-6" ixy="0" iyz="0" ixz="0"/>
+      </inertial>
+    </link>
+    <joint name="${prefix}gripper_left_joint" type="prismatic">
+      <origin xyz="${link5_len * 0.648} 0.021 0.0" rpy="0 0 0"/>
+      <parent link="${prefix}link5"/>
+      <child link="${prefix}gripper_left_link"/>
+      <axis xyz="0 1 0"/>
+      <limit lower="-0.010" upper="0.019" effort="1.0" velocity="0.5"/>
+    </joint>
+
+    <link name="${prefix}gripper_right_link">
+      <visual>
+        <origin xyz="0.02 0 0" rpy="0 0 0"/>
+        <geometry><box size="0.04 0.008 0.02"/></geometry>
+        <material name="silver"/>
+      </visual>
+      <inertial>
+        <origin xyz="0.02 0 0" rpy="0 0 0"/>
+        <mass value="0.012"/>
+        <inertia ixx="1e-6" iyy="2e-6" izz="2e-6" ixy="0" iyz="0" ixz="0"/>
+      </inertial>
+    </link>
+    <joint name="${prefix}gripper_right_joint" type="prismatic">
+      <origin xyz="${link5_len * 0.648} -0.021 0" rpy="0 0 0"/>
+      <parent link="${prefix}link5"/>
+      <child link="${prefix}gripper_right_link"/>
+      <axis xyz="0 -1 0"/>
+      <limit lower="-0.010" upper="0.019" effort="1.0" velocity="0.5"/>
+      <mimic joint="${prefix}gripper_left_joint" multiplier="1.0" offset="0.0"/>
+    </joint>
+
+    <!-- Where a button gets pressed. -->
+    <link name="${prefix}end_effector_link"/>
+    <joint name="${prefix}end_effector_joint" type="fixed">
+      <origin xyz="${link5_len} 0.0 0.0" rpy="0 0 0"/>
+      <parent link="${prefix}link5"/>
+      <child link="${prefix}end_effector_link"/>
+    </joint>
+
+  </xacro:macro>
+</robot>
