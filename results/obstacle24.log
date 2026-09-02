@@ -1,0 +1,37 @@
+==============================================================
+ 동적 장애물  코스 vica_dyn24  보행자 1.2 m/s
+ 등장거리 6.0 4.0 3.0 2.0 1.5   각 1회
+ 결과 /home/sim/VICA-smarthandle/vica_ws/results/obstacle24
+==============================================================
+
+  --- 등장거리 6.0 m  #1
+obstacle_sweep.sh: line 65: /proc/3860427/cmdline: No such file or directory
+  timeout, 3601 표본 -> /home/sim/VICA-smarthandle/vica_ws/results/obstacle24/trigger_6.0_r1.csv
+
+  --- 등장거리 4.0 m  #1
+obstacle_sweep.sh: line 62: 3863058 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_obstacle_nav2.log 2>&1
+obstacle_sweep.sh: line 65: /proc/3864721/cmdline: No such file or directory
+  timeout, 3601 표본 -> /home/sim/VICA-smarthandle/vica_ws/results/obstacle24/trigger_4.0_r1.csv
+
+  --- 등장거리 3.0 m  #1
+obstacle_sweep.sh: line 62: 3867467 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_obstacle_nav2.log 2>&1
+obstacle_sweep.sh: line 65: /proc/3867477/cmdline: No such file or directory
+obstacle_sweep.sh: line 65: /proc/3868991/cmdline: No such file or directory
+obstacle_sweep.sh: line 65: /proc/3869020/cmdline: No such file or directory
+  timeout, 3601 표본 -> /home/sim/VICA-smarthandle/vica_ws/results/obstacle24/trigger_3.0_r1.csv
+
+  --- 등장거리 2.0 m  #1
+obstacle_sweep.sh: line 62: 3871709 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_obstacle_nav2.log 2>&1
+obstacle_sweep.sh: line 65: /proc/3873257/cmdline: No such file or directory
+obstacle_sweep.sh: line 65: /proc/3873361/cmdline: No such file or directory
+  timeout, 3601 표본 -> /home/sim/VICA-smarthandle/vica_ws/results/obstacle24/trigger_2.0_r1.csv
+
+  --- 등장거리 1.5 m  #1
+obstacle_sweep.sh: line 62: 3875975 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_obstacle_nav2.log 2>&1
+obstacle_sweep.sh: line 65: /proc/3877636/cmdline: No such file or directory
+  timeout, 3601 표본 -> /home/sim/VICA-smarthandle/vica_ws/results/obstacle24/trigger_1.5_r1.csv
+obstacle_sweep.sh: line 62: 3880321 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_obstacle_nav2.log 2>&1
+obstacle_sweep.sh: line 65: /proc/3881892/cmdline: No such file or directory
+
+=== 완료. 표를 보려면:
+    ros2 run vica_description obstacle_report /home/sim/VICA-smarthandle/vica_ws/results/obstacle24

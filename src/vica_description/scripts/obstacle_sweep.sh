@@ -26,6 +26,19 @@ COURSE=${COURSE:-vica_dynamiccourse}
 REPEATS=${REPEATS:-1}
 WALK_SPEED=${WALK_SPEED:-1.2}
 LIMIT=${LIMIT:-180}
+# Which controller is being measured. Named here rather than inherited.
+#
+# The first two sweeps ran on whatever the last controller_matrix pass had left
+# in the config, which was mppi:hybrid -- the one combination that failed all
+# twelve screening cells. Every number they produced was MPPI's, including the
+# conclusion that the robot will not go round a person, and none of it was
+# about the robot. The results directory now names the pair, so a sweep cannot
+# quietly land on top of a different one.
+#
+# dwb:navfn by default: DWB reached the goal with all four planners on the
+# avoid course, which is the closest course to this one.
+CONTROLLER=${CONTROLLER:-dwb}
+PLANNER=${PLANNER:-navfn}
 
 if [ $# -gt 0 ]; then
     TRIGGERS=("$@")
@@ -44,6 +57,13 @@ colcon build --packages-select vica_description >/dev/null 2>&1
 # shellcheck disable=SC1091
 source install/setup.bash >/dev/null 2>&1
 
+python3 src/vica_description/scripts/select_controller.py "$CONTROLLER" \
+    --planner "$PLANNER" \
+    --config src/vica_description/config/vica_nav2_params.yaml || exit 1
+colcon build --packages-select vica_description >/dev/null 2>&1
+# shellcheck disable=SC1091
+source install/setup.bash >/dev/null 2>&1
+
 SHARE=$(ros2 pkg prefix vica_description)/share/vica_description
 SPEC=$SHARE/isaac_vica_assets/$COURSE.json
 STAGE=$SHARE/isaac_vica_assets/$COURSE.usd
@@ -52,7 +72,7 @@ for f in "$SPEC" "$STAGE" "$MAP"; do
     [ -f "$f" ] || { echo "설치본이 없습니다: $f"; exit 1; }
 done
 
-RES=${RESULTS_DIR:-$PKG/results/obstacle}
+RES=${RESULTS_DIR:-$PKG/results/obstacle}/${CONTROLLER}_${PLANNER}
 mkdir -p "$RES"
 
 SPAWN_X=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['start'][0])" "$SPEC")
@@ -71,7 +91,7 @@ stop_everything() {
 }
 
 echo "=============================================================="
-echo " 동적 장애물  코스 $COURSE  보행자 ${WALK_SPEED} m/s"
+echo " 동적 장애물  코스 $COURSE  $CONTROLLER + $PLANNER  보행자 ${WALK_SPEED} m/s"
 echo " 등장거리 ${TRIGGERS[*]}   각 ${REPEATS}회"
 echo " 결과 $RES"
 echo "=============================================================="
