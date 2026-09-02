@@ -31,6 +31,13 @@ def generate_launch_description():
                 [package_share, "behavior_trees",
                  "navigate_to_pose_no_backup.xml"]
             ),
+            # Same treatment, same reason. The robot's config carries this one
+            # as /home/<someone>/VICA-smarthandle/vica_ros2_ws/install/... and
+            # the planner simply does not come up anywhere else. Substituting
+            # keeps the machine out of the YAML.
+            "lattice_filepath": PathJoinSubstitution(
+                [package_share, "config", "lattice", "output_r010_diff.json"]
+            ),
         },
         convert_types=True,
     )
