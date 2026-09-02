@@ -71,13 +71,28 @@ def cells(root):
 def tally(runs):
     counts = collections.Counter()
     widths = set()
+    # How far it got, and how close it came to something, whether or not it
+    # arrived. Without these a screen in which nothing arrives is a table of
+    # zeros that ranks nothing, and that is the likely shape of a screen at a
+    # width chosen to be hard: the corner course's 1.20 m cell has a low box in
+    # it that only the ultrasonic probes can see, and the first two cells
+    # measured stopped 2.25 m and 3.43 m in. Those two numbers are the result.
+    got = collections.defaultdict(list)
     for r in runs:
         w = r.get("width")
         if w is not None:
             widths.add(float(w))
         for rec in r.get("records", []):
             counts[rec.get("result", "other")] += 1
-    return counts, widths
+            for key, field in (("moved", "moved_m"),
+                               ("remaining", "remaining_m"),
+                               ("clearance", "clearance_min"),
+                               ("seconds", "sim_seconds")):
+                v = rec.get(field)
+                if isinstance(v, (int, float)):
+                    got[key].append(float(v))
+    means = {k: (sum(v) / len(v) if v else None) for k, v in got.items()}
+    return counts, widths, means
 
 
 def main():
@@ -99,7 +114,7 @@ def main():
     for (course, controller, planner), runs in data.items():
         if args.course and course != args.course:
             continue
-        counts, widths = tally(runs)
+        counts, widths, means = tally(runs)
         total = sum(counts.values())
         rows.append({
             "course": course,
@@ -107,6 +122,7 @@ def main():
             "planner": planner,
             "passes": total,
             "widths": len(widths),
+            **means,
             **{k: counts.get(k, 0) for k in ORDER},
         })
 
@@ -160,6 +176,35 @@ def main():
         if any(index.get((planner, ctrl, c), {}).get("nav2-down")
                for ctrl in controllers for c in courses):
             print("    ! = nav2 가 뜨지 않은 회차 포함 (주행 결과 아님)")
+
+    # The same shape again, with distance instead of arrivals.
+    #
+    # Kept separate rather than crammed into the cells above, because the two
+    # answer different questions and mixing them makes a cell that has to be
+    # decoded rather than read. This one is what decides the screen when the
+    # first table is all zeros.
+    print("\n" + "=" * 60)
+    print("도달하지 못했을 때 얼마나 갔나  (진행거리 m / 최소여유 m)")
+    for planner in planners:
+        print(f"\n=== planner: {planner}")
+        head = f"  {'controller':12s}"
+        for c in courses:
+            head += f"{short[c]:>{W}s}"
+        print(head)
+        for ctrl in controllers:
+            line = f"  {ctrl:12s}"
+            for c in courses:
+                r = index.get((planner, ctrl, c))
+                if r is None or r.get("moved") is None:
+                    line += f"{'-':>{W}s}"
+                    continue
+                cl = r.get("clearance")
+                cell = f"{r['moved']:.2f}/{cl:.2f}" if cl is not None \
+                    else f"{r['moved']:.2f}"
+                line += f"{cell:>{W}s}"
+            print(line)
+    print("\n  진행거리가 클수록 멀리 갔다는 뜻이고, 최소여유가 작을수록 벽이나")
+    print("  장애물에 가깝게 지나갔다는 뜻이다. 도달이 0 일 때 이 표로 가른다.")
 
     print("\n" + "=" * 60)
     print("코스별 상세 (도달 1순위 정렬)")

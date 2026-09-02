@@ -729,7 +729,7 @@ planner_server:
         w_data: 0.2
         tolerance: 1.0e-10
 
-    GridBased:
+    GridBasedNavFn:
       # NavFn. Dijkstra on the costmap, holonomic: it draws the shortest free
       # path with no notion that the robot cannot slide sideways, and hands
       # over a path with no headings in it. Feasibility is entirely the
@@ -740,7 +740,7 @@ planner_server:
       use_astar: false
       allow_unknown: true
 
-    GridBased2D:
+    GridBased:
       # Smac 2D. Also holonomic and also headingless, but A* on the same grid
       # the other Smac planners use, with their cost_penalty and smoother. It
       # separates "what the search algorithm costs" from "what kinematic
