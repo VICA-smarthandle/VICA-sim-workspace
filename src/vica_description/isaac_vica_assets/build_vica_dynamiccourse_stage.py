@@ -67,12 +67,27 @@ WALL_HEIGHT = 1.5
 FLOOR_THICKNESS = 0.5
 FLOOR_MARGIN = 1.0
 
-# 2.0 m of clear corridor. Wide enough that going round a person who has
-# stopped is geometrically possible -- the padded circumscribed diameter is
-# 0.945 -- so a failure to get past is about the controller and not the
-# building. Hospital corridors are wider than this; a 2.0 m one is the tight
-# case rather than the typical one.
-CORRIDOR_WIDTH = 2.0
+# How wide the corridor is. 2.0 m by default, and 2.0 is exactly the boundary
+# rather than a comfortable case.
+#
+# The arithmetic that decides whether going round is possible at all is not
+# about the robot's width but about the inflation. A walker of radius 0.175
+# inflated by 0.55 occupies 0.725 m from its centre, so a corridor of half
+# width W/2 leaves W/2 - 0.725 beside it, and the robot needs its inscribed
+# radius of 0.275 to fit:
+#
+#     W = 2.0   free 0.275   exactly the inscribed radius, and nav2 plans
+#                            nothing through it
+#     W = 2.4   free 0.475   0.2 m of margin
+#
+# So 2.0 measures stopping and 2.4 measures going round, and both are worth
+# having: a robot that stops for a person in a tight corridor is behaving, and
+# a robot that cannot get past one in a wide corridor is not.
+#
+#     VICA_DYN_WIDTH=2.4 VICA_DYN_NAME=vica_dynamiccourse24 \
+#         ./make_stage.sh build_vica_dynamiccourse_stage.py \
+#             vica_dynamiccourse24.usd
+CORRIDOR_WIDTH = float(os.environ.get("VICA_DYN_WIDTH", "2.0"))
 RUN_LENGTH = 26.0
 START_X = 1.5
 GOAL_X = 24.0

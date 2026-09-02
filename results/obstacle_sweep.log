@@ -21,3 +21,23 @@ obstacle_sweep.sh: line 65: /proc/3822048/cmdline: No such file or directory
 obstacle_sweep.sh: line 62: 3824810 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_obstacle_nav2.log 2>&1
 obstacle_sweep.sh: line 65: /proc/3824820/cmdline: No such file or directory
 obstacle_sweep.sh: line 65: /proc/3826462/cmdline: No such file or directory
+  timeout, 3601 표본 -> /home/sim/VICA-smarthandle/vica_ws/results/obstacle/trigger_4.0_r1.csv
+
+  --- 등장거리 3.0 m  #1
+obstacle_sweep.sh: line 62: 3829137 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_obstacle_nav2.log 2>&1
+obstacle_sweep.sh: line 65: /proc/3830804/cmdline: No such file or directory
+obstacle_sweep.sh: line 65: /proc/3830935/cmdline: No such file or directory
+obstacle_sweep.sh: line 65: /proc/3830936/cmdline: No such file or directory
+obstacle_sweep.sh: line 65: /proc/3830954/cmdline: No such file or directory
+  timeout, 3601 표본 -> /home/sim/VICA-smarthandle/vica_ws/results/obstacle/trigger_3.0_r1.csv
+
+  --- 등장거리 2.5 m  #1
+obstacle_sweep.sh: line 62: 3833691 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_obstacle_nav2.log 2>&1
+obstacle_sweep.sh: line 65: /proc/3835347/cmdline: No such file or directory
+[37;1m2026-09-03 03:12:38.028 [31;1m[[37;1mRTPS_TRANSPORT_SHM[31;1m Error] [37mFailed init_port fastrtps_port7070: open_and_lock_file failed[34;1m -> Function [36mopen_port_internal[m
+  timeout, 3601 표본 -> /home/sim/VICA-smarthandle/vica_ws/results/obstacle/trigger_2.5_r1.csv
+
+  --- 등장거리 2.0 m  #1
+obstacle_sweep.sh: line 62: 3838087 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_obstacle_nav2.log 2>&1
+obstacle_sweep.sh: line 65: /proc/3839628/cmdline: No such file or directory
+obstacle_sweep.sh: line 65: /proc/3839674/cmdline: No such file or directory
