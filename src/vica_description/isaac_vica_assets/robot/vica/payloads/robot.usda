@@ -4,13 +4,13 @@
         string creator = "URDF USD Converter v0.1.3"
     }
     defaultPrim = "VICA"
-    doc = """Generated from Composed Stage of root layer /tmp/tmpu0tfhysg/VICA.usdc
+    doc = """Generated from Composed Stage of root layer /tmp/tmp1buku61r/VICA.usdc
 
 
-Generated from Composed Stage of root layer /tmp/urdf_import_vica_4wjsgtqb/usdex_vica/VICA.usdc
+Generated from Composed Stage of root layer /tmp/urdf_import_vica__1q152oi/usdex_vica/VICA.usdc
 
 
-Generated from Composed Stage of root layer /tmp/urdf_import_vica_4wjsgtqb/temp_vica/vica.usd
+Generated from Composed Stage of root layer /tmp/urdf_import_vica__1q152oi/temp_vica/vica.usd
 """
     kilogramsPerUnit = 1
     metersPerUnit = 1

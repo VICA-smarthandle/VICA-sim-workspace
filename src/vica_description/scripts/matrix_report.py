@@ -3,6 +3,9 @@
 
     matrix_report.py <results/matrix> [--course NAME] [--csv FILE]
 
+Prints one table per planner, the three controllers side by side, then the
+per-course detail underneath.
+
 Ranks on arrival first
 ----------------------
 The physical robot's controller day (devlog 2026-08-29) ended with MPPI
@@ -109,6 +112,57 @@ def main():
 
     # Arrival first, then fewer no-starts, then fewer stucks.
     rows.sort(key=lambda r: (-r["reached"], r["no-start"], r["stuck"]))
+
+    # The primary view: one table per planner, the three controllers side by
+    # side across every course.
+    #
+    # Asked for in that shape because that is the decision being made. The
+    # controller and the planner are not independent -- Lattice proposes
+    # in-place rotations that DWB structurally will not execute, and Hybrid
+    # proposes none at all -- so "which controller is best" has no answer
+    # except per planner. A flat ranking hides exactly the interaction the
+    # experiment exists to find.
+    courses = sorted({r["course"] for r in rows})
+    index = {(r["planner"], r["controller"], r["course"]): r for r in rows}
+    planners = sorted({r["planner"] for r in rows})
+    controllers = [c for c in ("dwb", "rpp", "mppi")
+                   if any(r["controller"] == c for r in rows)]
+
+    short = {c: c.replace("vica_", "").replace("course", "") for c in courses}
+    W = 13
+
+    for planner in planners:
+        print(f"\n=== planner: {planner}")
+        head = f"  {'controller':12s}"
+        for c in courses:
+            head += f"{short[c]:>{W}s}"
+        head += f"{'합계':>9s}"
+        print(head)
+        print(f"  {'':12s}" + "".join(f"{'도달/시도':>{W}s}" for _ in courses)
+              + f"{'':>9s}")
+        for ctrl in controllers:
+            line = f"  {ctrl:12s}"
+            tr = ta = 0
+            for c in courses:
+                r = index.get((planner, ctrl, c))
+                if r is None:
+                    line += f"{'-':>{W}s}"
+                    continue
+                a = r["reached"] + r["stuck"] + r["no-start"] + r["timeout"]
+                tr += r["reached"]; ta += a
+                cell = f"{r['reached']}/{a}"
+                if r["nav2-down"]:
+                    cell += "!"
+                line += f"{cell:>{W}s}"
+            pct = f"{100*tr/ta:.0f}%" if ta else "-"
+            print(line + f"{tr}/{ta} {pct:>4s}".rjust(9))
+        # Only worth printing when something actually failed to come up.
+        if any(index.get((planner, ctrl, c), {}).get("nav2-down")
+               for ctrl in controllers for c in courses):
+            print("    ! = nav2 가 뜨지 않은 회차 포함 (주행 결과 아님)")
+
+    print("\n" + "=" * 60)
+    print("코스별 상세 (도달 1순위 정렬)")
 
     by_course = collections.defaultdict(list)
     for r in rows:

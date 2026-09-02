@@ -60,7 +60,7 @@ import math  # noqa: E402
 import omni.timeline  # noqa: E402
 import omni.usd  # noqa: E402
 import isaacsim.core.utils.extensions as ext_utils  # noqa: E402
-from pxr import Gf, Usd, UsdGeom, UsdPhysics  # noqa: E402
+from pxr import Sdf, Gf, Usd, UsdGeom, UsdPhysics  # noqa: E402
 
 ext_utils.enable_extension("isaacsim.ros2.bridge")
 simulation_app.update()
@@ -184,6 +184,64 @@ else:
     flat = [v for p in samples for v in p]
     check("좌표가 유한함", all(v == v and abs(v) != float("inf") for v in flat),
           "NaN/inf 없음")
+
+# --------------------------------------------------------------------------
+# Drive check
+# --------------------------------------------------------------------------
+# Everything above asks whether the robot stays put. Nothing asked whether it
+# can move, and a robot that cannot move passes all of it with full marks.
+#
+# That is not hypothetical. Two ultrasonic probes were added to the URDF with
+# visual geometry and no <inertial>. The importer runs with merge_fixed_joints
+# off, so each became its own rigid body with no mass, and the articulation's
+# mass matrix went with them: the wheels turned, the body did not, and it sank
+# 21 mm into the floor. Every static check passed, the drift checks passed
+# because it drifted nowhere, and the stage was stamped. The failure surfaced
+# an hour later as a screening run where every cell scored zero.
+#
+# So: command the wheels directly and require the body to translate. No ROS,
+# no controller, no map -- if this fails, nothing downstream is worth running.
+print(f"\n--- 구동 검사", flush=True)
+DRIVE_JOINTS = ["left_wheel_joint", "right_wheel_joint"]
+DRIVE_RAD_S = 4.0        # about 0.26 m/s at the 0.065 m wheel radius
+DRIVE_SECONDS = 3.0
+MIN_TRAVEL = 0.10        # 3 s at 0.26 m/s is 0.78; a tenth of that is generous
+
+drive_prims = []
+for prim in stage.Traverse():
+    if prim.GetName() in DRIVE_JOINTS:
+        drive_prims.append(prim)
+
+if len(drive_prims) != len(DRIVE_JOINTS):
+    check("구동 조인트 2개", False,
+          f"{len(drive_prims)}개 찾음 {[p.GetName() for p in drive_prims]}")
+elif not arts:
+    check("구동 검사 가능", False, "articulation root 없음")
+else:
+    for prim in drive_prims:
+        a = prim.GetAttribute("drive:angular:physics:targetVelocity")
+        if not a:
+            a = prim.CreateAttribute("drive:angular:physics:targetVelocity",
+                                     Sdf.ValueTypeNames.Float)
+        # Isaac's angular drive targets are degrees per second.
+        a.Set(math.degrees(DRIVE_RAD_S))
+
+    timeline.play()
+    q0 = world_xyz(arts[0])
+    t0 = time.monotonic()
+    moved = 0.0
+    while time.monotonic() - t0 < DRIVE_SECONDS:
+        simulation_app.update()
+        q = world_xyz(arts[0])
+        if q is not None and q0 is not None:
+            moved = max(moved, math.hypot(q[0] - q0[0], q[1] - q0[1]))
+    timeline.stop()
+    for prim in drive_prims:
+        prim.GetAttribute("drive:angular:physics:targetVelocity").Set(0.0)
+
+    check("바퀴를 돌리면 실제로 나아감", moved >= MIN_TRAVEL,
+          f"{DRIVE_SECONDS:.0f}초 {DRIVE_RAD_S:.1f} rad/s 로 {moved:.3f} m "
+          f"(최소 {MIN_TRAVEL} m)")
 
 print()
 if failures:

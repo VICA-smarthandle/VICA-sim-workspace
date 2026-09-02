@@ -4,13 +4,13 @@
         string creator = "URDF USD Converter v0.1.3"
     }
     defaultPrim = "VICA"
-    doc = """Generated from Composed Stage of root layer /tmp/tmpu0tfhysg/VICA.usdc
+    doc = """Generated from Composed Stage of root layer /tmp/tmp1buku61r/VICA.usdc
 
 
-Generated from Composed Stage of root layer /tmp/urdf_import_vica_4wjsgtqb/usdex_vica/VICA.usdc
+Generated from Composed Stage of root layer /tmp/urdf_import_vica__1q152oi/usdex_vica/VICA.usdc
 
 
-Generated from Composed Stage of root layer /tmp/urdf_import_vica_4wjsgtqb/temp_vica/vica.usd
+Generated from Composed Stage of root layer /tmp/urdf_import_vica__1q152oi/temp_vica/vica.usd
 
 
 Generated from Composed Stage of root layer /home/sim/VICA-smarthandle/vica_ws/src/vica_description/isaac_vica_assets/robot/vica_1/payloads/base.usd
@@ -143,15 +143,23 @@ over "VICA"
                 }
 
                 over "usonic_front_left" (
-                    prepend apiSchemas = ["PhysicsRigidBodyAPI"]
+                    prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
                 )
                 {
+                    point3f physics:centerOfMass = (-0.0075, 0, 0)
+                    float3 physics:diagonalInertia = (0.0000015, 0.0000015, 0.0000015)
+                    float physics:mass = 0.03
+                    quatf physics:principalAxes = (1, 0, 0, 0)
                 }
 
                 over "usonic_front_right" (
-                    prepend apiSchemas = ["PhysicsRigidBodyAPI"]
+                    prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
                 )
                 {
+                    point3f physics:centerOfMass = (-0.0075, 0, 0)
+                    float3 physics:diagonalInertia = (0.0000015, 0.0000015, 0.0000015)
+                    float physics:mass = 0.03
+                    quatf physics:principalAxes = (1, 0, 0, 0)
                 }
 
                 over "camera_link" (

@@ -523,6 +523,19 @@
 
 <xacro:macro name="usonic_probe" params="name y">
   <link name="${name}">
+    <!-- 30 g, the probe and its lead.
+         Not optional. The importer runs with merge_fixed_joints off, so a link
+         carrying geometry becomes its own rigid body rather than folding into
+         base_link, and a rigid body with no inertial gets no mass at all.
+         Two of those on fixed joints took the articulation's mass matrix with
+         them: the wheels turned, the body did not move, and it sank 21 mm into
+         the floor. Body count went 9 to 11 and the robot stopped driving.
+         camera_link gets away with it as the only one; two more did not. -->
+    <inertial>
+      <origin xyz="${-usonic_len/2} 0 0" rpy="0 0 0"/>
+      <mass value="0.03"/>
+      <inertia ixx="1.5e-6" iyy="1.5e-6" izz="1.5e-6" ixy="0" iyz="0" ixz="0"/>
+    </inertial>
     <visual>
       <origin xyz="${-usonic_len/2} 0 0" rpy="0 ${pi/2} 0"/>
       <geometry>

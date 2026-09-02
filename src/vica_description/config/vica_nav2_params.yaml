@@ -671,7 +671,7 @@ planner_server:
     #
     # Kept under the same "GridBased" key so swapping is a one-line change and
     # the behaviour tree does not care.
-    GridBased:
+    GridBasedLattice:
       # Jazzy declares these with :: ; the physical robot's config uses the
 # Humble-era slash form, and copying it verbatim gives
 #   "the class nav2_smac_planner/SmacPlannerLattice ... does not exist"
@@ -724,7 +724,7 @@ planner_server:
     # has a contract test enforcing exactly that, and the reason is the same
     # here: one variable at a time, or the comparison measures nothing.
 
-    GridBasedHybrid:
+    GridBased:
       # Smac Hybrid-A*. Continuous headings, Dubin curves, no in-place
       # rotation primitive at all -- it plans paths a car could drive.
       # minimum_turning_radius 0.50 with the 0.4727 circumscribed radius means
