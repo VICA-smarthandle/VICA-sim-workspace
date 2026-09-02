@@ -1,0 +1,11 @@
+  controller mppi -> dwb   smoother accel [2.5, 0.0, 3.2] decel [-1.25, 0.0, -3.2]
+  planner    hybrid -> navfn
+  colcon build 후 nav2 를 다시 띄워야 반영됩니다.
+==============================================================
+ 동적 장애물  코스 vica_dynamiccourse  dwb + navfn  보행자 1.2 m/s
+ 등장거리 6.0 4.0 3.0 2.0 1.5   각 1회
+ 결과 /home/sim/VICA-smarthandle/vica_ws/results/obstacle/dwb_navfn
+==============================================================
+
+  --- 등장거리 6.0 m  #1
+obstacle_sweep.sh: line 85: /proc/3885430/cmdline: No such file or directory
