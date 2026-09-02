@@ -114,6 +114,24 @@ install(
 )
 
 install(
+  PROGRAMS scripts/obstacle_trial.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME obstacle_trial
+)
+
+install(
+  PROGRAMS scripts/obstacle_report.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME obstacle_report
+)
+
+install(
+  PROGRAMS scripts/obstacle_sweep.sh
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME obstacle_sweep
+)
+
+install(
   PROGRAMS scripts/inflation_ab.sh
   DESTINATION lib/${PROJECT_NAME}
   RENAME inflation_ab

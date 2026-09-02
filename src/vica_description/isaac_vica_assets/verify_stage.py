@@ -136,8 +136,15 @@ for j in joints:
     for targets in (rel.GetBody0Rel().GetTargets(), rel.GetBody1Rel().GetTargets()):
         for t in targets:
             jointed.add(str(t))
-loose = [str(b.GetPath()) for b in bodies if str(b.GetPath()) not in jointed]
-check("조인트 없는 rigid body 0개", not loose, f"{loose[:3]}")
+# Scoped to the robot. The fault this catches is a body inside the
+# articulation with nothing holding it -- the D455 was one, and it destabilised
+# the whole chain. A rigid body elsewhere in the stage is scenery: the dynamic
+# course's walker is a kinematic cylinder with no joint on purpose, moved by
+# the runner rather than by physics, and it is not a fault.
+loose = [str(b.GetPath()) for b in bodies
+         if str(b.GetPath()).startswith("/World/VICA/")
+         and str(b.GetPath()) not in jointed]
+check("로봇 안에 조인트 없는 rigid body 0개", not loose, f"{loose[:3]}")
 
 graphs = {p.GetName() for p in stage.Traverse()}
 missing = [g for g in EXPECTED_GRAPHS if g not in graphs]

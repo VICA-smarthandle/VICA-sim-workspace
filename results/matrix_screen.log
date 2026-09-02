@@ -1,0 +1,37 @@
+1단계 선별: 12조합 x 1.20 m x 3코스
+
+##############################################################
+ dwb + lattice   vica_cornercourse   폭 1.20
+##############################################################
+  controller 는 이미 dwb 입니다.
+  planner    hybrid -> lattice
+  colcon build 후 nav2 를 다시 띄워야 반영됩니다.
+==============================================================
+ dwb + lattice   inflation 0.55   레인 1.20   각 1회
+ 결과 /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_cornercourse/dwb_lattice_infl0.55
+==============================================================
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3461869/cmdline: No such file or directory
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3461880/cmdline: No such file or directory
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3461979/cmdline: No such file or directory
+  --- 1.20 m  #1
+  스테이지 검증 통과: 2026-09-02 22:20:34
+  출발 위치 확인: AMCL 오차 0.01 m
+                               진단 driving           plan 13건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 0.0s -
+    통과 위로 #1                   timeout   이동  2.25 m  남은거리  3.81 m  최소여유 0.56 m   35.0s
+                               진단 driving           plan 147건(0 빈것)  cmd 0 비율 0%  경로끝-목표 0.0 m  복구 0.0s -
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 91: 3464356 Killed                  nohup ros2 launch vica_description vica_nav2_bringup.launch.py map:="$MAP" launch_rviz:=false > /tmp/vica_sweep_nav2.log 2>&1
+
+=== 완료. dwb inflation 0.55 -> /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_cornercourse/dwb_lattice_infl0.55
+
+##############################################################
+ dwb + hybrid   vica_cornercourse   폭 1.20
+##############################################################
+  controller 는 이미 dwb 입니다.
+  planner    lattice -> hybrid
+  colcon build 후 nav2 를 다시 띄워야 반영됩니다.
+==============================================================
+ dwb + hybrid   inflation 0.55   레인 1.20   각 1회
+ 결과 /home/sim/VICA-smarthandle/vica_ws/results/matrix/vica_cornercourse/dwb_hybrid_infl0.55
+==============================================================
+/home/sim/VICA-smarthandle/vica_ws/src/vica_description/scripts/width_sweep.sh: line 94: /proc/3465928/cmdline: No such file or directory
+  --- 1.20 m  #1

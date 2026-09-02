@@ -137,7 +137,7 @@ import time  # noqa: E402
 # /odom is the only other answer and it is not independent: it comes from a
 # graph in this same stage, so "the robot did not move" and "the odometry is
 # broken" look identical from outside. This separates them.
-from pxr import Usd as _Usd, UsdGeom as _UsdGeom, UsdPhysics as _UsdPhysics  # noqa: E402
+from pxr import Gf as _Gf, Usd as _Usd, UsdGeom as _UsdGeom, UsdPhysics as _UsdPhysics  # noqa: E402
 
 _root = None
 for _p in _stage.Traverse():
@@ -187,6 +187,91 @@ def _say(line):
         _pose_fh.flush()
 
 
+# --------------------------------------------------------------------------
+# The walker, on stages that have one
+# --------------------------------------------------------------------------
+# Inert on every other course: if there is no /World/Course/Walker prim, none
+# of this runs and play_stage behaves exactly as it did.
+#
+# The walker is moved from here rather than by physics or by USD time samples.
+# Time samples need the timeline to advance and this loop deliberately keeps it
+# stopped, driving physics through update() instead -- the same reason the
+# module docstring gives for not using SimulationContext.step(). So the runner
+# owns the motion, which also makes the trigger exact: the walk starts when the
+# robot is a set distance short of the crossing, not at a set time, so every
+# repeat presents the robot with the same geometry however fast it got there.
+_WALKER_PATH = "/World/Course/Walker"
+_walker = _stage.GetPrimAtPath(_WALKER_PATH) if "_stage" in dir() else None
+if _walker is not None and not _walker.IsValid():
+    _walker = None
+
+_walk_trigger = float(os.environ.get("VICA_WALK_TRIGGER_M", "4.0"))
+_walk_speed = float(os.environ.get("VICA_WALK_SPEED", "1.2"))
+_walk_log_path = os.environ.get("VICA_WALK_LOG", "/tmp/vica_walk.csv")
+_walk_started = False
+_walk_y = None
+_walk_op = None
+_walk_cross_x = _walk_park_y = _walk_end_y = None
+_walk_fh = None
+
+if _walker is not None:
+    for _op in _UsdGeom.Xformable(_walker).GetOrderedXformOps():
+        if _op.GetOpName() == "xformOp:translate":
+            _walk_op = _op
+    if _walk_op is not None:
+        _t = _walk_op.Get()
+        _walk_cross_x, _walk_park_y = float(_t[0]), float(_t[1])
+        _walk_y = _walk_park_y
+        # Far enough past the far wall that the corridor is clear behind it.
+        _walk_end_y = -abs(_walk_park_y)
+        try:
+            _walk_fh = open(_walk_log_path, "w")
+            _walk_fh.write("t,robot_x,robot_y,robot_speed,walker_y,gap,walking\n")
+        except OSError:
+            _walk_fh = None
+        print(f"=== walker at x {_walk_cross_x:.2f}, waits at y {_walk_park_y:+.2f}, "
+              f"crosses to {_walk_end_y:+.2f} at {_walk_speed} m/s, "
+              f"starts {_walk_trigger:.2f} m before the robot arrives", flush=True)
+        print(f"=== walk log {_walk_log_path}", flush=True)
+    else:
+        print("=== walker prim has no translate op; not moving it", flush=True)
+
+_SIM_DT = 1.0 / 60.0
+_prev_xy = None
+
+
+def _step_walker(frame):
+    """Advance the walker and record one row. Returns nothing."""
+    global _walk_started, _walk_y, _prev_xy
+    if _walk_op is None:
+        return
+    p = _world_xyz()
+    if p is None:
+        return
+    if _prev_xy is None:
+        speed = 0.0
+    else:
+        speed = math.hypot(p[0] - _prev_xy[0], p[1] - _prev_xy[1]) / _SIM_DT
+    _prev_xy = (p[0], p[1])
+
+    if not _walk_started and p[0] >= _walk_cross_x - _walk_trigger:
+        _walk_started = True
+        print(f"=== walker steps out, robot at x {p[0]:+.3f}, "
+              f"{_walk_cross_x - p[0]:.3f} m short of the crossing", flush=True)
+    if _walk_started and _walk_y > _walk_end_y:
+        _walk_y = max(_walk_end_y, _walk_y - _walk_speed * _SIM_DT)
+        t = _walk_op.Get()
+        _walk_op.Set(_Gf.Vec3d(float(t[0]), _walk_y, float(t[2])))
+
+    if _walk_fh:
+        gap = math.hypot(_walk_cross_x - p[0], _walk_y - p[1])
+        _walk_fh.write(f"{frame * _SIM_DT:.3f},{p[0]:.4f},{p[1]:.4f},"
+                       f"{speed:.4f},{_walk_y:.4f},{gap:.4f},"
+                       f"{1 if _walk_started else 0}\n")
+        if frame % 60 == 0:
+            _walk_fh.flush()
+
+
 started = time.time()
 frames = 0
 _p0 = _world_xyz()
@@ -196,6 +281,7 @@ if _p0:
 while time.time() - started < SECONDS:
     simulation_app.update()
     frames += 1
+    _step_walker(frames)
     if frames % 300 == 0:
         _p = _world_xyz()
         _d = math.hypot(_p[0] - _p0[0], _p[1] - _p0[1]) if _p else float("nan")
@@ -204,5 +290,7 @@ while time.time() - started < SECONDS:
              f"roll {_p[3]:+.1f} pitch {_p[4]:+.1f}  moved {_d:.3f} m")
 
 timeline.stop()
+if _walk_fh:
+    _walk_fh.close()
 print(f"=== done, {frames} frames", flush=True)
 simulation_app.close()
