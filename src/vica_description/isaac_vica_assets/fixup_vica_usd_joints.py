@@ -134,14 +134,27 @@ ARTICULATION_VELOCITY_ITERATIONS = int(
     os.environ.get("VICA_VELOCITY_ITERATIONS", 16))
 
 # Arm joints, when the stage carries the arm variant. Nothing here applies to
-# the driving robot: it has no joint whose name starts with the arm prefix, and
+# the driving robot: it has no joint whose name starts with an arm prefix, and
 # the loop below finds none.
-ARM_JOINT_PREFIX = os.environ.get("VICA_ARM_JOINT_PREFIX", "gen3_joint_")
+# Both arms, because the stage says which one it has and this file should not
+# have to be told. The OpenMANIPULATOR-X names its joints omx_joint1..4 and the
+# Kinova names them gen3_joint_1..6; a stage carries one set or neither.
+# VICA_ARM_JOINT_PREFIX overrides with a single prefix when a third arm turns
+# up.
+ARM_JOINT_PREFIXES = tuple(
+    p for p in os.environ.get("VICA_ARM_JOINT_PREFIX", "omx_joint,gen3_joint_").split(",")
+    if p)
 ARM_HOLD_DEG = float(os.environ.get("VICA_ARM_HOLD_DEG", 1.0))
 ARM_DAMPING_RATIO = float(os.environ.get("VICA_ARM_DAMPING_RATIO", 0.1))
 # Where the arm is told to hold. Without this the target is zero, and zero on a
 # Gen3 lite is straight up: the arm stands to attention and carries its mass as
 # high as it can. config/arm_stow_pose.yaml has the derivation.
+#
+# The OMX is the same shape of problem for a different reason. At zero its
+# links stack vertically too, and its joint2 and joint3 limits are +/-1.5 rad,
+# so folding it down is a pose that has to be chosen rather than a default.
+# A stow file naming omx_joint* joints will be picked up here without any
+# change; there is not one yet.
 ARM_STOW_POSE = os.environ.get(
     "VICA_ARM_STOW_POSE",
     os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -442,7 +455,7 @@ def main():
             f"damping={WHEEL_DAMPING} maxForce={WHEEL_MAX_FORCE}"
         )
 
-    arm = sorted(n for n in joints if n.startswith(ARM_JOINT_PREFIX))
+    arm = sorted(n for n in joints if n.startswith(ARM_JOINT_PREFIXES))
     if arm:
         print(f"\n=== arm joints  (hold {ARM_HOLD_DEG} deg, "
               f"damping ratio {ARM_DAMPING_RATIO})")
