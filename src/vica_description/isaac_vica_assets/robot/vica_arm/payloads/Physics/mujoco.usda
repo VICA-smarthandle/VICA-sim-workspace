@@ -4,16 +4,16 @@
         string creator = "URDF USD Converter v0.1.3"
     }
     defaultPrim = "VICA"
-    doc = """Generated from Composed Stage of root layer /tmp/tmpm01m3f0k/VICA.usdc
+    doc = """Generated from Composed Stage of root layer /tmp/tmpulbefmmv/VICA.usdc
 
 
-Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_7v3l2r_e/usdex_vica_arm/VICA.usdc
+Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_2790jkz7/usdex_vica_arm/VICA.usdc
 
 
-Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_7v3l2r_e/temp_vica_arm/vica_arm.usd
+Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_2790jkz7/temp_vica_arm/vica_arm.usd
 
 
-Generated from Composed Stage of root layer /home/sim/VICA-smarthandle/vica_ws/src/vica_description/isaac_vica_assets/robot/vica_arm_1/payloads/base.usd
+Generated from Composed Stage of root layer /home/sim/VICA-smarthandle/vica_ws/src/vica_description/isaac_vica_assets/robot/vica_arm/vica_arm/payloads/base.usd
 """
     kilogramsPerUnit = 1
     metersPerUnit = 1
@@ -347,31 +347,31 @@ over "VICA"
                     {
                         over "omx_link1"
                         {
-                            over "box"
+                            over "link1"
                             {
                             }
 
                             over "omx_link2"
                             {
-                                over "box"
+                                over "link2"
                                 {
                                 }
 
                                 over "omx_link3"
                                 {
-                                    over "box"
+                                    over "link3"
                                     {
                                     }
 
                                     over "omx_link4"
                                     {
-                                        over "box"
+                                        over "link4"
                                         {
                                         }
 
                                         over "omx_link5"
                                         {
-                                            over "box"
+                                            over "link5"
                                             {
                                             }
 

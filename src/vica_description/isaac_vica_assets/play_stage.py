@@ -107,7 +107,26 @@ if SPAWN is not None:
         if _op.GetOpName().startswith("xformOp:rotate"):
             _has_rot = True
             if SPAWN_YAW is not None:
-                _op.Set(Gf.Vec3f(0.0, 0.0, SPAWN_YAW))
+                # Which kind of rotate op it is decides the value's type, and
+                # getting it wrong is fatal rather than ignored: the arm test
+                # room authors a single-axis rotateZ, this wrote a vector into
+                # it, and the whole stage died nine seconds in with
+                #   Type mismatch for </World/VICA.xformOp:rotateZ>:
+                #   expected 'float', got 'GfVec3f'
+                # The courses all use rotateXYZ, so it worked everywhere it had
+                # been tried.
+                _n = _op.GetOpName()
+                if _n.endswith("rotateZ"):
+                    _op.Set(float(SPAWN_YAW))
+                elif _n.endswith(("rotateX", "rotateY")):
+                    # A single-axis op about x or y cannot hold a yaw, and
+                    # writing one into it would turn the robot about the wrong
+                    # axis quietly. Say so instead.
+                    print(f"=== WARNING: {_n} cannot hold a yaw; spawn heading "
+                          f"ignored", flush=True)
+                    _has_rot = False
+                else:
+                    _op.Set(Gf.Vec3f(0.0, 0.0, SPAWN_YAW))
     if SPAWN_YAW is not None and not _has_rot:
         _xf.AddRotateXYZOp().Set(Gf.Vec3f(0.0, 0.0, SPAWN_YAW))
     print(f"=== spawn moved to {SPAWN}"

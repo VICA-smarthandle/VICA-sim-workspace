@@ -142,7 +142,7 @@ fi
 
 case "${mode}" in
     base) write_variant base ;;
-    arm)  write_variant arm use_arm:=true ${VICA_ARM_ARGS} ;;
+    arm)  write_variant arm use_arm:=true ${VICA_ARM_ARGS:-} ;;
     all)  write_variant base
-          write_variant arm use_arm:=true ${VICA_ARM_ARGS} ;;
+          write_variant arm use_arm:=true ${VICA_ARM_ARGS:-} ;;
 esac

@@ -4,16 +4,16 @@
         string creator = "URDF USD Converter v0.1.3"
     }
     defaultPrim = "VICA"
-    doc = """Generated from Composed Stage of root layer /tmp/tmpm01m3f0k/VICA.usdc
+    doc = """Generated from Composed Stage of root layer /tmp/tmpulbefmmv/VICA.usdc
 
 
-Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_7v3l2r_e/usdex_vica_arm/VICA.usdc
+Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_2790jkz7/usdex_vica_arm/VICA.usdc
 
 
-Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_7v3l2r_e/temp_vica_arm/vica_arm.usd
+Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_2790jkz7/temp_vica_arm/vica_arm.usd
 
 
-Generated from Composed Stage of root layer /home/sim/VICA-smarthandle/vica_ws/src/vica_description/isaac_vica_assets/robot/vica_arm_1/payloads/base.usd
+Generated from Composed Stage of root layer /home/sim/VICA-smarthandle/vica_ws/src/vica_description/isaac_vica_assets/robot/vica_arm/vica_arm/payloads/base.usd
 """
     kilogramsPerUnit = 1
     metersPerUnit = 1
@@ -205,18 +205,18 @@ over "VICA"
                                     prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
                                 )
                                 {
-                                    point3f physics:centerOfMass = (0, 0, 0.15)
-                                    float3 physics:diagonalInertia = (0.00010956292, 0.002489513, 0.002489513)
-                                    float physics:mass = 0.32463086
+                                    point3f physics:centerOfMass = (0, 0, 0.064)
+                                    float3 physics:diagonalInertia = (0.000046746845, 0.0002124846, 0.0002124846)
+                                    float physics:mass = 0.13850917
                                     quatf physics:principalAxes = (0.5, 0.5, 0.5, 0.5)
 
                                     over "omx_link4" (
                                         prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
                                     )
                                     {
-                                        point3f physics:centerOfMass = (0.14, 0, 0)
-                                        float3 physics:diagonalInertia = (0.00010116501, 0.0020089373, 0.0020089373)
-                                        float physics:mass = 0.29974818
+                                        point3f physics:centerOfMass = (0.062, 0, 0)
+                                        float3 physics:diagonalInertia = (0.000044801647, 0.00019249221, 0.00019249221)
+                                        float physics:mass = 0.13274562
                                         quatf physics:principalAxes = (1, 0, 0, 0)
 
                                         over "omx_link5" (
@@ -430,7 +430,7 @@ over "VICA"
             prepend rel physics:body0 = </VICA/Geometry/base_footprint/base_link/arm_riser_link/arm_mount_link/omx_link1/omx_link2/omx_link3>
             custom rel physics:body1
             prepend rel physics:body1 = </VICA/Geometry/base_footprint/base_link/arm_riser_link/arm_mount_link/omx_link1/omx_link2/omx_link3/omx_link4>
-            point3f physics:localPos0 = (0.024, 0, 0.3)
+            point3f physics:localPos0 = (0.024, 0, 0.128)
             point3f physics:localPos1 = (0, 0, 0)
             quatf physics:localRot0 = (1, 0, 0, 0)
             quatf physics:localRot1 = (1, 0, 0, 0)
@@ -450,7 +450,7 @@ over "VICA"
             prepend rel physics:body0 = </VICA/Geometry/base_footprint/base_link/arm_riser_link/arm_mount_link/omx_link1/omx_link2/omx_link3/omx_link4>
             custom rel physics:body1
             prepend rel physics:body1 = </VICA/Geometry/base_footprint/base_link/arm_riser_link/arm_mount_link/omx_link1/omx_link2/omx_link3/omx_link4/omx_link5>
-            point3f physics:localPos0 = (0.28, 0, 0)
+            point3f physics:localPos0 = (0.124, 0, 0)
             point3f physics:localPos1 = (0, 0, 0)
             quatf physics:localRot0 = (1, 0, 0, 0)
             quatf physics:localRot1 = (1, 0, 0, 0)

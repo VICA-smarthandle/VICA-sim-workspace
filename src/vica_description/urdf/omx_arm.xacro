@@ -23,11 +23,15 @@
   drives, including the robot's own, and an include that is missing there
   breaks a file that has nothing to do with arms.
 
-  The meshes are not in this workspace either. What is drawn below are boxes
-  and cylinders sized from the joint offsets. That is honest about what is
-  known: the kinematics and the masses are ROBOTIS's numbers, the shape is an
-  approximation, and nothing downstream reads the shape except the renderer.
-  Real meshes can be dropped in later without moving a joint.
+  The meshes are ROBOTIS's own, fetched from the same branch into
+  meshes/omx/. They are visual only: collision stays as boxes, because a
+  collider is what the physics solver spends its time on and a 1 MB triangle
+  soup per link is not what anyone wants around a moving arm.
+
+  Lengthening moves the joints and does not stretch the meshes. A link built
+  longer than ROBOTIS sells is our own part, and drawing their casing scaled
+  along one axis would be a picture of something that does not exist. The mesh
+  sits at the joint and the extra length shows as the gap to the next one.
 
   Lengthening
   ~~~~~~~~~~~
@@ -76,15 +80,25 @@
     <!-- The arm's own section, for the box stand-ins. -->
     <xacro:property name="w" value="0.045" />
 
-    <xacro:macro name="omx_link" params="name mass seg axis:=z">
+    <xacro:macro name="omx_link" params="name mass seg axis:=z mesh:=''">
       <link name="${name}">
         <visual>
-          <origin xyz="${axis == 'x' and seg/2 or 0} 0 ${axis == 'z' and seg/2 or 0}"
-                  rpy="0 0 0"/>
-          <geometry>
-            <box size="${axis == 'x' and seg or w} ${w} ${axis == 'z' and seg or w}"/>
-          </geometry>
-          <material name="silver"/>
+          <xacro:if value="${mesh != ''}">
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+              <mesh filename="package://vica_description/meshes/omx/${mesh}.stl"
+                    scale="0.001 0.001 0.001"/>
+            </geometry>
+            <material name="silver"/>
+          </xacro:if>
+          <xacro:unless value="${mesh != ''}">
+            <origin xyz="${axis == 'x' and seg/2 or 0} 0 ${axis == 'z' and seg/2 or 0}"
+                    rpy="0 0 0"/>
+            <geometry>
+              <box size="${axis == 'x' and seg or w} ${w} ${axis == 'z' and seg or w}"/>
+            </geometry>
+            <material name="silver"/>
+          </xacro:unless>
         </visual>
         <inertial>
           <origin xyz="${axis == 'x' and seg/2 or 0} 0 ${axis == 'z' and seg/2 or 0}"
@@ -103,14 +117,14 @@
     </xacro:macro>
 
     <!-- link1 is the base. Fixed to whatever it is mounted on. -->
-    <xacro:omx_link name="${prefix}link1" mass="${m1}" seg="0.034" axis="z"/>
+    <xacro:omx_link name="${prefix}link1" mass="${m1}" mesh="link1" seg="0.034" axis="z"/>
     <joint name="${prefix}base_joint" type="fixed">
       <xacro:insert_block name="origin"/>
       <parent link="${parent}"/>
       <child link="${prefix}link1"/>
     </joint>
 
-    <xacro:omx_link name="${prefix}link2" mass="${m2}" seg="0.0595" axis="z"/>
+    <xacro:omx_link name="${prefix}link2" mass="${m2}" mesh="link2" seg="0.0595" axis="z"/>
     <joint name="${prefix}joint1" type="revolute">
       <origin xyz="0.012 0.0 0.017" rpy="0 0 0"/>
       <parent link="${prefix}link1"/>
@@ -120,7 +134,7 @@
              effort="${joint_effort}" velocity="${joint_velocity}"/>
     </joint>
 
-    <xacro:omx_link name="${prefix}link3" mass="${m3}" seg="${link3_len}" axis="z"/>
+    <xacro:omx_link name="${prefix}link3" mass="${m3}" mesh="link3" seg="${link3_len}" axis="z"/>
     <joint name="${prefix}joint2" type="revolute">
       <origin xyz="0.0 0.0 0.0595" rpy="0 0 0"/>
       <parent link="${prefix}link2"/>
@@ -130,7 +144,7 @@
              effort="${joint_effort}" velocity="${joint_velocity}"/>
     </joint>
 
-    <xacro:omx_link name="${prefix}link4" mass="${m4}" seg="${link4_len}" axis="x"/>
+    <xacro:omx_link name="${prefix}link4" mass="${m4}" mesh="link4" seg="${link4_len}" axis="x"/>
     <joint name="${prefix}joint3" type="revolute">
       <!-- 0.024 of forward offset is ROBOTIS's; the vertical part is the
            length being adjusted. -->
@@ -142,7 +156,7 @@
              effort="${joint_effort}" velocity="${joint_velocity}"/>
     </joint>
 
-    <xacro:omx_link name="${prefix}link5" mass="${m5}" seg="${link5_len}" axis="x"/>
+    <xacro:omx_link name="${prefix}link5" mass="${m5}" mesh="link5" seg="${link5_len}" axis="x"/>
     <joint name="${prefix}joint4" type="revolute">
       <origin xyz="${link4_len} 0.0 0.0" rpy="0 0 0"/>
       <parent link="${prefix}link4"/>

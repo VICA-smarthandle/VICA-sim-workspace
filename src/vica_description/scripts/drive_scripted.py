@@ -33,11 +33,11 @@ W = 0.4           # rad/s
 
 
 class Scripted(Node):
-    def __init__(self, legs, out):
+    def __init__(self, legs, out, origin=(0.0, 0.0)):
         super().__init__("drive_scripted")
         self.pub = self.create_publisher(Twist, "/cmd_vel", 10)
         self.create_subscription(Odometry, "/odom", self._odom, 10)
-        self.legs, self.out = legs, out
+        self.legs, self.out, self.origin = legs, out, origin
         self.pose = None
         self.track = []
 
@@ -47,7 +47,10 @@ class Scripted(Node):
                          1 - 2 * (q.y * q.y + q.z * q.z))
         t = m.header.stamp.sec + m.header.stamp.nanosec * 1e-9
         self.pose = (t, m.pose.pose.position.x, m.pose.pose.position.y, yaw)
-        self.track.append(list(self.pose))
+        self.track.append([t,
+                           m.pose.pose.position.x + self.origin[0],
+                           m.pose.pose.position.y + self.origin[1],
+                           yaw])
 
     def _hold(self, vx, wz, seconds):
         """Command for a wall-clock duration. Only used for the pauses."""
@@ -121,11 +124,21 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--origin", nargs=2, type=float, default=(0.0, 0.0),
+                    metavar=("X", "Y"),
+                    help="where the robot was spawned in the stage. /odom "
+                         "starts at zero wherever that is, and replay_render "
+                         "places the robot at track coordinates in the stage's "
+                         "own frame, so the two agree only when the spawn was "
+                         "the origin. It was for the hospital and the office "
+                         "and not for the arm test room, where the render put "
+                         "the robot back in the corridor it had been moved out "
+                         "of.")
     ap.add_argument("--leg", nargs=2, type=float, action="append", metavar=("M", "DEG"),
                     required=True, help='"<metres> <degrees>", repeatable')
     args = ap.parse_args()
     rclpy.init()
-    node = Scripted([(m, d) for m, d in args.leg], args.out)
+    node = Scripted([(m, d) for m, d in args.leg], args.out, args.origin)
     try:
         return node.run()
     finally:

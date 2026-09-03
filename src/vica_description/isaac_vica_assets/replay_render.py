@@ -4,6 +4,8 @@
 
       --stage PATH     course USD (default: read from the run's spec)
       --view top|iso|chase|follow camera framing (default iso)
+      --focal MM     lens, default 24. 14 is a wide angle and is how to see
+                     the room around the robot indoors; distance cannot do it.
       --follow-margin F  how far back the follow view sits, as a multiple of
                      the robot's own radius. 1.55 fills the frame with the
                      robot; 4 gives the room around it. iso and top frame the
@@ -172,8 +174,19 @@ x_span = max(max(xs) - min(xs), 3.0) + 2.0
 y_span = max(max(ys) - min(ys), 3.0) + 2.0
 span = max(x_span, y_span)
 
+# Lens. 24 mm on a 20.955 mm aperture is about 47 degrees across, which is a
+# normal lens and right for following the robot outdoors or down a course.
+#
+# Indoors, widening the shot means a wider lens and not more distance. Backing
+# off does not work in a building: at a margin of 4 the follow camera wants 14 m
+# of standoff and the office render came back as a picture of the sky through a
+# curtain wall; putting that distance into height instead put it through the
+# ceiling. 14 mm sees about 74 degrees from the same place, which is the room
+# around the robot.
+FOCAL_MM = float(_opt("--focal", "24.0"))
+
 camera = UsdGeom.Camera.Define(stage, "/World/ReplayCam")
-camera.CreateFocalLengthAttr(24.0)
+camera.CreateFocalLengthAttr(FOCAL_MM)
 camera.CreateHorizontalApertureAttr(20.955)
 camera.CreateClippingRangeAttr(Gf.Vec2f(0.1, 500.0))
 cam_xf = UsdGeom.Xformable(camera.GetPrim())
@@ -189,9 +202,13 @@ ROBOT_CENTRE_Z = 0.52
 # which leaves the obstacle it is reacting to in shot without the robot itself
 # touching an edge.
 FOLLOW_MARGIN = float(_opt("--follow-margin", "1.55"))
+# How far behind the robot the follow camera may stand before the rest of the
+# distance is taken as height. A corridor is about 2 m wide and a room a few
+# metres deep, so 3 m back is about as far as anything indoors allows.
+FOLLOW_MAX_BACK = float(_opt("--follow-max-back", "3.0"))
 
-HFOV = 2 * math.atan(20.955 / 2 / 24.0)
-VFOV = 2 * math.atan(20.955 * HEIGHT / WIDTH / 2 / 24.0)
+HFOV = 2 * math.atan(20.955 / 2 / FOCAL_MM)
+VFOV = 2 * math.atan(20.955 * HEIGHT / WIDTH / 2 / FOCAL_MM)
 
 
 def look_at(eye, target, up=None):
@@ -260,9 +277,19 @@ def camera_for(sample):
         d = r / math.tan(VFOV / 2)
         # Behind and to one side, low enough that the mast reads as a mast
         # rather than as a line pointing at the camera.
-        eye = (x - d * 0.82 * math.cos(a) - d * 0.42 * math.sin(a),
-               y - d * 0.82 * math.sin(a) + d * 0.42 * math.cos(a),
-               ROBOT_CENTRE_Z + d * 0.38)
+        #
+        # The extra distance a wide margin asks for goes upward once the
+        # horizontal part reaches FOLLOW_MAX_BACK. Indoors, backing straight
+        # off does not widen the shot, it leaves the building: at margin 4 the
+        # camera wants 14 m of standoff and the office render came back as a
+        # picture of the sky through a curtain wall. Height has no wall in the
+        # way, and looking down is what actually shows the room around the
+        # robot.
+        back = min(d, FOLLOW_MAX_BACK)
+        up = math.sqrt(max(d * d - back * back, 0.0)) + back * 0.38
+        eye = (x - back * 0.91 * math.cos(a) - back * 0.42 * math.sin(a),
+               y - back * 0.91 * math.sin(a) + back * 0.42 * math.cos(a),
+               ROBOT_CENTRE_Z + up)
         return look_at(eye, (x, y, ROBOT_CENTRE_Z))
     d = (span / 2) / math.tan(HFOV / 2)
     return look_at((cx + 0.55 * d, cy - 0.75 * d, 0.75 * d), (cx, cy, 0.0))

@@ -3,16 +3,16 @@
     customLayerData = {
         string creator = "URDF USD Converter v0.1.3"
     }
-    doc = """Generated from Composed Stage of root layer /tmp/tmpm01m3f0k/VICA.usdc
+    doc = """Generated from Composed Stage of root layer /tmp/tmpulbefmmv/VICA.usdc
 
 
-Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_7v3l2r_e/usdex_vica_arm/VICA.usdc
+Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_2790jkz7/usdex_vica_arm/VICA.usdc
 
 
-Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_7v3l2r_e/temp_vica_arm/vica_arm.usd
+Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_2790jkz7/temp_vica_arm/vica_arm.usd
 
 
-Generated from Composed Stage of root layer /home/sim/VICA-smarthandle/vica_ws/src/vica_description/isaac_vica_assets/robot/vica_arm_1/payloads/base.usd
+Generated from Composed Stage of root layer /home/sim/VICA-smarthandle/vica_ws/src/vica_description/isaac_vica_assets/robot/vica_arm/vica_arm/payloads/base.usd
 """
     kilogramsPerUnit = 1
     metersPerUnit = 1
