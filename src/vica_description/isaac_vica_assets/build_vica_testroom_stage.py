@@ -149,7 +149,15 @@ def main():
         Gf.Vec3d((X_MIN + X_MAX) / 2.0, (Y_MIN + Y_MAX) / 2.0, -0.05)
     )
     fx.AddScaleOp().Set(Gf.Vec3f(X_MAX - X_MIN, Y_MAX - Y_MIN, 0.1))
-    UsdPhysics.CollisionAPI.Apply(floor.GetPrim())
+    # Drawn, not collided. A ground plane collides instead: PhysX drops
+    # contacts between a floor box this size and a collider as small as a
+    # 65 mm wheel, at some places along it and not others, and the robot ends
+    # up on its belly with its wheels underground. The corner course builder
+    # carries the measurement.
+    plane = UsdGeom.Plane.Define(stage, "/World/GroundPlane")
+    plane.CreateAxisAttr("Z")
+    plane.CreatePurposeAttr(UsdGeom.Tokens.guide)
+    UsdPhysics.CollisionAPI.Apply(plane.GetPrim())
 
     # ---- walls ------------------------------------------------------------
     t = WALL_THICKNESS

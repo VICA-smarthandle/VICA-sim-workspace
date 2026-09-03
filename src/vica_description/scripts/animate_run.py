@@ -4,6 +4,7 @@
     ros2 run vica_description animate_run --width 1.20 \\
         --left  /tmp/vica_width_20kg/dwb_infl0.55 \\
         --right /tmp/vica_width_20kg/mppi_infl0.55 \\
+        --panel /tmp/vica_width_20kg/rpp_infl0.55 \\
         --out /tmp/vica_1.20
 
 Writes <out>.gif and three stills: the start, the moment of divergence, and
@@ -249,6 +250,11 @@ def main():
     ap.add_argument("--width", required=True, help='lane width as written in the filename, e.g. "1.20"')
     ap.add_argument("--left", required=True, help="results directory for the left panel")
     ap.add_argument("--right", default=None, help="results directory for the right panel")
+    ap.add_argument("--panel", action="append", default=[],
+                    help="another results directory, repeatable. Two panels "
+                         "answer 'is there a difference'; three answer 'which "
+                         "of the three', which is the question a planner's row "
+                         "of controllers actually poses.")
     ap.add_argument("--stage", default=None)
     ap.add_argument("--out", required=True, help="output path without extension")
     ap.add_argument("--fps", type=int, default=20)
@@ -279,7 +285,7 @@ def main():
     walls = read_course(stage)
 
     sides = []
-    for d in (args.left, args.right):
+    for d in [args.left, args.right] + list(args.panel):
         if not d:
             continue
         runs = load_runs(d, args.width)

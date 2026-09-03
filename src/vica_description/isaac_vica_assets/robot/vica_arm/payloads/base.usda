@@ -4,16 +4,16 @@
         string creator = "URDF USD Converter v0.1.3"
     }
     defaultPrim = "VICA"
-    doc = """Generated from Composed Stage of root layer /tmp/tmprmuq6afg/VICA.usdc
+    doc = """Generated from Composed Stage of root layer /tmp/tmpm01m3f0k/VICA.usdc
 
 
-Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_zrkeai3s/usdex_vica_arm/VICA.usdc
+Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_7v3l2r_e/usdex_vica_arm/VICA.usdc
 
 
-Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_zrkeai3s/temp_vica_arm/vica_arm.usd
+Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_7v3l2r_e/temp_vica_arm/vica_arm.usd
 
 
-Generated from Composed Stage of root layer robot/vica_arm/payloads/base.usd
+Generated from Composed Stage of root layer /home/sim/VICA-smarthandle/vica_ws/src/vica_description/isaac_vica_assets/robot/vica_arm_1/payloads/base.usd
 """
     kilogramsPerUnit = 1
     metersPerUnit = 1
@@ -31,7 +31,7 @@ def Xform "VICA" (
     kind = "component"
 )
 {
-    float3[] extentsHint = [(-0.505, -0.2265, 0.000030815678), (0.305, 0.2265, 1.3657), (3.4028235e38, 3.4028235e38, 3.4028235e38), (-3.4028235e38, -3.4028235e38, -3.4028235e38), (3.4028235e38, 3.4028235e38, 3.4028235e38), (-3.4028235e38, -3.4028235e38, -3.4028235e38), (-0.505, -0.2159, -1.1832667e-10), (0.305, 0.2159, 1.3657)]
+    float3[] extentsHint = [(-0.47800002, -0.2265, 0.000030815678), (0.442, 0.2265, 1.075), (3.4028235e38, 3.4028235e38, 3.4028235e38), (-3.4028235e38, -3.4028235e38, -3.4028235e38), (3.4028235e38, 3.4028235e38, 3.4028235e38), (-3.4028235e38, -3.4028235e38, -3.4028235e38), (-0.478, -0.2159, -1.1832667e-10), (0.305, 0.2159, 1.075)]
 
     def Scope "Materials"
     {
@@ -54,9 +54,9 @@ def Xform "VICA" (
                 double3 xformOp:translate = (0, 0, 0.19)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
 
-                def Xform "base_link" (
+                def Xform "base_link_mast" (
                     instanceable = true
-                    prepend references = @./instances.usda@</Instances/base_link>
+                    prepend references = @./instances.usda@</Instances/base_link_mast>
                 )
                 {
                     quatd xformOp:orient = (1, 0, 0, 0)
@@ -276,11 +276,57 @@ def Xform "VICA" (
                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
                 }
 
-                def Xform "camera_link"
+                def Xform "usonic_front_left"
                 {
                     quatf xformOp:orient = (1, 0, 0, 0)
                     float3 xformOp:scale = (1, 1, 1)
-                    double3 xformOp:translate = (0.28683, 0, 0.13)
+                    double3 xformOp:translate = (0.305, 0.107, -0.0987)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+
+                    def Cylinder "cylinder" (
+                        prepend apiSchemas = ["MaterialBindingAPI"]
+                    )
+                    {
+                        uniform token axis = "Z"
+                        float3[] extent = [(-0.01, -0.01, -0.0075), (0.01, 0.01, 0.0075)]
+                        double height = 0.015
+                        rel material:binding = </VICA/Materials/camera_black>
+                        double radius = 0.01
+                        quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
+                        float3 xformOp:scale = (1, 1, 1)
+                        double3 xformOp:translate = (-0.0075, 0, 0)
+                        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                    }
+                }
+
+                def Xform "usonic_front_right"
+                {
+                    quatf xformOp:orient = (1, 0, 0, 0)
+                    float3 xformOp:scale = (1, 1, 1)
+                    double3 xformOp:translate = (0.305, -0.107, -0.0987)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+
+                    def Cylinder "cylinder" (
+                        prepend apiSchemas = ["MaterialBindingAPI"]
+                    )
+                    {
+                        uniform token axis = "Z"
+                        float3[] extent = [(-0.01, -0.01, -0.0075), (0.01, 0.01, 0.0075)]
+                        double height = 0.015
+                        rel material:binding = </VICA/Materials/camera_black>
+                        double radius = 0.01
+                        quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
+                        float3 xformOp:scale = (1, 1, 1)
+                        double3 xformOp:translate = (-0.0075, 0, 0)
+                        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                    }
+                }
+
+                def Xform "camera_link"
+                {
+                    quatf xformOp:orient = (0.9999808, 0, -0.0061955648, 0)
+                    float3 xformOp:scale = (1, 1, 1)
+                    double3 xformOp:translate = (-0.225, 0, 0.855)
                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
 
                     def Cube "box" (
@@ -348,205 +394,158 @@ def Xform "VICA" (
                         double3 xformOp:translate = (0, 0, 0.1)
                         uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
 
-                        def Xform "gen3_base_link"
+                        def Xform "omx_link1"
                         {
                             quatf xformOp:orient = (1, 0, 0, 0)
                             float3 xformOp:scale = (1, 1, 1)
                             double3 xformOp:translate = (0, 0, 0)
                             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
 
-                            def Xform "base_link" (
-                                instanceable = true
-                                prepend references = @./instances.usda@</Instances/base_link_1>
+                            def Cube "box" (
+                                prepend apiSchemas = ["MaterialBindingAPI"]
                             )
                             {
-                                quatd xformOp:orient = (1, 0, 0, 0)
-                                double3 xformOp:scale = (1, 1, 1)
-                                double3 xformOp:translate = (0, 0, 0)
+                                float3[] extent = [(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]
+                                rel material:binding = </VICA/Materials/silver>
+                                double size = 1
+                                quatf xformOp:orient = (1, 0, 0, 0)
+                                float3 xformOp:scale = (0.045, 0.045, 0.034)
+                                double3 xformOp:translate = (0, 0, 0.017)
                                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
                             }
 
-                            def Xform "gen3_shoulder_link"
+                            def Xform "omx_link2"
                             {
                                 quatf xformOp:orient = (1, 0, 0, 0)
                                 float3 xformOp:scale = (1, 1, 1)
-                                double3 xformOp:translate = (0, 0, 0.12825)
+                                double3 xformOp:translate = (0.012, 0, 0.017)
                                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
 
-                                def Xform "shoulder_link" (
-                                    instanceable = true
-                                    prepend references = @./instances.usda@</Instances/shoulder_link>
+                                def Cube "box" (
+                                    prepend apiSchemas = ["MaterialBindingAPI"]
                                 )
                                 {
-                                    quatd xformOp:orient = (1, 0, 0, 0)
-                                    double3 xformOp:scale = (1, 1, 1)
-                                    double3 xformOp:translate = (0, 0, 0)
+                                    float3[] extent = [(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]
+                                    rel material:binding = </VICA/Materials/silver>
+                                    double size = 1
+                                    quatf xformOp:orient = (1, 0, 0, 0)
+                                    float3 xformOp:scale = (0.045, 0.045, 0.0595)
+                                    double3 xformOp:translate = (0, 0, 0.02975)
                                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
                                 }
 
-                                def Xform "gen3_arm_link"
+                                def Xform "omx_link3"
                                 {
-                                    quatf xformOp:orient = (0.70710546, 0.7071081, 0, 0)
+                                    quatf xformOp:orient = (1, 0, 0, 0)
                                     float3 xformOp:scale = (1, 1, 1)
-                                    double3 xformOp:translate = (0, -0.03, 0.115)
+                                    double3 xformOp:translate = (0, 0, 0.0595)
                                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
 
-                                    def Xform "arm_link" (
-                                        instanceable = true
-                                        prepend references = @./instances.usda@</Instances/arm_link>
+                                    def Cube "box" (
+                                        prepend apiSchemas = ["MaterialBindingAPI"]
                                     )
                                     {
-                                        quatd xformOp:orient = (1, 0, 0, 0)
-                                        double3 xformOp:scale = (1, 1, 1)
-                                        double3 xformOp:translate = (0, 0, 0)
+                                        float3[] extent = [(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]
+                                        rel material:binding = </VICA/Materials/silver>
+                                        double size = 1
+                                        quatf xformOp:orient = (1, 0, 0, 0)
+                                        float3 xformOp:scale = (0.045, 0.045, 0.3)
+                                        double3 xformOp:translate = (0, 0, 0.15)
                                         uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
                                     }
 
-                                    def Xform "gen3_forearm_link"
+                                    def Xform "omx_link4"
                                     {
-                                        quatf xformOp:orient = (0.0000036732051, 1, 0, 0)
+                                        quatf xformOp:orient = (1, 0, 0, 0)
                                         float3 xformOp:scale = (1, 1, 1)
-                                        double3 xformOp:translate = (0, 0.28, 0)
+                                        double3 xformOp:translate = (0.024, 0, 0.3)
                                         uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
 
-                                        def Xform "forearm_link" (
-                                            instanceable = true
-                                            prepend references = @./instances.usda@</Instances/forearm_link>
+                                        def Cube "box" (
+                                            prepend apiSchemas = ["MaterialBindingAPI"]
                                         )
                                         {
-                                            quatd xformOp:orient = (1, 0, 0, 0)
-                                            double3 xformOp:scale = (1, 1, 1)
-                                            double3 xformOp:translate = (0, 0, 0)
+                                            float3[] extent = [(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]
+                                            rel material:binding = </VICA/Materials/silver>
+                                            double size = 1
+                                            quatf xformOp:orient = (1, 0, 0, 0)
+                                            float3 xformOp:scale = (0.28, 0.045, 0.045)
+                                            double3 xformOp:translate = (0.14, 0, 0)
                                             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
                                         }
 
-                                        def Xform "gen3_lower_wrist_link"
+                                        def Xform "omx_link5"
                                         {
-                                            quatf xformOp:orient = (0.70710546, 0.7071081, 0, 0)
+                                            quatf xformOp:orient = (1, 0, 0, 0)
                                             float3 xformOp:scale = (1, 1, 1)
-                                            double3 xformOp:translate = (0, -0.14, 0.02)
+                                            double3 xformOp:translate = (0.28, 0, 0)
                                             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
 
-                                            def Xform "lower_wrist_link" (
-                                                instanceable = true
-                                                prepend references = @./instances.usda@</Instances/lower_wrist_link>
+                                            def Cube "box" (
+                                                prepend apiSchemas = ["MaterialBindingAPI"]
                                             )
                                             {
-                                                quatd xformOp:orient = (1, 0, 0, 0)
-                                                double3 xformOp:scale = (1, 1, 1)
-                                                double3 xformOp:translate = (0, 0, 0)
+                                                float3[] extent = [(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]
+                                                rel material:binding = </VICA/Materials/silver>
+                                                double size = 1
+                                                quatf xformOp:orient = (1, 0, 0, 0)
+                                                float3 xformOp:scale = (0.126, 0.045, 0.045)
+                                                double3 xformOp:translate = (0.063, 0, 0)
                                                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
                                             }
 
-                                            def Xform "gen3_upper_wrist_link"
+                                            def Xform "omx_gripper_left_link"
                                             {
-                                                quatf xformOp:orient = (0.70710546, 0, 0.7071081, 0)
+                                                quatf xformOp:orient = (1, 0, 0, 0)
                                                 float3 xformOp:scale = (1, 1, 1)
-                                                double3 xformOp:translate = (0.0285, 0, 0.105)
+                                                double3 xformOp:translate = (0.081648, 0.021, 0)
                                                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
 
-                                                def Xform "upper_wrist_link" (
-                                                    instanceable = true
-                                                    prepend references = @./instances.usda@</Instances/upper_wrist_link>
+                                                def Cube "box" (
+                                                    prepend apiSchemas = ["MaterialBindingAPI"]
                                                 )
                                                 {
-                                                    quatd xformOp:orient = (1, 0, 0, 0)
-                                                    double3 xformOp:scale = (1, 1, 1)
-                                                    double3 xformOp:translate = (0, 0, 0)
+                                                    float3[] extent = [(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]
+                                                    rel material:binding = </VICA/Materials/silver>
+                                                    double size = 1
+                                                    quatf xformOp:orient = (1, 0, 0, 0)
+                                                    float3 xformOp:scale = (0.04, 0.008, 0.02)
+                                                    double3 xformOp:translate = (0.02, 0, 0)
                                                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-                                                }
-
-                                                def Xform "upper_wrist_link_1" (
-                                                    displayName = "upper_wrist_link"
-                                                    instanceable = true
-                                                    prepend references = @./instances.usda@</Instances/upper_wrist_link_1>
-                                                )
-                                                {
-                                                    quatd xformOp:orient = (1, 0, 0, 0)
-                                                    double3 xformOp:scale = (1, 1, 1)
-                                                    double3 xformOp:translate = (0, 0, 0)
-                                                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-                                                }
-
-                                                def Xform "gen3_end_effector_link"
-                                                {
-                                                    quatf xformOp:orient = (-0.70710546, 0, 0.7071081, 0)
-                                                    float3 xformOp:scale = (1, 1, 1)
-                                                    double3 xformOp:translate = (-0.105, 0, 0.0285)
-                                                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-
-                                                    def Xform "gen3_dummy_link"
-                                                    {
-                                                        quatf xformOp:orient = (1, 0, 0, 0)
-                                                        float3 xformOp:scale = (1, 1, 1)
-                                                        double3 xformOp:translate = (0, 0, 0)
-                                                        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-                                                    }
                                                 }
                                             }
 
-                                            def Xform "lower_wrist_link_1" (
-                                                displayName = "lower_wrist_link"
-                                                instanceable = true
-                                                prepend references = @./instances.usda@</Instances/lower_wrist_link_1>
-                                            )
+                                            def Xform "omx_gripper_right_link"
                                             {
-                                                quatd xformOp:orient = (1, 0, 0, 0)
-                                                double3 xformOp:scale = (1, 1, 1)
-                                                double3 xformOp:translate = (0, 0, 0)
+                                                quatf xformOp:orient = (1, 0, 0, 0)
+                                                float3 xformOp:scale = (1, 1, 1)
+                                                double3 xformOp:translate = (0.081648, -0.021, 0)
+                                                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+
+                                                def Cube "box" (
+                                                    prepend apiSchemas = ["MaterialBindingAPI"]
+                                                )
+                                                {
+                                                    float3[] extent = [(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]
+                                                    rel material:binding = </VICA/Materials/silver>
+                                                    double size = 1
+                                                    quatf xformOp:orient = (1, 0, 0, 0)
+                                                    float3 xformOp:scale = (0.04, 0.008, 0.02)
+                                                    double3 xformOp:translate = (0.02, 0, 0)
+                                                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                                                }
+                                            }
+
+                                            def Xform "omx_end_effector_link"
+                                            {
+                                                quatf xformOp:orient = (1, 0, 0, 0)
+                                                float3 xformOp:scale = (1, 1, 1)
+                                                double3 xformOp:translate = (0.126, 0, 0)
                                                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
                                             }
                                         }
-
-                                        def Xform "forearm_link_1" (
-                                            displayName = "forearm_link"
-                                            instanceable = true
-                                            prepend references = @./instances.usda@</Instances/forearm_link_1>
-                                        )
-                                        {
-                                            quatd xformOp:orient = (1, 0, 0, 0)
-                                            double3 xformOp:scale = (1, 1, 1)
-                                            double3 xformOp:translate = (0, 0, 0)
-                                            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-                                        }
-                                    }
-
-                                    def Xform "arm_link_1" (
-                                        displayName = "arm_link"
-                                        instanceable = true
-                                        prepend references = @./instances.usda@</Instances/arm_link_1>
-                                    )
-                                    {
-                                        quatd xformOp:orient = (1, 0, 0, 0)
-                                        double3 xformOp:scale = (1, 1, 1)
-                                        double3 xformOp:translate = (0, 0, 0)
-                                        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
                                     }
                                 }
-
-                                def Xform "shoulder_link_1" (
-                                    displayName = "shoulder_link"
-                                    instanceable = true
-                                    prepend references = @./instances.usda@</Instances/shoulder_link_1>
-                                )
-                                {
-                                    quatd xformOp:orient = (1, 0, 0, 0)
-                                    double3 xformOp:scale = (1, 1, 1)
-                                    double3 xformOp:translate = (0, 0, 0)
-                                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-                                }
-                            }
-
-                            def Xform "base_link_1" (
-                                displayName = "base_link"
-                                instanceable = true
-                                prepend references = @./instances.usda@</Instances/base_link_1_1>
-                            )
-                            {
-                                quatd xformOp:orient = (1, 0, 0, 0)
-                                double3 xformOp:scale = (1, 1, 1)
-                                double3 xformOp:translate = (0, 0, 0)
-                                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
                             }
                         }
                     }
@@ -587,8 +586,8 @@ def Xform "VICA" (
                     uniform token purpose = "guide"
                     double size = 1
                     quatf xformOp:orient = (1, 0, 0, 0)
-                    float3 xformOp:scale = (0.24, 0.04, 0.414)
-                    double3 xformOp:translate = (-0.385, 0, 0.466)
+                    float3 xformOp:scale = (0.24, 0.04, 0.626)
+                    double3 xformOp:translate = (-0.358, 0, 0.572)
                     uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
                 }
             }

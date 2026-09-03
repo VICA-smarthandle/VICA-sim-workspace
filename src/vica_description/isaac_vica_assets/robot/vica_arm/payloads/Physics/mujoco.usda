@@ -4,16 +4,16 @@
         string creator = "URDF USD Converter v0.1.3"
     }
     defaultPrim = "VICA"
-    doc = """Generated from Composed Stage of root layer /tmp/tmprmuq6afg/VICA.usdc
+    doc = """Generated from Composed Stage of root layer /tmp/tmpm01m3f0k/VICA.usdc
 
 
-Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_zrkeai3s/usdex_vica_arm/VICA.usdc
+Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_7v3l2r_e/usdex_vica_arm/VICA.usdc
 
 
-Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_zrkeai3s/temp_vica_arm/vica_arm.usd
+Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_7v3l2r_e/temp_vica_arm/vica_arm.usd
 
 
-Generated from Composed Stage of root layer robot/vica_arm/payloads/base.usd
+Generated from Composed Stage of root layer /home/sim/VICA-smarthandle/vica_ws/src/vica_description/isaac_vica_assets/robot/vica_arm_1/payloads/base.usd
 """
     kilogramsPerUnit = 1
     metersPerUnit = 1
@@ -83,52 +83,52 @@ over "VICA"
             prepend rel mjc:target = </VICA/Physics/front_left_caster_steer_joint>
         }
 
-        def MjcActuator "gen3_joint_1_actuator"
+        def MjcActuator "omx_joint1_actuator"
         {
-            uniform double mjc:forceRange:max = 10
-            uniform double mjc:forceRange:min = -10
+            uniform double mjc:forceRange:max = 1.5
+            uniform double mjc:forceRange:min = -1.5
             custom rel mjc:target
-            prepend rel mjc:target = </VICA/Physics/gen3_joint_1>
+            prepend rel mjc:target = </VICA/Physics/omx_joint1>
         }
 
-        def MjcActuator "gen3_joint_2_actuator"
+        def MjcActuator "omx_joint2_actuator"
         {
-            uniform double mjc:forceRange:max = 14
-            uniform double mjc:forceRange:min = -14
+            uniform double mjc:forceRange:max = 1.5
+            uniform double mjc:forceRange:min = -1.5
             custom rel mjc:target
-            prepend rel mjc:target = </VICA/Physics/gen3_joint_2>
+            prepend rel mjc:target = </VICA/Physics/omx_joint2>
         }
 
-        def MjcActuator "gen3_joint_3_actuator"
+        def MjcActuator "omx_joint3_actuator"
         {
-            uniform double mjc:forceRange:max = 10
-            uniform double mjc:forceRange:min = -10
+            uniform double mjc:forceRange:max = 1.5
+            uniform double mjc:forceRange:min = -1.5
             custom rel mjc:target
-            prepend rel mjc:target = </VICA/Physics/gen3_joint_3>
+            prepend rel mjc:target = </VICA/Physics/omx_joint3>
         }
 
-        def MjcActuator "gen3_joint_4_actuator"
+        def MjcActuator "omx_joint4_actuator"
         {
-            uniform double mjc:forceRange:max = 7
-            uniform double mjc:forceRange:min = -7
+            uniform double mjc:forceRange:max = 1.5
+            uniform double mjc:forceRange:min = -1.5
             custom rel mjc:target
-            prepend rel mjc:target = </VICA/Physics/gen3_joint_4>
+            prepend rel mjc:target = </VICA/Physics/omx_joint4>
         }
 
-        def MjcActuator "gen3_joint_5_actuator"
+        def MjcActuator "omx_gripper_left_joint_actuator"
         {
-            uniform double mjc:forceRange:max = 7
-            uniform double mjc:forceRange:min = -7
+            uniform double mjc:forceRange:max = 1
+            uniform double mjc:forceRange:min = -1
             custom rel mjc:target
-            prepend rel mjc:target = </VICA/Physics/gen3_joint_5>
+            prepend rel mjc:target = </VICA/Physics/omx_gripper_left_joint>
         }
 
-        def MjcActuator "gen3_joint_6_actuator"
+        def MjcActuator "omx_gripper_right_joint_actuator"
         {
-            uniform double mjc:forceRange:max = 7
-            uniform double mjc:forceRange:min = -7
+            uniform double mjc:forceRange:max = 1
+            uniform double mjc:forceRange:min = -1
             custom rel mjc:target
-            prepend rel mjc:target = </VICA/Physics/gen3_joint_6>
+            prepend rel mjc:target = </VICA/Physics/omx_gripper_right_joint>
         }
 
         over "left_wheel_joint" (
@@ -171,6 +171,14 @@ over "VICA"
         {
         }
 
+        over "usonic_front_left_joint"
+        {
+        }
+
+        over "usonic_front_right_joint"
+        {
+        }
+
         over "camera_joint"
         {
         }
@@ -179,43 +187,43 @@ over "VICA"
         {
         }
 
-        over "gen3_joint_1" (
+        over "omx_joint1" (
             delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
         )
         {
         }
 
-        over "gen3_joint_2" (
+        over "omx_joint2" (
             delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
         )
         {
         }
 
-        over "gen3_joint_3" (
+        over "omx_joint3" (
             delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
         )
         {
         }
 
-        over "gen3_joint_4" (
+        over "omx_joint4" (
             delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
         )
         {
         }
 
-        over "gen3_joint_5" (
-            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        over "omx_gripper_left_joint" (
+            delete apiSchemas = ["PhysicsDriveAPI:linear", "PhysicsJointStateAPI:linear"]
         )
         {
         }
 
-        over "gen3_joint_6" (
-            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        over "omx_gripper_right_joint" (
+            delete apiSchemas = ["PhysicsDriveAPI:linear", "PhysicsJointStateAPI:linear"]
         )
         {
         }
 
-        over "gen3_base_joint"
+        over "omx_base_joint"
         {
         }
     }
@@ -296,6 +304,20 @@ over "VICA"
                 {
                 }
 
+                over "usonic_front_left"
+                {
+                    over "cylinder"
+                    {
+                    }
+                }
+
+                over "usonic_front_right"
+                {
+                    over "cylinder"
+                    {
+                    }
+                }
+
                 over "camera_link"
                 {
                     over "camera_optical_frame"
@@ -323,76 +345,56 @@ over "VICA"
 
                     over "arm_mount_link"
                     {
-                        over "gen3_base_link"
+                        over "omx_link1"
                         {
-                            over "base_link"
+                            over "box"
                             {
                             }
 
-                            over "gen3_shoulder_link"
+                            over "omx_link2"
                             {
-                                over "shoulder_link"
+                                over "box"
                                 {
                                 }
 
-                                over "gen3_arm_link"
+                                over "omx_link3"
                                 {
-                                    over "arm_link"
+                                    over "box"
                                     {
                                     }
 
-                                    over "gen3_forearm_link"
+                                    over "omx_link4"
                                     {
-                                        over "forearm_link"
+                                        over "box"
                                         {
                                         }
 
-                                        over "gen3_lower_wrist_link"
+                                        over "omx_link5"
                                         {
-                                            over "lower_wrist_link"
+                                            over "box"
                                             {
                                             }
 
-                                            over "gen3_upper_wrist_link"
+                                            over "omx_gripper_left_link"
                                             {
-                                                over "upper_wrist_link"
+                                                over "box"
                                                 {
-                                                }
-
-                                                over "upper_wrist_link_1"
-                                                {
-                                                }
-
-                                                over "gen3_end_effector_link"
-                                                {
-                                                    over "gen3_dummy_link"
-                                                    {
-                                                    }
                                                 }
                                             }
 
-                                            over "lower_wrist_link_1"
+                                            over "omx_gripper_right_link"
+                                            {
+                                                over "box"
+                                                {
+                                                }
+                                            }
+
+                                            over "omx_end_effector_link"
                                             {
                                             }
                                         }
-
-                                        over "forearm_link_1"
-                                        {
-                                        }
-                                    }
-
-                                    over "arm_link_1"
-                                    {
                                     }
                                 }
-
-                                over "shoulder_link_1"
-                                {
-                                }
-                            }
-
-                            over "base_link_1"
-                            {
                             }
                         }
                     }
@@ -402,7 +404,7 @@ over "VICA"
                     }
                 }
 
-                over "base_link"
+                over "base_link_mast"
                 {
                 }
 

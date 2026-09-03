@@ -3,16 +3,16 @@
     customLayerData = {
         string creator = "URDF USD Converter v0.1.3"
     }
-    doc = """Generated from Composed Stage of root layer /tmp/tmprmuq6afg/VICA.usdc
+    doc = """Generated from Composed Stage of root layer /tmp/tmpm01m3f0k/VICA.usdc
 
 
-Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_zrkeai3s/usdex_vica_arm/VICA.usdc
+Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_7v3l2r_e/usdex_vica_arm/VICA.usdc
 
 
-Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_zrkeai3s/temp_vica_arm/vica_arm.usd
+Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_7v3l2r_e/temp_vica_arm/vica_arm.usd
 
 
-Generated from Composed Stage of root layer robot/vica_arm/payloads/base.usd
+Generated from Composed Stage of root layer /home/sim/VICA-smarthandle/vica_ws/src/vica_description/isaac_vica_assets/robot/vica_arm_1/payloads/base.usd
 """
     kilogramsPerUnit = 1
     metersPerUnit = 1
@@ -115,39 +115,6 @@ def Scope "Materials"
             prepend float inputs:metallic.connect = </Materials/silver.inputs:metallic>
             prepend float inputs:opacity.connect = </Materials/silver.inputs:opacity>
             prepend float inputs:roughness.connect = </Materials/silver.inputs:roughness>
-            token outputs:displacement
-            token outputs:surface
-        }
-    }
-
-    def Material "material_1"
-    {
-        color3f inputs:diffuseColor = (0.6089247, 0.6453086, 0.63828325)
-        float inputs:metallic = 0
-        float inputs:opacity = 1
-        float inputs:roughness = 0.5
-        token inputs:wrapMode = "repeat"
-        token outputs:displacement (
-            displayGroup = "Outputs"
-        )
-        prepend token outputs:displacement.connect = </Materials/material_1/PreviewSurface.outputs:displacement>
-        token outputs:surface (
-            displayGroup = "Outputs"
-        )
-        prepend token outputs:surface.connect = </Materials/material_1/PreviewSurface.outputs:surface>
-        token outputs:volume (
-            displayGroup = "Outputs"
-        )
-
-        def Shader "PreviewSurface" (
-            apiSchemas = ["NodeDefAPI"]
-        )
-        {
-            token info:id = "UsdPreviewSurface"
-            prepend color3f inputs:diffuseColor.connect = </Materials/material_1.inputs:diffuseColor>
-            prepend float inputs:metallic.connect = </Materials/material_1.inputs:metallic>
-            prepend float inputs:opacity.connect = </Materials/material_1.inputs:opacity>
-            prepend float inputs:roughness.connect = </Materials/material_1.inputs:roughness>
             token outputs:displacement
             token outputs:surface
         }

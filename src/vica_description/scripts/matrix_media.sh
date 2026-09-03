@@ -69,6 +69,16 @@ PY2
 }
 
 COURSES=${1:-"vica_cornercourse vica_avoidcourse vica_uturncourse"}
+# One clip per planner, the three controllers side by side.
+#
+# The best-against-worst clip shows that the combination matters. It does not
+# show which controller to pick, because the answer is per planner: Lattice
+# proposes in-place rotations DWB will not execute and Hybrid proposes none,
+# so a controller ranked across all four planners at once is an average of
+# four different questions. These are the tables in picture form.
+PLANNERS=${PLANNERS:-"hybrid lattice navfn smac2d"}
+CONTROLLERS=${CONTROLLERS:-"dwb rpp mppi"}
+BY_PLANNER=${BY_PLANNER:-1}
 
 # Rank the cells of one course: arrivals first, then how far they got.
 rank() {   # $1 course   prints "<cell> <reached> <moved>" best first
@@ -110,6 +120,27 @@ for course in $COURSES; do
             --left "$ROOT/$course/$best" --right "$ROOT/$course/$worst" \
             --stage "$stage" --focus goal --window "${WIDE[$course]:-9}" \
             --out "$OUT/${short}_${WIDTH}_compare" 2>&1 | grep -E "wrote|프레임"
+    fi
+
+    if [ "$BY_PLANNER" = "1" ]; then
+        pxy=$(focus_xy "$course")
+        for planner in $PLANNERS; do
+            panels=()
+            for ctrl in $CONTROLLERS; do
+                d="$ROOT/$course/${ctrl}_${planner}_infl${INFL:-0.55}"
+                [ -d "$d" ] || d=$(ls -d "$ROOT/$course/${ctrl}_${planner}_infl"* 2>/dev/null | head -1)
+                [ -n "$d" ] && [ -d "$d" ] && panels+=("$d")
+            done
+            [ "${#panels[@]}" -ge 2 ] || { echo "  $planner: 패널 부족, 건너뜀"; continue; }
+            args=(--left "${panels[0]}")
+            [ "${#panels[@]}" -ge 2 ] && args+=(--right "${panels[1]}")
+            for extra in "${panels[@]:2}"; do args+=(--panel "$extra"); done
+            [ -n "$pxy" ] && args+=(--focus point "--focus-xy=$pxy") || args+=(--focus goal)
+            echo "  --- $planner: ${#panels[@]} 패널"
+            ros2 run vica_description animate_run --width "$WIDTH" \
+                "${args[@]}" --stage "$stage" --window "${NEAR[$course]:-5}" \
+                --out "$OUT/${short}_${WIDTH}_${planner}" 2>&1 | grep -E "\.gif"
+        done
     fi
 
     xy=$(focus_xy "$course")

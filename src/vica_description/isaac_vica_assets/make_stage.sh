@@ -55,7 +55,15 @@ if [ -n "$BUILDER" ]; then
 echo "=============================================================="
 echo " 1/3  build   $BUILDER"
 echo "=============================================================="
-if ! ./python.sh -u "$HERE/$BUILDER" > /tmp/vica_build.log 2>&1; then
+# BUILDER_ARGS passes flags to the builder. Quoting them into $BUILDER makes
+# the whole string the filename, which fails with "can't open file
+# 'build_vica_testroom_stage.py --arm'" -- a message that reads like a missing
+# file rather than a quoting mistake.
+#
+#     BUILDER_ARGS=--arm ./make_stage.sh build_vica_testroom_stage.py \
+#         vica_testroom_arm.usd
+# shellcheck disable=SC2086
+if ! ./python.sh -u "$HERE/$BUILDER" ${BUILDER_ARGS} > /tmp/vica_build.log 2>&1; then
     tail -20 /tmp/vica_build.log
     echo "build 실패"
     exit 1

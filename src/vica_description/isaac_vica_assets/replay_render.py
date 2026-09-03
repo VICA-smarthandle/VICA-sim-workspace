@@ -4,6 +4,11 @@
 
       --stage PATH     course USD (default: read from the run's spec)
       --view top|iso|chase|follow camera framing (default iso)
+      --follow-margin F  how far back the follow view sits, as a multiple of
+                     the robot's own radius. 1.55 fills the frame with the
+                     robot; 4 gives the room around it. iso and top frame the
+                     course and are wrong indoors -- they put the camera
+                     through a ceiling.
                                   follow frames the robot itself, and is the
                                   one to use when the robot has to be seen
       --out DIR        where frames and video land (default media/replay/<name>)
@@ -183,7 +188,7 @@ ROBOT_CENTRE_Z = 0.52
 # Room around it. 1.55 keeps the robot about two thirds of the frame height,
 # which leaves the obstacle it is reacting to in shot without the robot itself
 # touching an edge.
-FOLLOW_MARGIN = 1.55
+FOLLOW_MARGIN = float(_opt("--follow-margin", "1.55"))
 
 HFOV = 2 * math.atan(20.955 / 2 / 24.0)
 VFOV = 2 * math.atan(20.955 * HEIGHT / WIDTH / 2 / 24.0)

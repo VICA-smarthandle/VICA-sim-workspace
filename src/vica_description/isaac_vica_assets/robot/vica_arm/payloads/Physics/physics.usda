@@ -4,16 +4,16 @@
         string creator = "URDF USD Converter v0.1.3"
     }
     defaultPrim = "VICA"
-    doc = """Generated from Composed Stage of root layer /tmp/tmprmuq6afg/VICA.usdc
+    doc = """Generated from Composed Stage of root layer /tmp/tmpm01m3f0k/VICA.usdc
 
 
-Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_zrkeai3s/usdex_vica_arm/VICA.usdc
+Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_7v3l2r_e/usdex_vica_arm/VICA.usdc
 
 
-Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_zrkeai3s/temp_vica_arm/vica_arm.usd
+Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_7v3l2r_e/temp_vica_arm/vica_arm.usd
 
 
-Generated from Composed Stage of root layer robot/vica_arm/payloads/base.usd
+Generated from Composed Stage of root layer /home/sim/VICA-smarthandle/vica_ws/src/vica_description/isaac_vica_assets/robot/vica_arm_1/payloads/base.usd
 """
     kilogramsPerUnit = 1
     metersPerUnit = 1
@@ -142,10 +142,34 @@ over "VICA"
                     quatf physics:principalAxes = (1, 0, 0, 0)
                 }
 
-                over "camera_link" (
-                    prepend apiSchemas = ["PhysicsRigidBodyAPI"]
+                over "usonic_front_left" (
+                    prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
                 )
                 {
+                    point3f physics:centerOfMass = (-0.0075, 0, 0)
+                    float3 physics:diagonalInertia = (0.0000015, 0.0000015, 0.0000015)
+                    float physics:mass = 0.03
+                    quatf physics:principalAxes = (1, 0, 0, 0)
+                }
+
+                over "usonic_front_right" (
+                    prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+                )
+                {
+                    point3f physics:centerOfMass = (-0.0075, 0, 0)
+                    float3 physics:diagonalInertia = (0.0000015, 0.0000015, 0.0000015)
+                    float physics:mass = 0.03
+                    quatf physics:principalAxes = (1, 0, 0, 0)
+                }
+
+                over "camera_link" (
+                    prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+                )
+                {
+                    point3f physics:centerOfMass = (0, 0, 0)
+                    float3 physics:diagonalInertia = (0.0000143, 0.000151, 0.000153)
+                    float physics:mass = 0.113
+                    quatf physics:principalAxes = (-0.5, 0.5, 0.5, 0.5)
                 }
 
                 over "arm_riser_link" (
@@ -159,65 +183,69 @@ over "VICA"
 
                     over "arm_mount_link"
                     {
-                        over "gen3_base_link" (
+                        over "omx_link1" (
                             prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
                         )
                         {
-                            point3f physics:centerOfMass = (0.00244324, 0.00015573, 0.08616742)
-                            float3 physics:diagonalInertia = (0.00076691905, 0.0033109973, 0.0033632037)
-                            float physics:mass = 1.1460847
-                            quatf physics:principalAxes = (0.69195855, -0.0033870908, 0.7219231, -0.0029964545)
+                            point3f physics:centerOfMass = (0, 0, 0.017)
+                            float3 physics:diagonalInertia = (0.000020973383, 0.000020973383, 0.000026702986)
+                            float physics:mass = 0.079119965
+                            quatf physics:principalAxes = (1, 0, 0, 0)
 
-                            over "gen3_shoulder_link" (
+                            over "omx_link2" (
                                 prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
                             )
                             {
-                                point3f physics:centerOfMass = (0.00002477, 0.02213531, 0.09937686)
-                                float3 physics:diagonalInertia = (0.00071719463, 0.0015812848, 0.0016594705)
-                                float physics:mass = 0.95974404
-                                quatf physics:principalAxes = (0.6873067, -0.1656624, 0.68791616, 0.16412428)
+                                point3f physics:centerOfMass = (0, 0, 0.02975)
+                                float3 physics:diagonalInertia = (0.00003321231, 0.000045638222, 0.000045638222)
+                                float physics:mass = 0.09840684
+                                quatf physics:principalAxes = (0.5, 0.5, 0.5, 0.5)
 
-                                over "gen3_arm_link" (
+                                over "omx_link3" (
                                     prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
                                 )
                                 {
-                                    point3f physics:centerOfMass = (0.02998299, 0.21154808, 0.0453031)
-                                    float3 physics:diagonalInertia = (0.0008397115, 0.011492767, 0.011523721)
-                                    float physics:mass = 1.1775616
-                                    quatf physics:principalAxes = (-0.043778505, 0.70571804, 0.7053386, -0.05042767)
+                                    point3f physics:centerOfMass = (0, 0, 0.15)
+                                    float3 physics:diagonalInertia = (0.00010956292, 0.002489513, 0.002489513)
+                                    float physics:mass = 0.32463086
+                                    quatf physics:principalAxes = (0.5, 0.5, 0.5, 0.5)
 
-                                    over "gen3_forearm_link" (
+                                    over "omx_link4" (
                                         prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
                                     )
                                     {
-                                        point3f physics:centerOfMass = (0.0301559, 0.09502206, 0.0073555)
-                                        float3 physics:diagonalInertia = (0.0002913762, 0.0016325334, 0.0016975404)
-                                        float physics:mass = 0.5976767
-                                        quatf physics:principalAxes = (-0.013138214, 0.7051399, 0.708069, -0.035261847)
+                                        point3f physics:centerOfMass = (0.14, 0, 0)
+                                        float3 physics:diagonalInertia = (0.00010116501, 0.0020089373, 0.0020089373)
+                                        float physics:mass = 0.29974818
+                                        quatf physics:principalAxes = (1, 0, 0, 0)
 
-                                        over "gen3_lower_wrist_link" (
+                                        over "omx_link5" (
                                             prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
                                         )
                                         {
-                                            point3f physics:centerOfMass = (0.00575149, 0.01000443, 0.08719207)
-                                            float3 physics:diagonalInertia = (0.00027572247, 0.00075639825, 0.0007851992)
-                                            float physics:mass = 0.52693415
-                                            quatf physics:principalAxes = (0.3941096, 0.4002643, 0.5797104, 0.59025586)
+                                            point3f physics:centerOfMass = (0.063, 0, 0)
+                                            float3 physics:diagonalInertia = (0.00004835556, 0.00021373158, 0.00021373158)
+                                            float physics:mass = 0.14327572
+                                            quatf physics:principalAxes = (1, 0, 0, 0)
 
-                                            over "gen3_upper_wrist_link" (
+                                            over "omx_gripper_left_link" (
                                                 prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
                                             )
                                             {
-                                                point3f physics:centerOfMass = (0.08056517, 0.00980409, 0.01872799)
-                                                float3 physics:diagonalInertia = (0.0002126384, 0.0010637412, 0.0010846605)
-                                                float physics:mass = 0.58097327
-                                                quatf physics:principalAxes = (0.9999893, 0.0030497995, -0.0016774657, 0.003055474)
+                                                point3f physics:centerOfMass = (0.02, 0, 0)
+                                                float3 physics:diagonalInertia = (0.000001, 0.000002, 0.000002)
+                                                float physics:mass = 0.012
+                                                quatf physics:principalAxes = (1, 0, 0, 0)
+                                            }
 
-                                                over "gen3_end_effector_link" (
-                                                    prepend apiSchemas = ["PhysicsRigidBodyAPI"]
-                                                )
-                                                {
-                                                }
+                                            over "omx_gripper_right_link" (
+                                                prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+                                            )
+                                            {
+                                                point3f physics:centerOfMass = (0.02, 0, 0)
+                                                float3 physics:diagonalInertia = (0.000001, 0.000002, 0.000002)
+                                                float physics:mass = 0.012
+                                                quatf physics:principalAxes = (1, 0, 0, 0)
                                             }
                                         }
                                     }
@@ -352,124 +380,125 @@ over "VICA"
             quatf physics:localRot1 = (0, -1, 0, 0)
         }
 
-        def PhysicsRevoluteJoint "gen3_joint_1" (
+        def PhysicsRevoluteJoint "omx_joint1" (
             prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
         )
         {
-            float drive:angular:physics:maxForce = 10
+            float drive:angular:physics:maxForce = 1.5
             uniform token physics:axis = "Z"
             custom rel physics:body0
-            prepend rel physics:body0 = </VICA/Geometry/base_footprint/base_link/arm_riser_link/arm_mount_link/gen3_base_link>
+            prepend rel physics:body0 = </VICA/Geometry/base_footprint/base_link/arm_riser_link/arm_mount_link/omx_link1>
             custom rel physics:body1
-            prepend rel physics:body1 = </VICA/Geometry/base_footprint/base_link/arm_riser_link/arm_mount_link/gen3_base_link/gen3_shoulder_link>
-            point3f physics:localPos0 = (0, 0, 0.12825)
+            prepend rel physics:body1 = </VICA/Geometry/base_footprint/base_link/arm_riser_link/arm_mount_link/omx_link1/omx_link2>
+            point3f physics:localPos0 = (0.012, 0, 0.017)
             point3f physics:localPos1 = (0, 0, 0)
             quatf physics:localRot0 = (1, 0, 0, 0)
             quatf physics:localRot1 = (1, 0, 0, 0)
-            float physics:lowerLimit = -153.55269
-            float physics:upperLimit = 153.55269
-            custom float urdf:limit:effort = 10
-            custom float urdf:limit:velocity = 1.6
+            float physics:lowerLimit = -180
+            float physics:upperLimit = 180
+            custom float urdf:limit:effort = 1.5
+            custom float urdf:limit:velocity = 4.82
         }
 
-        def PhysicsRevoluteJoint "gen3_joint_2" (
+        def PhysicsRevoluteJoint "omx_joint2" (
             prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
         )
         {
-            float drive:angular:physics:maxForce = 14
-            uniform token physics:axis = "Z"
+            float drive:angular:physics:maxForce = 1.5
+            uniform token physics:axis = "Y"
             custom rel physics:body0
-            prepend rel physics:body0 = </VICA/Geometry/base_footprint/base_link/arm_riser_link/arm_mount_link/gen3_base_link/gen3_shoulder_link>
+            prepend rel physics:body0 = </VICA/Geometry/base_footprint/base_link/arm_riser_link/arm_mount_link/omx_link1/omx_link2>
             custom rel physics:body1
-            prepend rel physics:body1 = </VICA/Geometry/base_footprint/base_link/arm_riser_link/arm_mount_link/gen3_base_link/gen3_shoulder_link/gen3_arm_link>
-            point3f physics:localPos0 = (0, -0.03, 0.115)
+            prepend rel physics:body1 = </VICA/Geometry/base_footprint/base_link/arm_riser_link/arm_mount_link/omx_link1/omx_link2/omx_link3>
+            point3f physics:localPos0 = (0, 0, 0.0595)
             point3f physics:localPos1 = (0, 0, 0)
-            quatf physics:localRot0 = (0.70710546, 0.7071081, 0, 0)
+            quatf physics:localRot0 = (1, 0, 0, 0)
             quatf physics:localRot1 = (1, 0, 0, 0)
-            float physics:lowerLimit = -149.54198
-            float physics:upperLimit = 149.54198
-            custom float urdf:limit:effort = 14
-            custom float urdf:limit:velocity = 1.6
+            float physics:lowerLimit = -85.94367
+            float physics:upperLimit = 85.94367
+            custom float urdf:limit:effort = 1.5
+            custom float urdf:limit:velocity = 4.82
         }
 
-        def PhysicsRevoluteJoint "gen3_joint_3" (
+        def PhysicsRevoluteJoint "omx_joint3" (
             prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
         )
         {
-            float drive:angular:physics:maxForce = 10
-            uniform token physics:axis = "Z"
+            float drive:angular:physics:maxForce = 1.5
+            uniform token physics:axis = "Y"
             custom rel physics:body0
-            prepend rel physics:body0 = </VICA/Geometry/base_footprint/base_link/arm_riser_link/arm_mount_link/gen3_base_link/gen3_shoulder_link/gen3_arm_link>
+            prepend rel physics:body0 = </VICA/Geometry/base_footprint/base_link/arm_riser_link/arm_mount_link/omx_link1/omx_link2/omx_link3>
             custom rel physics:body1
-            prepend rel physics:body1 = </VICA/Geometry/base_footprint/base_link/arm_riser_link/arm_mount_link/gen3_base_link/gen3_shoulder_link/gen3_arm_link/gen3_forearm_link>
-            point3f physics:localPos0 = (0, 0.28, 0)
+            prepend rel physics:body1 = </VICA/Geometry/base_footprint/base_link/arm_riser_link/arm_mount_link/omx_link1/omx_link2/omx_link3/omx_link4>
+            point3f physics:localPos0 = (0.024, 0, 0.3)
             point3f physics:localPos1 = (0, 0, 0)
-            quatf physics:localRot0 = (0.0000036732051, 1, 0, 0)
+            quatf physics:localRot0 = (1, 0, 0, 0)
             quatf physics:localRot1 = (1, 0, 0, 0)
-            float physics:lowerLimit = -149.54198
-            float physics:upperLimit = 149.54198
-            custom float urdf:limit:effort = 10
-            custom float urdf:limit:velocity = 1.6
+            float physics:lowerLimit = -85.94367
+            float physics:upperLimit = 80.21409
+            custom float urdf:limit:effort = 1.5
+            custom float urdf:limit:velocity = 4.82
         }
 
-        def PhysicsRevoluteJoint "gen3_joint_4" (
+        def PhysicsRevoluteJoint "omx_joint4" (
             prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
         )
         {
-            float drive:angular:physics:maxForce = 7
-            uniform token physics:axis = "Z"
+            float drive:angular:physics:maxForce = 1.5
+            uniform token physics:axis = "Y"
             custom rel physics:body0
-            prepend rel physics:body0 = </VICA/Geometry/base_footprint/base_link/arm_riser_link/arm_mount_link/gen3_base_link/gen3_shoulder_link/gen3_arm_link/gen3_forearm_link>
+            prepend rel physics:body0 = </VICA/Geometry/base_footprint/base_link/arm_riser_link/arm_mount_link/omx_link1/omx_link2/omx_link3/omx_link4>
             custom rel physics:body1
-            prepend rel physics:body1 = </VICA/Geometry/base_footprint/base_link/arm_riser_link/arm_mount_link/gen3_base_link/gen3_shoulder_link/gen3_arm_link/gen3_forearm_link/gen3_lower_wrist_link>
-            point3f physics:localPos0 = (0, -0.14, 0.02)
+            prepend rel physics:body1 = </VICA/Geometry/base_footprint/base_link/arm_riser_link/arm_mount_link/omx_link1/omx_link2/omx_link3/omx_link4/omx_link5>
+            point3f physics:localPos0 = (0.28, 0, 0)
             point3f physics:localPos1 = (0, 0, 0)
-            quatf physics:localRot0 = (-0.70710546, -0.7071081, 0, 0)
+            quatf physics:localRot0 = (1, 0, 0, 0)
             quatf physics:localRot1 = (1, 0, 0, 0)
-            float physics:lowerLimit = -148.96902
-            float physics:upperLimit = 148.96902
-            custom float urdf:limit:effort = 7
-            custom float urdf:limit:velocity = 1.6
+            float physics:lowerLimit = -97.402824
+            float physics:upperLimit = 112.87269
+            custom float urdf:limit:effort = 1.5
+            custom float urdf:limit:velocity = 4.82
         }
 
-        def PhysicsRevoluteJoint "gen3_joint_5" (
-            prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        def PhysicsPrismaticJoint "omx_gripper_left_joint" (
+            prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysicsJointStateAPI:linear"]
         )
         {
-            float drive:angular:physics:maxForce = 7
-            uniform token physics:axis = "Z"
+            float drive:linear:physics:maxForce = 1
+            uniform token physics:axis = "Y"
             custom rel physics:body0
-            prepend rel physics:body0 = </VICA/Geometry/base_footprint/base_link/arm_riser_link/arm_mount_link/gen3_base_link/gen3_shoulder_link/gen3_arm_link/gen3_forearm_link/gen3_lower_wrist_link>
+            prepend rel physics:body0 = </VICA/Geometry/base_footprint/base_link/arm_riser_link/arm_mount_link/omx_link1/omx_link2/omx_link3/omx_link4/omx_link5>
             custom rel physics:body1
-            prepend rel physics:body1 = </VICA/Geometry/base_footprint/base_link/arm_riser_link/arm_mount_link/gen3_base_link/gen3_shoulder_link/gen3_arm_link/gen3_forearm_link/gen3_lower_wrist_link/gen3_upper_wrist_link>
-            point3f physics:localPos0 = (0.0285, -1.7347235e-18, 0.105)
+            prepend rel physics:body1 = </VICA/Geometry/base_footprint/base_link/arm_riser_link/arm_mount_link/omx_link1/omx_link2/omx_link3/omx_link4/omx_link5/omx_gripper_left_link>
+            point3f physics:localPos0 = (0.081648, 0.021, 0)
             point3f physics:localPos1 = (0, 0, 0)
-            quatf physics:localRot0 = (0.70710546, 3.5311695e-11, 0.7071081, 3.5311826e-11)
+            quatf physics:localRot0 = (1, 0, 0, 0)
             quatf physics:localRot1 = (1, 0, 0, 0)
-            float physics:lowerLimit = -144.95833
-            float physics:upperLimit = 144.95833
-            custom float urdf:limit:effort = 7
-            custom float urdf:limit:velocity = 1.6
+            float physics:lowerLimit = -0.01
+            float physics:upperLimit = 0.019
+            custom float urdf:limit:effort = 1
+            custom float urdf:limit:velocity = 0.5
         }
 
-        def PhysicsRevoluteJoint "gen3_joint_6" (
-            prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        def PhysicsPrismaticJoint "omx_gripper_right_joint" (
+            prepend apiSchemas = ["NewtonMimicAPI", "PhysicsDriveAPI:linear", "PhysicsJointStateAPI:linear"]
         )
         {
-            float drive:angular:physics:maxForce = 7
-            uniform token physics:axis = "Z"
+            float drive:linear:physics:maxForce = 1
+            rel newton:mimicJoint = </VICA/Physics/omx_gripper_left_joint>
+            uniform token physics:axis = "Y"
             custom rel physics:body0
-            prepend rel physics:body0 = </VICA/Geometry/base_footprint/base_link/arm_riser_link/arm_mount_link/gen3_base_link/gen3_shoulder_link/gen3_arm_link/gen3_forearm_link/gen3_lower_wrist_link/gen3_upper_wrist_link>
+            prepend rel physics:body0 = </VICA/Geometry/base_footprint/base_link/arm_riser_link/arm_mount_link/omx_link1/omx_link2/omx_link3/omx_link4/omx_link5>
             custom rel physics:body1
-            prepend rel physics:body1 = </VICA/Geometry/base_footprint/base_link/arm_riser_link/arm_mount_link/gen3_base_link/gen3_shoulder_link/gen3_arm_link/gen3_forearm_link/gen3_lower_wrist_link/gen3_upper_wrist_link/gen3_end_effector_link>
-            point3f physics:localPos0 = (-0.105, 0, 0.0285)
+            prepend rel physics:body1 = </VICA/Geometry/base_footprint/base_link/arm_riser_link/arm_mount_link/omx_link1/omx_link2/omx_link3/omx_link4/omx_link5/omx_gripper_right_link>
+            point3f physics:localPos0 = (0.081648, -0.021, 0)
             point3f physics:localPos1 = (0, 0, 0)
-            quatf physics:localRot0 = (0.70710546, -3.5311695e-11, -0.7071081, -3.5311826e-11)
-            quatf physics:localRot1 = (1, 0, 0, 0)
-            float physics:lowerLimit = -148.96902
-            float physics:upperLimit = 148.96902
-            custom float urdf:limit:effort = 7
-            custom float urdf:limit:velocity = 3.2
+            quatf physics:localRot0 = (0, -1, 0, 0)
+            quatf physics:localRot1 = (0, -1, 0, 0)
+            float physics:lowerLimit = -0.01
+            float physics:upperLimit = 0.019
+            custom float urdf:limit:effort = 1
+            custom float urdf:limit:velocity = 0.5
         }
 
         def PhysicsFixedJoint "laser_joint"
@@ -484,15 +513,39 @@ over "VICA"
             quatf physics:localRot1 = (1, 0, 0, 0)
         }
 
+        def PhysicsFixedJoint "usonic_front_left_joint"
+        {
+            custom rel physics:body0
+            prepend rel physics:body0 = </VICA/Geometry/base_footprint/base_link>
+            custom rel physics:body1
+            prepend rel physics:body1 = </VICA/Geometry/base_footprint/base_link/usonic_front_left>
+            point3f physics:localPos0 = (0.305, 0.107, -0.0987)
+            point3f physics:localPos1 = (0, 0, 0)
+            quatf physics:localRot0 = (1, 0, 0, 0)
+            quatf physics:localRot1 = (1, 0, 0, 0)
+        }
+
+        def PhysicsFixedJoint "usonic_front_right_joint"
+        {
+            custom rel physics:body0
+            prepend rel physics:body0 = </VICA/Geometry/base_footprint/base_link>
+            custom rel physics:body1
+            prepend rel physics:body1 = </VICA/Geometry/base_footprint/base_link/usonic_front_right>
+            point3f physics:localPos0 = (0.305, -0.107, -0.0987)
+            point3f physics:localPos1 = (0, 0, 0)
+            quatf physics:localRot0 = (1, 0, 0, 0)
+            quatf physics:localRot1 = (1, 0, 0, 0)
+        }
+
         def PhysicsFixedJoint "camera_joint"
         {
             custom rel physics:body0
             prepend rel physics:body0 = </VICA/Geometry/base_footprint/base_link>
             custom rel physics:body1
             prepend rel physics:body1 = </VICA/Geometry/base_footprint/base_link/camera_link>
-            point3f physics:localPos0 = (0.28683, 0, 0.13)
+            point3f physics:localPos0 = (-0.225, 0, 0.855)
             point3f physics:localPos1 = (0, 0, 0)
-            quatf physics:localRot0 = (1, 0, 0, 0)
+            quatf physics:localRot0 = (0.9999808, 0, -0.0061955648, 0)
             quatf physics:localRot1 = (1, 0, 0, 0)
         }
 
@@ -508,12 +561,12 @@ over "VICA"
             quatf physics:localRot1 = (1, 0, 0, 0)
         }
 
-        def PhysicsFixedJoint "gen3_base_joint"
+        def PhysicsFixedJoint "omx_base_joint"
         {
             custom rel physics:body0
             prepend rel physics:body0 = </VICA/Geometry/base_footprint/base_link/arm_riser_link/arm_mount_link>
             custom rel physics:body1
-            prepend rel physics:body1 = </VICA/Geometry/base_footprint/base_link/arm_riser_link/arm_mount_link/gen3_base_link>
+            prepend rel physics:body1 = </VICA/Geometry/base_footprint/base_link/arm_riser_link/arm_mount_link/omx_link1>
             point3f physics:localPos0 = (0, 0, 0)
             point3f physics:localPos1 = (0, 0, 0)
             quatf physics:localRot0 = (1, 0, 0, 0)
