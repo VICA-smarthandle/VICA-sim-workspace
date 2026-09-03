@@ -23,11 +23,15 @@
 
 | 파일 | 시점 | 무엇이 보이나 |
 |---|---|---|
-| `hospital_trail.mp4` | trail | 로봇이 지나온 자리에서 따라간다. 복도 전체가 보인다 |
+| `hospital_trail.mp4` | trail | 로봇이 지나온 자리에서 따라간다. 벽 0% |
 | `hospital_wide.mp4` | follow 14 mm | 로봇을 크게, 방을 넓게 |
+
+예전 `hospital_tour` 는 지웠다. 프레임의 25% 가 벽 클로즈업이었다.
 | `office_lobby_trail.mp4` | trail | 로비를 가로질러 복도로 들어간다 |
 | `office_lobby_wide.mp4` | follow 14 mm | 넓은 화각, 경로선 없음 |
 | `office_lobby_chase.mp4` | chase | 어깨 너머로 진행 방향을 본다 |
+
+`office_lobby_angles.png` 는 세 시점을 한 장에 비교한 것이다.
 
 오피스는 **로비 방향**으로 주행한 것이다. 창문 쪽으로 찍힌 예전 영상은 지웠다.
 
