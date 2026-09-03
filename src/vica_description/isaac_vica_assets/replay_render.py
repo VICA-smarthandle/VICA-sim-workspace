@@ -374,8 +374,15 @@ print(f"=== {len(track)} 프레임 -> {OUT}", flush=True)
 # everything written after it simply never ran: the first version of this
 # script reported the frames it had rendered and produced no video at all,
 # with no error, because the encoder was three lines below the close.
-mp4 = os.path.join(os.path.dirname(OUT), f"{tag}.mp4")
-gif = os.path.join(os.path.dirname(OUT), f"{tag}.gif")
+# Named after the output directory, not after the results file.
+#
+# The video used to take its name from the JSON, so two runs whose result files
+# happened to share a name overwrote each other's video while keeping both sets
+# of frames. A hospital tour and an office tour were both tour.json, and the
+# second silently replaced the first.
+_stem = os.path.basename(OUT.rstrip(os.sep)) or tag
+mp4 = os.path.join(os.path.dirname(OUT), f"{_stem}.mp4")
+gif = os.path.join(os.path.dirname(OUT), f"{_stem}.gif")
 pattern = os.path.join(OUT, f"frame_%05d.{ext}")
 enc = ["ffmpeg", "-y", "-framerate", str(FPS), "-i", pattern,
        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "20", mp4]

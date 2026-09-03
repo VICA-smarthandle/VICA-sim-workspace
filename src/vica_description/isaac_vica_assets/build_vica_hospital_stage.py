@@ -86,6 +86,10 @@ STALE_ROBOT_PRIM = os.environ.get("VICA_ENV_STALE", "vica2")
 # it and where amcl's initial pose expects it. maps/hospital.yaml records the
 # check that (0,0) is free space there. VICA_ENV_SPAWN is "x,y" for an
 # environment whose origin is inside a wall.
+# Whether to give the environment's meshes collision when it has none of its
+# own. On by default: a stage the robot drives through is not a stage.
+ADD_COLLIDERS = os.environ.get("VICA_ENV_COLLIDERS", "1") not in ("0", "false", "")
+
 _spawn = os.environ.get("VICA_ENV_SPAWN")
 ROBOT_TRANSLATE = Gf.Vec3d(*[float(v) for v in _spawn.split(",")], 0.0) \
     if _spawn else Gf.Vec3d(0.0, 0.0, 0.0)
@@ -183,17 +187,63 @@ def main():
     if domes:
         print(f"dome lights         : {len(domes)} deactivated (unresolvable sky texture)")
 
+    # Our own light, always, whatever the asset brought.
+    #
+    # Counting the asset's lights and adding none was the first version, and
+    # the Office asset defeats it: it has one, the count says so, and every
+    # rendered frame comes out solid black. Whether that light is disabled,
+    # aimed at nothing, or wants a texture that does not resolve is not worth
+    # working out per asset. A distant key and a textureless dome cost nothing
+    # and cannot fail to resolve.
     remaining = [
         p for p in stage.Traverse()
         if p.IsActive() and (p.IsA(UsdLux.DistantLight) or p.IsA(UsdLux.DomeLight))
     ]
-    if remaining:
-        print(f"environment light   : {len(remaining)} already present, none added")
+    key = UsdLux.DistantLight.Define(stage, "/World/VicaLights/Key")
+    key.CreateIntensityAttr(3000.0)
+    key.CreateAngleAttr(1.0)
+    UsdGeom.Xformable(key.GetPrim()).AddRotateXYZOp().Set(Gf.Vec3f(-45.0, 0.0, 20.0))
+    fill = UsdLux.DomeLight.Define(stage, "/World/VicaLights/Fill")
+    fill.CreateIntensityAttr(600.0)
+    print(f"environment light   : asset had {len(remaining)}; key and fill added")
+
+    # ---- collision on the environment, if it has none ---------------------
+    #
+    # The hospital asset ships with 134 colliders and needs nothing. The Office
+    # one ships with none: 140 mesh prims and not a single PhysicsCollisionAPI,
+    # so the stage passes every check -- the robot stands on the ground plane
+    # and drives -- and then goes straight through the walls. A film of that is
+    # worse than no film.
+    #
+    # Static scenery gets triangle-mesh collision ("none" is the token for no
+    # approximation), which is exact and costs nothing for something that never
+    # moves. Convex decomposition would be wrong here: a room is not convex and
+    # its hull would fill the doorways.
+    # Counted on meshes, not on everything. The Office asset carries exactly one
+    # collider of its own -- a ground plane -- and counting that as "the
+    # building has collision" left the walls open and the check silent.
+    env_root = f"/World/{ENV_PRIM}"
+    have = [p for p in stage.Traverse()
+            if p.GetPath().pathString.startswith(env_root)
+            and p.IsA(UsdGeom.Mesh) and p.HasAPI(UsdPhysics.CollisionAPI)]
+    added = 0
+    if not have and ADD_COLLIDERS:
+        for prim in stage.Traverse():
+            if not prim.GetPath().pathString.startswith(env_root):
+                continue
+            if not prim.IsA(UsdGeom.Mesh):
+                continue
+            UsdPhysics.CollisionAPI.Apply(prim)
+            api = UsdPhysics.MeshCollisionAPI.Apply(prim)
+            api.CreateApproximationAttr().Set("none")
+            added += 1
+    if have:
+        print(f"environment collision: {len(have)} meshes already collide, none added")
+    elif added:
+        print(f"environment collision: {added} meshes given triangle collision")
     else:
-        light = UsdLux.DistantLight.Define(stage, "/World/Environment/defaultLight")
-        light.CreateIntensityAttr(3000.0)
-        light.CreateAngleAttr(1.0)
-        print("environment light   : DistantLight added")
+        print("environment collision: NONE, and none added. "
+              "The robot will drive through the walls.")
 
     stage.GetRootLayer().Save()
 
