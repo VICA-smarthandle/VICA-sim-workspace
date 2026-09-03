@@ -24,16 +24,19 @@
 | 파일 | 시점 | 무엇이 보이나 |
 |---|---|---|
 | `hospital_trail.mp4` | trail | 로봇이 지나온 자리에서 따라간다. 벽 0% |
-| `hospital_wide.mp4` | follow 14 mm | 로봇을 크게, 방을 넓게 |
-
-예전 `hospital_tour` 는 지웠다. 프레임의 25% 가 벽 클로즈업이었다.
+| `hospital_wide.mp4` | trail 14 mm | 1.8 m 뒤에서 광각. 병실이 넓게 |
 | `office_lobby_trail.mp4` | trail | 로비를 가로질러 복도로 들어간다 |
 | `office_lobby_wide.mp4` | follow 14 mm | 넓은 화각, 경로선 없음 |
 | `office_lobby_chase.mp4` | chase | 어깨 너머로 진행 방향을 본다 |
 
-`office_lobby_angles.png` 는 세 시점을 한 장에 비교한 것이다.
+`office_lobby_angles.png` 는 오피스 세 시점을 한 장에 비교한 것이다.
 
-오피스는 **로비 방향**으로 주행한 것이다. 창문 쪽으로 찍힌 예전 영상은 지웠다.
+오피스는 **로비 방향**으로 주행한 것이다. 창문 쪽으로 찍힌 예전 영상은 지웠고,
+`hospital_tour` 도 지웠다 — 프레임의 25% 가 벽 클로즈업이었다.
+
+실내에서 `follow` 가 되는 곳은 트인 로비뿐이다. 병원 복도에서는 14 mm 로도
+프레임의 23% 가 벽이었다. 그래서 병원은 두 편 다 `trail` 이고 화각과 거리만
+다르다.
 
 ## 3. 로봇팔
 
