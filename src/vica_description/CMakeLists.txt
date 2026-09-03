@@ -138,6 +138,18 @@ install(
 )
 
 install(
+  PROGRAMS scripts/drive_env.sh
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME drive_env
+)
+
+install(
+  PROGRAMS scripts/drive_scripted.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME drive_scripted
+)
+
+install(
   PROGRAMS scripts/inflation_ab.sh
   DESTINATION lib/${PROJECT_NAME}
   RENAME inflation_ab

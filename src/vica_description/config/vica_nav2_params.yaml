@@ -765,7 +765,7 @@ planner_server:
     # has a contract test enforcing exactly that, and the reason is the same
     # here: one variable at a time, or the comparison measures nothing.
 
-    GridBased:
+    GridBasedHybrid:
       # Smac Hybrid-A*. Continuous headings, Dubin curves, no in-place
       # rotation primitive at all -- it plans paths a car could drive.
       # minimum_turning_radius 0.50 with the 0.4727 circumscribed radius means
@@ -791,7 +791,7 @@ planner_server:
         w_data: 0.2
         tolerance: 1.0e-10
 
-    GridBasedNavFn:
+    GridBased:
       # NavFn. Dijkstra on the costmap, holonomic: it draws the shortest free
       # path with no notion that the robot cannot slide sideways, and hands
       # over a path with no headings in it. Feasibility is entirely the
