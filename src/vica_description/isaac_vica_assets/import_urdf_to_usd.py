@@ -40,6 +40,7 @@ so those scripts do not change.
 
 import argparse
 import os
+import shutil
 import sys
 
 PKG = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -88,6 +89,21 @@ def main(argv=None):
               f"  먼저 export_isaac_urdf.sh {'--arm' if args.arm else ''} 를 실행하십시오.",
               file=sys.stderr)
         return 2
+
+    # The importer never overwrites. Given robot/ with vica_arm already in it
+    # it writes vica_arm_1 beside it and says so only in a line nobody reads,
+    # and the stage builders go on referencing the old asset -- so an arm that
+    # was just relengthened renders at its old length and nothing looks wrong.
+    # Move the old one aside instead, keeping exactly one generation, because
+    # deleting it outright is how an asset got destroyed here when the export
+    # that was supposed to replace it had already failed.
+    asset = os.path.join(out, "vica_arm" if args.arm else "vica")
+    if os.path.isdir(asset) and not args.dry_run:
+        prev = asset + ".prev"
+        if os.path.isdir(prev):
+            shutil.rmtree(prev)
+        os.rename(asset, prev)
+        print(f"  이전 자산 {os.path.relpath(prev, PKG)} 로 옮겼습니다")
 
     hash_ = stamp_of(urdf)
     print(f"  변형     {variant}")

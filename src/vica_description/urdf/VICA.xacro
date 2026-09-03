@@ -102,11 +102,33 @@
      mass at the top of the robot is what the forward tipping margin pays for,
      and scripts/mass_properties.py prints that.
 
-     So the design number to try is arm_link3_len:=0.30 arm_link4_len:=0.28,
-     and it is a flag rather than an edit because it is not what ROBOTIS
-     sells. -->
-<xacro:arg name="arm_link3_len" default="0.128" />
-<xacro:arg name="arm_link4_len" default="0.124" />
+     So 0.30 / 0.28 is the design, and it is now the default. The arm as
+     ROBOTIS sells it is still one flag away, arm_link3_len:=0.128
+     arm_link4_len:=0.124, and that is the pair to quote whenever a number
+     has to match their catalogue.
+
+     What the extra length costs is the motor, not the tipping margin. Every
+     joint is an XM430-W350-T, 4.1 N.m of stall torque at 12 V, and joint2
+     carries the whole arm at whatever distance it is held out. Held straight
+     out, stock, scripts/arm_torque.py reads 1.15 N.m of arm and 2.16 more for
+     a 500 g payload: 81% of stall, already a pose to pass through rather than
+     hold. At 0.30 / 0.28 the arm alone is 2.80, which is 68% of stall with
+     nothing in the gripper at all, and the same payload takes it to 6.56, which is
+     half again more than the motor has.
+
+     So the long arm reaches the button and cannot carry the shopping. That is
+     the right trade for what this arm is for, which is pressing lift buttons
+     and pointing: pressing pushes along the arm and barely loads joint2 at
+     all, and a pose with the elbow folded is a fraction of the straight-out
+     figure. What it does rule out is holding anything at arm's length:
+     handing over a parcel, carrying a tray. That wants a bigger servo at
+     joint2, an XM540-W270 at 7.0 N.m, or a spring across the shoulder to
+     carry the arm's own 2.80. A shorter link is not the answer, because the
+     length is what puts the gripper 151 mm past the robot's nose. scripts/arm_torque.py prints
+     these numbers from the expanded URDF, so they follow the lengths instead
+     of being retyped after them. -->
+<xacro:arg name="arm_link3_len" default="0.30" />
+<xacro:arg name="arm_link4_len" default="0.28" />
 <xacro:arg name="arm_link5_len" default="0.126" />
 
 <!-- Geometry exported from CAD is expressed in metres through a 0.001 mesh scale.

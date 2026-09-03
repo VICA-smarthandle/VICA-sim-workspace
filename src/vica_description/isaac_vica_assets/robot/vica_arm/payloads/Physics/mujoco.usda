@@ -4,16 +4,16 @@
         string creator = "URDF USD Converter v0.1.3"
     }
     defaultPrim = "VICA"
-    doc = """Generated from Composed Stage of root layer /tmp/tmpulbefmmv/VICA.usdc
+    doc = """Generated from Composed Stage of root layer /tmp/tmpzbig47m7/VICA.usdc
 
 
-Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_2790jkz7/usdex_vica_arm/VICA.usdc
+Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_brkqafto/usdex_vica_arm/VICA.usdc
 
 
-Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_2790jkz7/temp_vica_arm/vica_arm.usd
+Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_brkqafto/temp_vica_arm/vica_arm.usd
 
 
-Generated from Composed Stage of root layer /home/sim/VICA-smarthandle/vica_ws/src/vica_description/isaac_vica_assets/robot/vica_arm/vica_arm/payloads/base.usd
+Generated from Composed Stage of root layer /home/sim/VICA-smarthandle/vica_ws/src/vica_description/isaac_vica_assets/robot/vica_arm_1/payloads/base.usd
 """
     kilogramsPerUnit = 1
     metersPerUnit = 1
@@ -363,9 +363,17 @@ over "VICA"
                                     {
                                     }
 
+                                    over "box"
+                                    {
+                                    }
+
                                     over "omx_link4"
                                     {
                                         over "link4"
+                                        {
+                                        }
+
+                                        over "box"
                                         {
                                         }
 
@@ -389,12 +397,32 @@ over "VICA"
                                                 }
                                             }
 
+                                            over "box"
+                                            {
+                                            }
+
                                             over "omx_end_effector_link"
                                             {
                                             }
                                         }
+
+                                        over "box_1"
+                                        {
+                                        }
+                                    }
+
+                                    over "box_1"
+                                    {
                                     }
                                 }
+
+                                over "box"
+                                {
+                                }
+                            }
+
+                            over "box"
+                            {
                             }
                         }
                     }

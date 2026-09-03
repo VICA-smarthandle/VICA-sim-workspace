@@ -185,8 +185,17 @@ span = max(x_span, y_span)
 # around the robot.
 FOCAL_MM = float(_opt("--focal", "24.0"))
 
+# Exposure, in stops. Indoors the stage is lit by one distant key that the roof
+# blocks and a dome that a closed ceiling mostly blocks too, so a room that
+# looks right in the viewport renders two stops down and the office came back
+# looking like a power cut. This is the camera's own setting and changes
+# nothing about the run; brightening the stage instead would mean rebuilding
+# it, and would light the hospital wrong to fix the office.
+EXPOSURE = float(_opt("--exposure", "0.0"))
+
 camera = UsdGeom.Camera.Define(stage, "/World/ReplayCam")
 camera.CreateFocalLengthAttr(FOCAL_MM)
+camera.CreateExposureAttr(EXPOSURE)
 camera.CreateHorizontalApertureAttr(20.955)
 camera.CreateClippingRangeAttr(Gf.Vec2f(0.1, 500.0))
 cam_xf = UsdGeom.Xformable(camera.GetPrim())

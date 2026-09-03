@@ -4,16 +4,16 @@
         string creator = "URDF USD Converter v0.1.3"
     }
     defaultPrim = "VICA"
-    doc = """Generated from Composed Stage of root layer /tmp/tmpulbefmmv/VICA.usdc
+    doc = """Generated from Composed Stage of root layer /tmp/tmpzbig47m7/VICA.usdc
 
 
-Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_2790jkz7/usdex_vica_arm/VICA.usdc
+Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_brkqafto/usdex_vica_arm/VICA.usdc
 
 
-Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_2790jkz7/temp_vica_arm/vica_arm.usd
+Generated from Composed Stage of root layer /tmp/urdf_import_vica_arm_brkqafto/temp_vica_arm/vica_arm.usd
 
 
-Generated from Composed Stage of root layer /home/sim/VICA-smarthandle/vica_ws/src/vica_description/isaac_vica_assets/robot/vica_arm/vica_arm/payloads/base.usd
+Generated from Composed Stage of root layer /home/sim/VICA-smarthandle/vica_ws/src/vica_description/isaac_vica_assets/robot/vica_arm_1/payloads/base.usd
 """
     kilogramsPerUnit = 1
     metersPerUnit = 1
@@ -31,7 +31,7 @@ def Xform "VICA" (
     kind = "component"
 )
 {
-    float3[] extentsHint = [(-0.47800002, -0.2265, 0.000030815678), (0.305, 0.2265, 1.075), (3.4028235e38, 3.4028235e38, 3.4028235e38), (-3.4028235e38, -3.4028235e38, -3.4028235e38), (3.4028235e38, 3.4028235e38, 3.4028235e38), (-3.4028235e38, -3.4028235e38, -3.4028235e38), (-0.478, -0.2159, -1.1832667e-10), (0.305, 0.2159, 1.075)]
+    float3[] extentsHint = [(-0.47800002, -0.2265, 0.000030815678), (0.437648, 0.2265, 1.075), (3.4028235e38, 3.4028235e38, 3.4028235e38), (-3.4028235e38, -3.4028235e38, -3.4028235e38), (3.4028235e38, 3.4028235e38, 3.4028235e38), (-3.4028235e38, -3.4028235e38, -3.4028235e38), (-0.478, -0.2159, -1.1832667e-10), (0.442, 0.2159, 1.075)]
 
     def Scope "Materials"
     {
@@ -448,11 +448,24 @@ def Xform "VICA" (
                                         uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
                                     }
 
+                                    def Cube "box" (
+                                        prepend apiSchemas = ["MaterialBindingAPI"]
+                                    )
+                                    {
+                                        float3[] extent = [(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]
+                                        rel material:binding = </VICA/Materials/silver>
+                                        double size = 1
+                                        quatf xformOp:orient = (1, 0, 0, 0)
+                                        float3 xformOp:scale = (0.03, 0.03, 0.172)
+                                        double3 xformOp:translate = (0, 0, 0.214)
+                                        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                                    }
+
                                     def Xform "omx_link4"
                                     {
                                         quatf xformOp:orient = (1, 0, 0, 0)
                                         float3 xformOp:scale = (1, 1, 1)
-                                        double3 xformOp:translate = (0.024, 0, 0.128)
+                                        double3 xformOp:translate = (0.024, 0, 0.3)
                                         uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
 
                                         def Xform "link4" (
@@ -466,11 +479,24 @@ def Xform "VICA" (
                                             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
                                         }
 
+                                        def Cube "box" (
+                                            prepend apiSchemas = ["MaterialBindingAPI"]
+                                        )
+                                        {
+                                            float3[] extent = [(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]
+                                            rel material:binding = </VICA/Materials/silver>
+                                            double size = 1
+                                            quatf xformOp:orient = (1, 0, 0, 0)
+                                            float3 xformOp:scale = (0.156, 0.03, 0.03)
+                                            double3 xformOp:translate = (0.202, 0, 0)
+                                            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                                        }
+
                                         def Xform "omx_link5"
                                         {
                                             quatf xformOp:orient = (1, 0, 0, 0)
                                             float3 xformOp:scale = (1, 1, 1)
-                                            double3 xformOp:translate = (0.124, 0, 0)
+                                            double3 xformOp:translate = (0.28, 0, 0)
                                             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
 
                                             def Xform "link5" (
@@ -526,6 +552,19 @@ def Xform "VICA" (
                                                 }
                                             }
 
+                                            def Cube "box" (
+                                                prepend apiSchemas = ["PhysicsCollisionAPI"]
+                                            )
+                                            {
+                                                float3[] extent = [(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]
+                                                uniform token purpose = "guide"
+                                                double size = 1
+                                                quatf xformOp:orient = (1, 0, 0, 0)
+                                                float3 xformOp:scale = (0.126, 0.045, 0.045)
+                                                double3 xformOp:translate = (0.063, 0, 0)
+                                                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                                            }
+
                                             def Xform "omx_end_effector_link"
                                             {
                                                 quatf xformOp:orient = (1, 0, 0, 0)
@@ -534,8 +573,62 @@ def Xform "VICA" (
                                                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
                                             }
                                         }
+
+                                        def Cube "box_1" (
+                                            prepend apiSchemas = ["PhysicsCollisionAPI"]
+                                            displayName = "box"
+                                        )
+                                        {
+                                            float3[] extent = [(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]
+                                            uniform token purpose = "guide"
+                                            double size = 1
+                                            quatf xformOp:orient = (1, 0, 0, 0)
+                                            float3 xformOp:scale = (0.28, 0.045, 0.045)
+                                            double3 xformOp:translate = (0.14, 0, 0)
+                                            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                                        }
+                                    }
+
+                                    def Cube "box_1" (
+                                        prepend apiSchemas = ["PhysicsCollisionAPI"]
+                                        displayName = "box"
+                                    )
+                                    {
+                                        float3[] extent = [(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]
+                                        uniform token purpose = "guide"
+                                        double size = 1
+                                        quatf xformOp:orient = (1, 0, 0, 0)
+                                        float3 xformOp:scale = (0.045, 0.045, 0.3)
+                                        double3 xformOp:translate = (0, 0, 0.15)
+                                        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
                                     }
                                 }
+
+                                def Cube "box" (
+                                    prepend apiSchemas = ["PhysicsCollisionAPI"]
+                                )
+                                {
+                                    float3[] extent = [(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]
+                                    uniform token purpose = "guide"
+                                    double size = 1
+                                    quatf xformOp:orient = (1, 0, 0, 0)
+                                    float3 xformOp:scale = (0.045, 0.045, 0.0595)
+                                    double3 xformOp:translate = (0, 0, 0.02975)
+                                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                                }
+                            }
+
+                            def Cube "box" (
+                                prepend apiSchemas = ["PhysicsCollisionAPI"]
+                            )
+                            {
+                                float3[] extent = [(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]
+                                uniform token purpose = "guide"
+                                double size = 1
+                                quatf xformOp:orient = (1, 0, 0, 0)
+                                float3 xformOp:scale = (0.045, 0.045, 0.034)
+                                double3 xformOp:translate = (0, 0, 0.017)
+                                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
                             }
                         }
                     }

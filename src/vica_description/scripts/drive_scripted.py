@@ -33,11 +33,12 @@ W = 0.4           # rad/s
 
 
 class Scripted(Node):
-    def __init__(self, legs, out, origin=(0.0, 0.0)):
+    def __init__(self, legs, out, origin=(0.0, 0.0), origin_yaw=0.0):
         super().__init__("drive_scripted")
         self.pub = self.create_publisher(Twist, "/cmd_vel", 10)
         self.create_subscription(Odometry, "/odom", self._odom, 10)
         self.legs, self.out, self.origin = legs, out, origin
+        self.origin_yaw = math.radians(origin_yaw)
         self.pose = None
         self.track = []
 
@@ -47,10 +48,12 @@ class Scripted(Node):
                          1 - 2 * (q.y * q.y + q.z * q.z))
         t = m.header.stamp.sec + m.header.stamp.nanosec * 1e-9
         self.pose = (t, m.pose.pose.position.x, m.pose.pose.position.y, yaw)
+        c, s_ = math.cos(self.origin_yaw), math.sin(self.origin_yaw)
+        px, py = m.pose.pose.position.x, m.pose.pose.position.y
         self.track.append([t,
-                           m.pose.pose.position.x + self.origin[0],
-                           m.pose.pose.position.y + self.origin[1],
-                           yaw])
+                           px * c - py * s_ + self.origin[0],
+                           px * s_ + py * c + self.origin[1],
+                           yaw + self.origin_yaw])
 
     def _hold(self, vx, wz, seconds):
         """Command for a wall-clock duration. Only used for the pauses."""
@@ -134,11 +137,20 @@ def main():
                          "and not for the arm test room, where the render put "
                          "the robot back in the corridor it had been moved out "
                          "of.")
+    ap.add_argument("--origin-yaw", type=float, default=0.0, metavar="DEG",
+                    help="which way the robot was facing when it was spawned. "
+                         "The same problem as --origin and easier to miss, "
+                         "because it does not move the start point: /odom "
+                         "calls the spawn heading zero, so a robot spawned at "
+                         "105 degrees records a track that runs along the "
+                         "stage's own x axis. The office drive went into the "
+                         "lobby and the render replayed it into the windows.")
     ap.add_argument("--leg", nargs=2, type=float, action="append", metavar=("M", "DEG"),
                     required=True, help='"<metres> <degrees>", repeatable')
     args = ap.parse_args()
     rclpy.init()
-    node = Scripted([(m, d) for m, d in args.leg], args.out, args.origin)
+    node = Scripted([(m, d) for m, d in args.leg], args.out, args.origin,
+                    args.origin_yaw)
     try:
         return node.run()
     finally:

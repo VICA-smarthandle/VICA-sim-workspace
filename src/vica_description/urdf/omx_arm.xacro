@@ -30,8 +30,11 @@
 
   Lengthening moves the joints and does not stretch the meshes. A link built
   longer than ROBOTIS sells is our own part, and drawing their casing scaled
-  along one axis would be a picture of something that does not exist. The mesh
-  sits at the joint and the extra length shows as the gap to the next one.
+  along one axis would be a picture of something that does not exist. So the
+  casing is drawn at its own size and the length we added is drawn as what it
+  will be: a plain machined bar from the end of their casing to the next
+  joint. Leaving that bar out is what made the first long render look like an
+  arm coming apart, with the far half floating free of the near half.
 
   Lengthening
   ~~~~~~~~~~~
@@ -66,21 +69,37 @@
     <xacro:property name="m3_stock" value="0.138509170" />
     <xacro:property name="m4_stock" value="0.132745620" />
     <xacro:property name="m5_stock" value="0.143275730" />
-    <xacro:property name="m3" value="${m3_stock * link3_len / l3_stock}" />
-    <xacro:property name="m4" value="${m4_stock * link4_len / l4_stock}" />
-    <xacro:property name="m5" value="${m5_stock * link5_len / l5_stock}" />
+    <!-- A lengthened link weighs its own casing plus the bar we add, and not
+         a scaled copy of the casing. Scaling the whole mass with length was
+         the first model here and it is wrong in the expensive direction: most
+         of ROBOTIS's 138 g is the bracket that carries the servo at each end,
+         and brackets do not get longer. It overstated the long arm's shoulder
+         torque by about 15%.
 
-    <!-- XM430-W350-T: 1.5 N.m stall at 12 V, 46 RPM no-load. Effort is given
-         as the stall figure and velocity as 46 RPM in rad/s. Neither is read
-         by the driving stack; they are here so a motion planner cannot ask
-         for something the servo could not do. -->
+         0.60 kg/m is a 30 by 30 mm aluminium tube with a 2 mm wall, which is
+         the section the `ext` box below is drawn at. -->
+    <xacro:property name="bar_kg_per_m" value="0.60" />
+    <xacro:property name="m3" value="${m3_stock + bar_kg_per_m * (link3_len - l3_stock)}" />
+    <xacro:property name="m4" value="${m4_stock + bar_kg_per_m * (link4_len - l4_stock)}" />
+    <xacro:property name="m5" value="${m5_stock + bar_kg_per_m * (link5_len - l5_stock)}" />
+
+    <!-- XM430-W350-T. The servo stalls at 4.1 N.m at 12 V and runs 46 RPM
+         with nothing on it; the 1.5 here is the working limit ROBOTIS puts in
+         their own URDF, which is the number a planner should be held to and
+         is well under stall on purpose. Velocity is that 46 RPM in rad/s.
+         Neither is read by the driving stack. scripts/arm_torque.py compares
+         what a pose asks of joint2 against the stall figure. -->
     <xacro:property name="joint_effort" value="1.5" />
     <xacro:property name="joint_velocity" value="4.82" />
 
-    <!-- The arm's own section, for the box stand-ins. -->
+    <!-- The arm's own section, for the box stand-ins. `ext` is the bar that
+         fills the length we added: slimmer than the casing, because that is
+         what a machined extension between two DYNAMIXEL brackets looks like
+         and because drawing it flush with the casing would hide the join. -->
     <xacro:property name="w" value="0.045" />
+    <xacro:property name="ext" value="0.030" />
 
-    <xacro:macro name="omx_link" params="name mass seg axis:=z mesh:=''">
+    <xacro:macro name="omx_link" params="name mass seg axis:=z mesh:='' stock:=0">
       <link name="${name}">
         <visual>
           <xacro:if value="${mesh != ''}">
@@ -100,6 +119,34 @@
             <material name="silver"/>
           </xacro:unless>
         </visual>
+        <!-- The part we make. Only appears when the link is longer than the
+             one ROBOTIS sells, which is why the stock arm still renders as
+             exactly their arm. stock=0 is how a link says it never lengthens:
+             without that test link1 and link2 came out with a bar drawn over
+             the whole of their casing, because everything is longer than
+             nothing. -->
+        <xacro:if value="${mesh != '' and stock > 0 and seg > stock + 0.001}">
+          <visual>
+            <origin xyz="${axis == 'x' and (stock + seg)/2 or 0} 0 ${axis == 'z' and (stock + seg)/2 or 0}"
+                    rpy="0 0 0"/>
+            <geometry>
+              <box size="${axis == 'x' and (seg - stock) or ext} ${ext} ${axis == 'z' and (seg - stock) or ext}"/>
+            </geometry>
+            <material name="silver"/>
+          </visual>
+        </xacro:if>
+        <!-- Collision is a box over the whole link and never the mesh. A
+             collider is what the solver spends its time on, and a triangle
+             soup per link on a moving arm is the expensive way to learn that.
+             Without any collider at all the arm passes through walls, which
+             is worse than an approximate one. -->
+        <collision>
+          <origin xyz="${axis == 'x' and seg/2 or 0} 0 ${axis == 'z' and seg/2 or 0}"
+                  rpy="0 0 0"/>
+          <geometry>
+            <box size="${axis == 'x' and seg or w} ${w} ${axis == 'z' and seg or w}"/>
+          </geometry>
+        </collision>
         <inertial>
           <origin xyz="${axis == 'x' and seg/2 or 0} 0 ${axis == 'z' and seg/2 or 0}"
                   rpy="0 0 0"/>
@@ -134,7 +181,7 @@
              effort="${joint_effort}" velocity="${joint_velocity}"/>
     </joint>
 
-    <xacro:omx_link name="${prefix}link3" mass="${m3}" mesh="link3" seg="${link3_len}" axis="z"/>
+    <xacro:omx_link name="${prefix}link3" mass="${m3}" mesh="link3" seg="${link3_len}" axis="z" stock="${l3_stock}"/>
     <joint name="${prefix}joint2" type="revolute">
       <origin xyz="0.0 0.0 0.0595" rpy="0 0 0"/>
       <parent link="${prefix}link2"/>
@@ -144,7 +191,7 @@
              effort="${joint_effort}" velocity="${joint_velocity}"/>
     </joint>
 
-    <xacro:omx_link name="${prefix}link4" mass="${m4}" mesh="link4" seg="${link4_len}" axis="x"/>
+    <xacro:omx_link name="${prefix}link4" mass="${m4}" mesh="link4" seg="${link4_len}" axis="x" stock="${l4_stock}"/>
     <joint name="${prefix}joint3" type="revolute">
       <!-- 0.024 of forward offset is ROBOTIS's; the vertical part is the
            length being adjusted. -->
@@ -156,7 +203,7 @@
              effort="${joint_effort}" velocity="${joint_velocity}"/>
     </joint>
 
-    <xacro:omx_link name="${prefix}link5" mass="${m5}" mesh="link5" seg="${link5_len}" axis="x"/>
+    <xacro:omx_link name="${prefix}link5" mass="${m5}" mesh="link5" seg="${link5_len}" axis="x" stock="${l5_stock}"/>
     <joint name="${prefix}joint4" type="revolute">
       <origin xyz="${link4_len} 0.0 0.0" rpy="0 0 0"/>
       <parent link="${prefix}link4"/>
