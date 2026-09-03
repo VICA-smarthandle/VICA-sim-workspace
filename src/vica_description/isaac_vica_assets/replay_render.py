@@ -3,16 +3,25 @@
     $ISAAC_SIM/python.sh replay_render.py <result.json> [options]
 
       --stage PATH     course USD (default: read from the run's spec)
-      --view top|iso|chase|follow camera framing (default iso)
+      --view V         camera framing (default iso)
+                       top, iso    frame the whole course. Right outdoors,
+                                   wrong indoors: they sit above the ceiling.
+                       follow      frames the robot itself. Use it when the
+                                   robot is the subject.
+                       chase       behind and above, looking where it is going
+                       trail       stands where the robot has already been.
+                                   The only one that cannot end up inside a
+                                   wall, because the robot drove through every
+                                   point it uses. Indoors, start here.
       --focal MM     lens, default 24. 14 is a wide angle and is how to see
                      the room around the robot indoors; distance cannot do it.
       --follow-margin F  how far back the follow view sits, as a multiple of
                      the robot's own radius. 1.55 fills the frame with the
-                     robot; 4 gives the room around it. iso and top frame the
-                     course and are wrong indoors -- they put the camera
-                     through a ceiling.
-                                  follow frames the robot itself, and is the
-                                  one to use when the robot has to be seen
+                     robot; 4 gives the room around it.
+      --follow-max-back M  cap on that standoff; the rest goes upward
+      --chase-back M / --chase-up M   the chase camera's offsets
+      --trail-back M / --trail-up M   how far behind along the path the trail
+                     camera stands, and how high (default 3.0 and 1.7)
       --out DIR        where frames and video land (default media/replay/<name>)
       --fps N          output frame rate (default 20)
       --stride N       use every Nth track sample (default 1)
@@ -184,18 +193,19 @@ span = max(x_span, y_span)
 # ceiling. 14 mm sees about 74 degrees from the same place, which is the room
 # around the robot.
 FOCAL_MM = float(_opt("--focal", "24.0"))
+CHASE_BACK = float(_opt("--chase-back", "3.5"))
+CHASE_UP = float(_opt("--chase-up", "2.2"))
+TRAIL_BACK = float(_opt("--trail-back", "3.0"))
+TRAIL_UP = float(_opt("--trail-up", "1.7"))
 
-# Exposure, in stops. Indoors the stage is lit by one distant key that the roof
-# blocks and a dome that a closed ceiling mostly blocks too, so a room that
-# looks right in the viewport renders two stops down and the office came back
-# looking like a power cut. This is the camera's own setting and changes
-# nothing about the run; brightening the stage instead would mean rebuilding
-# it, and would light the hospital wrong to fix the office.
-EXPOSURE = float(_opt("--exposure", "0.0"))
+# There is no exposure control here on purpose. UsdGeom.Camera has an exposure
+# attribute and this renderer ignores it: the same office frames came out at a
+# mean brightness of 20, 31, 47 at 0.0 stops and 20, 32, 48 at 1.2, which is
+# noise. A dark indoor render is fixed at the lights, in the stage builder,
+# where VICA_LIGHT_SCALE is.
 
 camera = UsdGeom.Camera.Define(stage, "/World/ReplayCam")
 camera.CreateFocalLengthAttr(FOCAL_MM)
-camera.CreateExposureAttr(EXPOSURE)
 camera.CreateHorizontalApertureAttr(20.955)
 camera.CreateClippingRangeAttr(Gf.Vec2f(0.1, 500.0))
 cam_xf = UsdGeom.Xformable(camera.GetPrim())
@@ -244,7 +254,7 @@ def look_at(eye, target, up=None):
     return m
 
 
-def camera_for(sample):
+def camera_for(sample, i=0):
     _, x, y, a = sample
     if VIEW == "top":
         # Lay the long axis of the run along the long axis of the frame.
@@ -261,10 +271,43 @@ def camera_for(sample):
                 (short_span / 2) / math.tan(VFOV / 2))
         return look_at((cx, cy, h), (cx, cy, 0.0),
                        up=(1, 0, 0) if sideways else (0, 1, 0))
+    if VIEW == "trail":
+        # Stand where the robot has already been.
+        #
+        # Every other view picks a point in space and hopes it is empty. In a
+        # building it usually is not: follow wants 3 m of standoff, a corridor
+        # is 2 m wide, and a quarter of the hospital and office frames came
+        # back as a close-up of plaster. Nothing in the camera code knows a
+        # wall is there.
+        #
+        # The track does. The robot drove through every point on it, so a
+        # point on the track is free space by demonstration -- no ray casts, no
+        # collision queries, nothing to initialise. Walking back along the path
+        # also puts the camera where the robot came from, which is the shot a
+        # person following it would take.
+        #
+        # Height is the one axis the track says nothing about, so it is capped
+        # low enough for any ceiling.
+        j, back = i, 0.0
+        while j > 0 and back < TRAIL_BACK:
+            back += math.hypot(track[j][1] - track[j - 1][1],
+                               track[j][2] - track[j - 1][2])
+            j -= 1
+        if back < TRAIL_BACK * 0.5:
+            # The start of the run, where there is no history yet. Aim the
+            # shortfall backwards along the heading; the robot is about to
+            # drive away from the camera anyway.
+            need = TRAIL_BACK - back
+            ex = track[j][1] - need * math.cos(a)
+            ey = track[j][2] - need * math.sin(a)
+        else:
+            ex, ey = track[j][1], track[j][2]
+        return look_at((ex, ey, TRAIL_UP), (x, y, ROBOT_CENTRE_Z))
     if VIEW == "chase":
-        # Behind and above the robot. 3.5 m back is enough to hold the robot
-        # and the gap it is aiming at in one frame.
-        back, up = 3.5, 2.2
+        # Behind and above the robot, looking where it is going. 3.5 m back is
+        # enough outdoors to hold the robot and the gap it is aiming at in one
+        # frame; indoors it is often a wall, so both distances are flags.
+        back, up = CHASE_BACK, CHASE_UP
         eye = (x - back * math.cos(a), y - back * math.sin(a), up)
         return look_at(eye, (x + 1.5 * math.cos(a), y + 1.5 * math.sin(a), 0.3))
     if VIEW == "follow":
@@ -391,7 +434,7 @@ for i, sample in enumerate(track):
     _, x, y, a = sample
     translate.Set(Gf.Vec3d(x, y, 0.0))
     rotate.Set(math.degrees(a))
-    cam_op.Set(camera_for(sample))
+    cam_op.Set(camera_for(sample, i))
     if trail_pts is not None and i >= 1:
         pts = [Gf.Vec3f(s[1], s[2], 0.02) for s in track[:i + 1]]
         trail_pts.GetPointsAttr().Set(pts)

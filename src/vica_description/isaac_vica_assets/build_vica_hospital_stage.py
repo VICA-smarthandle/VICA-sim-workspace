@@ -199,13 +199,23 @@ def main():
         p for p in stage.Traverse()
         if p.IsActive() and (p.IsA(UsdLux.DistantLight) or p.IsA(UsdLux.DomeLight))
     ]
+    # VICA_LIGHT_SCALE multiplies both. 3000 and 600 light the hospital, which
+    # has windows down one side and no ceiling over the ward. The Office is a
+    # closed box: the key hits the roof and the dome only reaches the floor
+    # through the atrium, and it rendered at a mean brightness of 20 to 80 out
+    # of 255 -- readable, but a film of it looks like a power cut. The camera
+    # cannot fix that. UsdGeom.Camera's exposure attribute is ignored by this
+    # renderer: the same frames measured 20, 31, 47 at 0 stops and 20, 32, 48
+    # at 1.2.
+    scale = float(os.environ.get("VICA_LIGHT_SCALE", "1.0"))
     key = UsdLux.DistantLight.Define(stage, "/World/VicaLights/Key")
-    key.CreateIntensityAttr(3000.0)
+    key.CreateIntensityAttr(3000.0 * scale)
     key.CreateAngleAttr(1.0)
     UsdGeom.Xformable(key.GetPrim()).AddRotateXYZOp().Set(Gf.Vec3f(-45.0, 0.0, 20.0))
     fill = UsdLux.DomeLight.Define(stage, "/World/VicaLights/Fill")
-    fill.CreateIntensityAttr(600.0)
-    print(f"environment light   : asset had {len(remaining)}; key and fill added")
+    fill.CreateIntensityAttr(600.0 * scale)
+    print(f"environment light   : asset had {len(remaining)}; "
+          f"key and fill added at {scale:g}x")
 
     # ---- collision on the environment, if it has none ---------------------
     #
